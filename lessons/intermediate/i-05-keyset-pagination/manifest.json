@@ -1,0 +1,31 @@
+{
+  "id": "i-05-keyset-pagination",
+  "level": "intermediate",
+  "order": 5,
+  "title": "Deep Pagination: OFFSET vs Keyset Seek",
+  "description": "Deep OFFSET pagination re-reads every skipped row; keyset (seek) pagination jumps straight to the next page.",
+  "topics": [
+    "pagination",
+    "offset-fetch",
+    "keyset",
+    "seek",
+    "clustered-index"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\nA UI pages through orders 20 at a time. Reaching page 10,001 runs `... ORDER BY OrderId OFFSET 200000 ROWS FETCH NEXT 20 ROWS ONLY`. Returning just 20 rows costs ~965 logical reads and scans the clustered index.\n\n## Why it's slow\n`OFFSET` is not a shortcut. SQL Server has no way to teleport to the 200,001st row, so it **reads and discards all 200,000 preceding rows** (a Clustered Index Scan feeding a Top) before emitting your 20. The deeper the page, the more work — page 1 is instant, page 10,001 reads the whole first two-thirds of the table. Cost grows with **offset depth**, which is exactly backwards for a UI where deep pages should be no worse than shallow ones.\n\n## What to look for\n- A wide **Clustered Index Scan** under a **Top** operator.\n- Reads that scale with the OFFSET value, not with the 20 rows returned.\n\n## The concept\nSwitch to **keyset (seek) pagination**. Remember the last key from the previous page (`OrderId = 200000`) and ask for `WHERE OrderId > 200000 ORDER BY OrderId` with `TOP (20)`. The clustered index **seeks** directly to that key and reads only the next 20 rows — reads drop from ~965 to a handful, and stay flat no matter how deep the page. The trade-off: keyset needs the last key (not an arbitrary page number), which is a natural fit for infinite-scroll and \"next page\" APIs.",
+  "startingQuery": "SELECT OrderId, CustomerId, OrderDate, Total FROM Orders ORDER BY OrderId OFFSET 200000 ROWS FETCH NEXT 20 ROWS ONLY;",
+  "hints": [
+    "OFFSET 200000 doesn't skip cheaply -- SQL Server must read and throw away all 200,000 rows first.",
+    "You already know the last key of the previous page (OrderId 200000). Seek past it instead of counting to it.",
+    "Use WHERE OrderId > 200000 ORDER BY OrderId with TOP (20) so the clustered index seeks straight to the page."
+  ],
+  "passConditions": [
+    {
+      "type": "maxLogicalReads",
+      "value": 50
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

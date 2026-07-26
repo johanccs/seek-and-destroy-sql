@@ -1,0 +1,32 @@
+{
+  "id": "e-03-columnstore-aggregation",
+  "level": "expert",
+  "order": 3,
+  "title": "Columnstore for Analytic Aggregation",
+  "description": "A large rowstore aggregation scans in row mode; a columnstore index processes compressed columns in batch mode for a fraction of the cost.",
+  "topics": [
+    "columnstore",
+    "aggregation",
+    "batch-mode",
+    "analytics",
+    "data-warehouse"
+  ],
+  "estimatedMinutes": 20,
+  "narrative": "## Scenario\n`SELECT ProductId, SUM(Amount), COUNT(*) FROM FactSales GROUP BY ProductId` aggregates a 1,000,000-row fact table. The plan is a **Clustered Index Scan** feeding a **Hash Match** aggregate, reading several thousand pages every time.\n\n## Why it's slow\nThe table is **rowstore**: every column of every row is stored together, page by page. To sum one column across a million rows, SQL Server must read *all* the columns of *all* the pages in row-by-row mode. For wide analytic scans that's a huge amount of I/O and CPU for a query that only cares about two columns.\n\n## What to look for\n- A full **Clustered Index Scan** of the fact table under the aggregate.\n- Logical reads in the thousands even though only a couple of columns are needed.\n\n## The concept\nAdd a **nonclustered columnstore index** covering the columns the query aggregates (`ProductId`, `Amount`). Columnstore stores each column separately, heavily compressed into segments, and enables **batch-mode** execution — SQL Server processes ~900 rows per CPU instruction cycle and reads only the two column segments it needs. The rowstore scan is replaced by a columnstore scan of `NCCI_FactSales`, cutting the I/O for the aggregation dramatically. This is the foundational technique for reporting and data-warehouse workloads.",
+  "startingQuery": "SELECT ProductId, SUM(Amount) AS Revenue, COUNT(*) AS Cnt FROM FactSales GROUP BY ProductId;",
+  "hints": [
+    "Rowstore forces the aggregate to read every column of every page even though it only needs two columns.",
+    "A column-oriented, compressed copy of the data would let SQL Server scan just ProductId and Amount in batch mode.",
+    "CREATE a NONCLUSTERED COLUMNSTORE INDEX on FactSales(ProductId, Amount)."
+  ],
+  "passConditions": [
+    {
+      "type": "indexUsed",
+      "index": "NCCI_FactSales"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Clustered Index Scan"
+    }
+  ]
+}

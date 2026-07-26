@@ -1,0 +1,50 @@
+{
+  "id": "a-19-snapshot-update-conflict",
+  "level": "advanced",
+  "order": 19,
+  "title": "Snapshot Isolation Update Conflict (Error 3960)",
+  "description": "SNAPSHOT isolation aborts a read-modify-write with error 3960 when another session changed the row; serialize it or reserve the row with UPDLOCK.",
+  "topics": [
+    "concurrency",
+    "isolation",
+    "snapshot",
+    "optimistic",
+    "row-versioning"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\nA team moved a balance-transfer transaction to **`SNAPSHOT`** isolation to avoid blocking. Now, under load, transactions occasionally die outright with *\"Snapshot isolation transaction aborted due to update conflict\"* (**error 3960**) instead of waiting. Session A reads Alice's balance, and while it's thinking, Session B commits a change to that same row. When A finally updates, it is **rolled back**.\n\n## Why it fails\n`SNAPSHOT` is **optimistic**: at the start of the transaction A takes a consistent *version* of the data and never blocks readers or writers. But when A goes to `UPDATE` a row that **another committed transaction has changed since A's snapshot**, the engine can't reconcile the two — so instead of silently overwriting B's change, it aborts A with error 3960. Optimism assumes conflicts are rare; when they aren't, you get failures rather than waits.\n\n## What to look for\n- Session A ends in **error 3960** (update conflict), not a deadlock and not a block.\n- B commits successfully in between A's read and A's write.\n\n## The concept\nSNAPSHOT is great for read-heavy, low-contention work, but a **read-modify-write** on a hot row needs to *reserve* that row. Either lower this transaction to the default **`READ COMMITTED`** (locking) so A's update simply serializes after B, or keep snapshot reads but take an **`UPDLOCK`** on the initial read so B can't slip in. The blunt operational answer is a retry loop — but preventing the conflict beats catching it.",
+  "startingQuery": "-- This is a concurrency lesson. Change Session A so its read-then-update no longer aborts with error 3960, then Run the interleaving.",
+  "hints": [
+    "A isn't blocked or deadlocked — it's aborted with error 3960 because the row it snapshotted was changed and committed by B before A's UPDATE.",
+    "Optimistic (SNAPSHOT) concurrency detects the conflict instead of waiting. To avoid it, A must either not use a stale snapshot or must reserve the row up front.",
+    "Drop A to READ COMMITTED so its UPDATE serializes after B (SET TRANSACTION ISOLATION LEVEL READ COMMITTED), or add WITH (UPDLOCK) to A's initial SELECT."
+  ],
+  "passConditions": [],
+  "interleaving": {
+    "description": "Session A reads Alice's row under SNAPSHOT; Session B updates and commits that row; A's later UPDATE aborts with error 3960 (update conflict).",
+    "sessions": {
+      "A": [
+        {
+          "sql": "SET TRANSACTION ISOLATION LEVEL SNAPSHOT; BEGIN TRAN; SELECT Balance FROM dbo.Accounts WHERE AccountId = 1;",
+          "afterMs": 0
+        },
+        {
+          "sql": "UPDATE dbo.Accounts SET Balance = Balance - 100 WHERE AccountId = 1; COMMIT;",
+          "afterMs": 500
+        }
+      ],
+      "B": [
+        {
+          "sql": "UPDATE dbo.Accounts SET Balance = Balance - 50 WHERE AccountId = 1;",
+          "afterMs": 200
+        }
+      ]
+    },
+    "resolveConditions": [
+      {
+        "type": "bothCommit"
+      }
+    ],
+    "solutionNote": "A's read-then-write on a hot row can't use a stale optimistic snapshot. Either lower A to READ COMMITTED so its UPDATE serializes after B's committed change (no version conflict), or keep SNAPSHOT but add WITH (UPDLOCK) to A's initial SELECT so B cannot commit a change to the row first. Both make A complete instead of aborting with 3960."
+  }
+}

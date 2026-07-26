@@ -1,0 +1,26 @@
+{
+  "id": "b-04-order-by-sort",
+  "level": "beginner",
+  "order": 4,
+  "title": "ORDER BY Without an Index Adds a Sort",
+  "description": "An ORDER BY on an unindexed column adds an expensive Sort; an index that stores rows in that order removes it.",
+  "topics": [
+    "indexing",
+    "sorting",
+    "plan-reading"
+  ],
+  "estimatedMinutes": 10,
+  "narrative": "## Scenario\n`SELECT TOP (100) ProductId, Price FROM Products ORDER BY Price` returns the 100 cheapest products. The plan has an expensive **Sort** operator even though you only want 100 rows.\n\n## Why it's slow\nNothing stores the rows in `Price` order, so to find the smallest 100 SQL Server must **sort all 200k rows** at run time (a *Top N Sort*). Sorting is CPU- and memory-heavy and, on bigger inputs, can spill to tempdb.\n\n## What to look for\n- A **Sort** (often *Top N Sort*) operator, typically the most expensive node in the plan.\n\n## The concept\nAn index is a **pre-sorted** structure. With an index on `Price`, the rows are already in order, so the optimizer just reads the first 100 from the index and skips the Sort entirely. Indexes don't only speed up `WHERE` — they also satisfy `ORDER BY`, `GROUP BY`, `TOP`, and `MIN`/`MAX` by providing order for free.",
+  "startingQuery": "SELECT TOP (100) ProductId, Price FROM Products ORDER BY Price;",
+  "hints": [
+    "The Sort operator is doing the work — where would pre-sorted rows come from?",
+    "There is no index on Price, so all 200k rows are sorted at run time.",
+    "Create an index: CREATE NONCLUSTERED INDEX IX_Products_Price ON dbo.Products(Price);"
+  ],
+  "passConditions": [
+    {
+      "type": "noOperator",
+      "operator": "Sort"
+    }
+  ]
+}

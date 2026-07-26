@@ -1,0 +1,40 @@
+{
+  "id": "e-15-function-on-join-column",
+  "level": "expert",
+  "order": 15,
+  "title": "A Function on the Join Column Kills the Seek",
+  "description": "Wrapping a join column in UPPER() makes the predicate non-sargable and scans; compare the column bare and fix case at the data layer.",
+  "topics": [
+    "sargability",
+    "joins",
+    "functions",
+    "indexing"
+  ],
+  "estimatedMinutes": 12,
+  "narrative": "## Scenario\nA \"defensive\" join wraps the reference code in `UPPER()` to guard against case differences: `ON UPPER(o.CustomerRef) = c.Ref`. The data is already uppercase, so it changes no results — but it turns a one-customer lookup into a full scan of 300,000 orders.\n\n## Why it's slow\n`IX_Orders_CustomerRef` indexes the raw column value. Wrapping it in `UPPER(o.CustomerRef)` means the engine can't match the *stored* value to an index entry — it must compute `UPPER()` on **every row** first. The join predicate is no longer **sargable**, so the seek collapses into an **Index Scan** of the whole Orders table.\n\n## What to look for\n- An Index Scan of Orders instead of a per-customer seek.\n- The join predicate wraps the indexed column in a function (`UPPER`, `LOWER`, `LTRIM`, `CAST`, arithmetic...).\n\n## The concept\nNever wrap an indexed column in a function inside a join or WHERE — it defeats the index. Compare the column **bare**: `ON o.CustomerRef = c.Ref`. If case really is inconsistent, fix it at the data layer (a consistent collation, or normalize on write) rather than with a per-row `UPPER()` that silently disables every index on the column.",
+  "startingQuery": "SELECT o.OrderId, o.Total\nFROM dbo.Orders o\nJOIN dbo.Customers c ON UPPER(o.CustomerRef) = c.Ref\nWHERE c.CustomerId = 42;",
+  "database": "Lesson_e_15_function_on_join_column",
+  "hints": [
+    "The join wraps o.CustomerRef in UPPER(), so the stored index values can't be matched directly -- the index is scanned, not seeked.",
+    "A function on the indexed column makes the predicate non-sargable. The data is already uppercase, so the UPPER() is pure overhead.",
+    "Compare the column bare: ON o.CustomerRef = c.Ref."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Index Scan"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 50
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

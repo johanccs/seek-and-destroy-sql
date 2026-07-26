@@ -1,0 +1,32 @@
+{
+  "id": "i-04-composite-key-order",
+  "level": "intermediate",
+  "order": 4,
+  "title": "Composite Key Order: Equality Before Range",
+  "description": "Column order in a composite index decides whether a range predicate can seek; equality column first, range column second.",
+  "topics": [
+    "indexing",
+    "composite-index",
+    "key-order",
+    "sargability"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\n`SELECT CustomerId, OrderDate, Total FROM Orders WHERE CustomerId = 100 AND OrderDate >= '2024-10-01'` is served by a composite index `IX_Orders_Date_Cust (OrderDate, CustomerId) INCLUDE (Total)`. The index even covers every column the query needs — yet it still does ~250 logical reads to return two dozen rows.\n\n## Why it's slow\nColumn **order inside the key** matters. This index leads with `OrderDate`, a **range** predicate. SQL Server can seek to the start of `OrderDate >= '2024-10-01'`, but once inside that range the rows are *not* ordered by `CustomerId` — so `CustomerId = 100` becomes a **residual predicate**: the engine reads **every order in the date range** (across all 3000 customers) and throws away the ones that aren't customer 100.\n\n## What to look for\n- The plan is an **Index Seek**, but reads are far higher than the ~24 rows returned — a classic sign the seek is really a range scan with a residual filter.\n- The equality column sits *after* a range column in the key.\n\n## The concept\nOrder composite keys **equality columns first, range columns last**. Rebuild as `(CustomerId, OrderDate)`: now the seek jumps straight to `CustomerId = 100`, and because those rows *are* ordered by `OrderDate`, the `OrderDate >= …` range is a second seek on top — not a residual. Reads collapse from ~250 to ~3. (Both indexes INCLUDE `Total`, so this is purely about key order, not covering.)",
+  "startingQuery": "SELECT CustomerId, OrderDate, Total FROM Orders WHERE CustomerId = 100 AND OrderDate >= '2024-10-01';",
+  "hints": [
+    "The index covers every column, so covering isn't the problem -- look at the order of the two key columns.",
+    "A range predicate (OrderDate >=) leading the key means the equality (CustomerId =) can't be a seek; it's applied as a residual.",
+    "Rebuild the index as (CustomerId, OrderDate): equality column first, range column second."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 30
+    }
+  ]
+}

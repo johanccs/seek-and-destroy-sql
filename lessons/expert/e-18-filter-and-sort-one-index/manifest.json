@@ -1,0 +1,35 @@
+{
+  "id": "e-18-filter-and-sort-one-index",
+  "level": "expert",
+  "order": 18,
+  "title": "One Index for Both the Filter and the Sort",
+  "description": "A screen that both filters and sorts scans then sorts; one composite index (filter column, then sort column in its direction) serves both in a single seek.",
+  "topics": [
+    "composite-index",
+    "order-by",
+    "sort",
+    "indexing"
+  ],
+  "estimatedMinutes": 12,
+  "narrative": "## Scenario\nA task screen shows the 50 newest `Open` tasks: `WHERE Status = 'Open' ORDER BY CreatedAt DESC`. With no supporting index, SQL Server reads the whole table, filters, and then sorts what's left — to return 50 rows.\n\n## Why it's slow\nTwo demands — a **filter** on `Status` and an **ordering** by `CreatedAt DESC` — and nothing to satisfy either. The plan is a Clustered Index Scan plus an explicit **Sort**. The right index answers both at once: filter *and* order.\n\n## What to look for\n- A Clustered Index Scan feeding a Sort, then a Top.\n- A query that both filters and sorts, with no single index covering the pair.\n\n## The concept\nBuild the index as **filter column(s) first, then sort column(s) in the sort's direction**: `(Status, CreatedAt DESC)`. SQL Server seeks to `Status = 'Open'` and, because those rows are already stored newest-first, reads the top 50 in order — **no Sort**. A well-ordered composite index can serve an equality filter and an `ORDER BY` in a single seek. INCLUDE the displayed columns to keep it covering.",
+  "startingQuery": "SELECT TOP (50) TaskId, Title, CreatedAt\nFROM dbo.Tasks\nWHERE Status = 'Open'\nORDER BY CreatedAt DESC;",
+  "database": "Lesson_e_18_filter_and_sort_one_index",
+  "hints": [
+    "Nothing supports the Status filter or the CreatedAt ordering, so the table is scanned and then sorted.",
+    "You want one index that seeks the filtered rows already in the sort order -- equality column first, sort column (in its direction) next.",
+    "CREATE NONCLUSTERED INDEX IX_Tasks_Status_Created ON dbo.Tasks(Status, CreatedAt DESC) INCLUDE (Title); then re-run."
+  ],
+  "passConditions": [
+    {
+      "type": "noOperator",
+      "operator": "Sort"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Clustered Index Scan"
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

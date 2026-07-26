@@ -1,0 +1,37 @@
+{
+  "id": "b-01-table-scan-vs-seek",
+  "level": "beginner",
+  "order": 1,
+  "title": "Table Scan vs. Index Seek",
+  "description": "An equality lookup on an unindexed column scans the whole table; a nonclustered index turns the Clustered Index Scan into a fast Index Seek.",
+  "topics": [
+    "indexing",
+    "plan-reading"
+  ],
+  "estimatedMinutes": 10,
+  "narrative": "## Scenario\nAn order-lookup screen runs `SELECT * FROM Orders WHERE CustomerId = 42` on a 200,000-row table. It feels sluggish and gets worse as the table grows.\n\n## Why it's slow\n`Orders` has a clustered primary key on `OrderId`, but **nothing** supports the `CustomerId` predicate. SQL Server must read *every* page of the table and check each row — a **Clustered Index Scan**. Cost and logical reads grow linearly with table size.\n\n## What to look for\n- In the plan: a **Clustered Index Scan** on `Orders` reading ~all rows.\n- In `STATISTICS IO`: **logical reads** in the hundreds+ for a query returning ~40 rows.\n- A green **Missing Index** hint from the optimizer.\n\n## The concept\nAn index whose key matches the search predicate lets SQL Server **seek** directly to the matching rows instead of scanning the whole table. The fix is a nonclustered index on `CustomerId`.",
+  "startingQuery": "SELECT * FROM Orders WHERE CustomerId = 42;",
+  "hints": [
+    "Look at the operator reading Orders — is it a Scan or a Seek? A Scan touches every page.",
+    "There is no index whose key column is CustomerId, so the predicate can't be seeked.",
+    "Create a nonclustered index: CREATE NONCLUSTERED INDEX IX_Orders_CustomerId ON dbo.Orders(CustomerId);"
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Clustered Index Scan"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 200
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

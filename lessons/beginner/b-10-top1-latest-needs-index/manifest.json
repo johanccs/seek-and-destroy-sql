@@ -1,0 +1,35 @@
+{
+  "id": "b-10-top1-latest-needs-index",
+  "level": "beginner",
+  "order": 10,
+  "title": "Getting the Latest Row: TOP 1 Needs an Index",
+  "description": "Finding the latest row with TOP 1 + ORDER BY scans and sorts everything; an index on the sort column reads just the first row.",
+  "topics": [
+    "indexing",
+    "order-by",
+    "top"
+  ],
+  "estimatedMinutes": 10,
+  "narrative": "## Scenario\nA dashboard shows the single most recent order: `SELECT TOP 1 ... FROM Orders ORDER BY OrderDate DESC`. On a 200,000-row table it is surprisingly slow for a query that returns just **one** row.\n\n## Why it's slow\n`Orders` is clustered on `OrderId`, but **nothing** orders the rows by `OrderDate`. To find the latest one, SQL Server must read *every* row (a **Clustered Index Scan**) and then perform a **Top-N Sort** to bring the newest to the top. Returning 1 row costs a full-table scan.\n\n## What to look for\n- A **Clustered Index Scan** on `Orders` reading ~200k rows.\n- A **Sort** (Top-N) operator — the giveaway that the engine had to order the data itself.\n\n## The concept\nAn index is stored **in order**. With an index keyed on `OrderDate`, the newest row is simply the last entry — SQL Server reads the tail of the index and stops. No scan, no sort. This is why an index on the `ORDER BY` column turns a full scan into a couple of reads.",
+  "startingQuery": "SELECT TOP 1 OrderId, CustomerId, OrderDate, Total\nFROM Orders\nORDER BY OrderDate DESC;",
+  "database": "Lesson_b_10_top1_latest",
+  "hints": [
+    "The query returns 1 row but is slow — look at how many rows the plan actually reads.",
+    "There is a Sort (Top-N) operator. SQL had to order the whole table because no index provides OrderDate order.",
+    "Create an index on the ORDER BY column: CREATE NONCLUSTERED INDEX IX_Orders_OrderDate ON dbo.Orders(OrderDate);"
+  ],
+  "passConditions": [
+    {
+      "type": "noOperator",
+      "operator": "Sort"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 20
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

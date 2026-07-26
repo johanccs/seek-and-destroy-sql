@@ -1,0 +1,31 @@
+{
+  "id": "a-08-not-in-antijoin",
+  "level": "advanced",
+  "order": 8,
+  "title": "NOT IN vs NOT EXISTS: The Nullable Anti-Join Trap",
+  "description": "NOT IN with a nullable column risks wrong results and blows up the plan; NOT EXISTS is safe and far cheaper.",
+  "topics": [
+    "anti-join",
+    "not-in",
+    "not-exists",
+    "nullability",
+    "subquery"
+  ],
+  "estimatedMinutes": 20,
+  "narrative": "## Scenario\n`SELECT COUNT(*) FROM Orders o WHERE o.CustomerId NOT IN (SELECT s.CustomerId FROM Suppressed s)` filters 300,000 orders against a 5-row suppression list. It does over **300,000 logical reads** — the tiny `Suppressed` table is read again and again.\n\n## Why it's slow\n`Suppressed.CustomerId` is **nullable**. `NOT IN` must honor three-valued logic: if the subquery ever produced a NULL, the predicate would evaluate to UNKNOWN for every row. The optimizer therefore builds a **NULL-aware left anti-semi-join**, and with no index on `Suppressed` it degrades to a **Nested Loops** that **table-scans `Suppressed` once per outer row** — 300,000 scans of the 5-row heap. STATISTICS IO shows the damage: `Suppressed` racks up ~300,000 logical reads while `Orders` is read just once.\n\n## What to look for\n- A **Nested Loops** (Left Anti Semi Join) with a **Table Scan** of the small table on its inner side.\n- Per-table STATISTICS IO where the *tiny* table has enormous reads (scan count in the thousands).\n\n## The concept\nRewrite as `NOT EXISTS`. Its correlated form has unambiguous NULL semantics (a row either has a match or it doesn't), so the optimizer is free to choose a **single-pass hash or merge anti-join** that reads `Suppressed` exactly once. Total reads collapse from ~300,000 to a few hundred. As a rule, prefer `NOT EXISTS` over `NOT IN` whenever the inner column is nullable — it is both safer and faster.",
+  "startingQuery": "SELECT COUNT(*) FROM Orders o WHERE o.CustomerId NOT IN (SELECT s.CustomerId FROM Suppressed s);",
+  "hints": [
+    "Check per-table STATISTICS IO: the 5-row Suppressed table is being read hundreds of thousands of times.",
+    "NOT IN over a NULLABLE column forces a NULL-aware anti-join that re-scans the inner table for every outer row.",
+    "Rewrite with NOT EXISTS (SELECT 1 FROM Suppressed s WHERE s.CustomerId = o.CustomerId) so the optimizer reads Suppressed once."
+  ],
+  "passConditions": [
+    {
+      "type": "maxLogicalReads",
+      "value": 5000
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

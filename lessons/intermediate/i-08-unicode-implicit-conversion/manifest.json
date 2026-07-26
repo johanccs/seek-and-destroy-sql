@@ -1,0 +1,39 @@
+{
+  "id": "i-08-unicode-implicit-conversion",
+  "level": "intermediate",
+  "order": 8,
+  "title": "The Unicode Parameter Trap (NVARCHAR vs VARCHAR)",
+  "description": "An NVARCHAR (N'...') literal against a VARCHAR column converts the column and scans — the classic ORM Unicode trap; match the types to seek.",
+  "topics": [
+    "implicit-conversion",
+    "sargability",
+    "indexing"
+  ],
+  "estimatedMinutes": 12,
+  "narrative": "## Scenario\nA product-lookup screen finds one row by its unique `Sku`. `Products.Sku` is `VARCHAR(20)` with a unique nonclustered index, yet the lookup does a **full index scan** of 200,000 rows to return a single product. The developer swears there's an index — and there is.\n\n## Why it's slow\nThe application (very commonly an ORM like Entity Framework) sends the literal as **Unicode**: `WHERE Sku = N'SKU012345'`. `NVARCHAR` has **higher datatype precedence** than `VARCHAR`, so SQL Server cannot convert the constant down — instead it converts the *column* up: `CONVERT_IMPLICIT(NVARCHAR, Sku)` on **every row**. A converted column is no longer sargable, so the index seek collapses into an **Index Scan**.\n\n## What to look for\n- The plan reads `IX_Products_Sku` with an **Index Scan**, not a Seek.\n- A `CONVERT_IMPLICIT` warning on the Sku column (and often a yellow-triangle plan warning about \"Type conversion may affect CardinalityEstimate\").\n- Hundreds of logical reads to return one row.\n\n## The concept\nMatch the literal (or parameter) to the **column's** type. A `VARCHAR` literal — `'SKU012345'`, no `N` — keeps the comparison `VARCHAR`-to-`VARCHAR`, so the engine seeks straight to the row in a handful of reads. In real code, this means typing your ORM parameters as `AnsiString`/`varchar`, not the Unicode default.",
+  "startingQuery": "SELECT ProductId, Sku, Name, Price FROM Products WHERE Sku = N'SKU012345';",
+  "database": "Lesson_i_08_unicode_implicit_conversion",
+  "hints": [
+    "The index exists but the plan shows an Index Scan, not a Seek — something is disqualifying the seek.",
+    "Look at the literal: N'SKU012345' is NVARCHAR. NVARCHAR outranks VARCHAR, so the COLUMN gets converted, not the constant.",
+    "Drop the N prefix so the literal is VARCHAR and matches the column type: WHERE Sku = 'SKU012345'."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Index Scan"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Products",
+      "value": 50
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

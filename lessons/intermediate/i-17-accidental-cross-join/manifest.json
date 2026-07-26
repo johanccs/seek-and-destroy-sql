@@ -1,0 +1,28 @@
+{
+  "id": "i-17-accidental-cross-join",
+  "level": "intermediate",
+  "order": 17,
+  "title": "The Accidental Cross Join (Missing Join Predicate)",
+  "description": "An old-style comma join with no join predicate produces a Cartesian product (a No-Join-Predicate warning); add the join condition.",
+  "topics": [
+    "joins",
+    "cardinality",
+    "cross-join",
+    "warnings"
+  ],
+  "estimatedMinutes": 10,
+  "narrative": "## Scenario\nA report pairs orders with customer names using the old comma-style join syntax. It returns wrong, wildly inflated numbers and runs far longer than it should — the query accidentally matches **every order against every customer**.\n\n## Why it's slow\nWith `FROM Orders o, Customers c` and only a filter in the `WHERE`, there is **no predicate linking the two tables**. SQL Server has no choice but to produce a **Cartesian product**: all 20,000 orders × 500 customers = 10,000,000 combinations. The optimizer even flags this with a **`No Join Predicate`** warning (a yellow triangle on the join) — its way of saying \"you almost certainly forgot a join condition.\"\n\n## What to look for\n- A **`NoJoinPredicate`** warning on the join operator (Nested Loops with no join predicate).\n- Estimated/actual rows exploding to the product of both table sizes.\n\n## The concept\nAlways relate the tables you join. Add the join condition — `o.CustomerId = c.CustomerId` — (ideally with the modern explicit `JOIN ... ON` syntax, which makes a forgotten predicate a syntax error). With the predicate in place and an index on `Orders.CustomerId`, each order matches its one customer and the cross product — and the warning — disappear.",
+  "startingQuery": "SELECT TOP (100) o.OrderId, o.Total, c.Name\nFROM dbo.Orders o, dbo.Customers c\nWHERE o.Total > 995\nORDER BY o.OrderId;",
+  "database": "Lesson_i_17_accidental_cross_join",
+  "hints": [
+    "The two tables in the FROM clause have no condition connecting them. What does that force the optimizer to do?",
+    "No join predicate = Cartesian product (every order paired with every customer), flagged with a NoJoinPredicate warning.",
+    "Relate the tables: add o.CustomerId = c.CustomerId (preferably with explicit JOIN ... ON syntax)."
+  ],
+  "passConditions": [
+    {
+      "type": "noWarning",
+      "warning": "NoJoinPredicate"
+    }
+  ]
+}

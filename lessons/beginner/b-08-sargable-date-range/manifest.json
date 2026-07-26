@@ -1,0 +1,36 @@
+{
+  "id": "b-08-sargable-date-range",
+  "level": "beginner",
+  "order": 8,
+  "title": "Sargable Date Ranges",
+  "description": "YEAR()/MONTH() on a date column blocks the index; a half-open date range (>= start AND < end) seeks instead.",
+  "topics": [
+    "sargability",
+    "indexing",
+    "dates"
+  ],
+  "estimatedMinutes": 10,
+  "database": "Lesson_b_08_sargable_date_range",
+  "narrative": "## Scenario\nA monthly sales report runs `... WHERE YEAR(OrderDate) = 2025 AND MONTH(OrderDate) = 6` against a 200,000-row `Orders` table. There is even a covering index on `OrderDate`, yet the report still scans the whole table.\n\n## Why it's slow\nWrapping the indexed column in a function — `YEAR(OrderDate)`, `MONTH(OrderDate)` — makes the predicate **non-sargable** (Search ARGument ABLE). SQL Server must compute `YEAR()`/`MONTH()` for *every* row before it can test it, so it cannot navigate the B-tree to the matching dates. The result is a full **Index Scan** of the covering index instead of a targeted seek.\n\n## What to look for\n- In the plan: an **Index Scan** on `IX_Orders_OrderDate` touching all 200k rows.\n- In `STATISTICS IO`: hundreds of **logical reads** for a query that returns one month of data.\n\n## The concept\nRewrite the filter as a **half-open range** — `OrderDate >= '2025-06-01' AND OrderDate < '2025-07-01'` — leaving the column bare. Now the index can **seek** straight to June 2025 and read only that slice. Half-open (`>= start AND < next-start`) is preferred over `BETWEEN` because it is correct for `datetime`/`datetime2` values with a time component.\n\n_This query returns several thousand rows, so we grade on the plan **operator** and **logical reads**, not the row set itself._",
+  "startingQuery": "SELECT OrderId, CustomerId, OrderDate, Total FROM Orders WHERE YEAR(OrderDate) = 2025 AND MONTH(OrderDate) = 6;",
+  "hints": [
+    "Look at the operator reading Orders — is it an Index Scan or an Index Seek? A function around OrderDate forces a scan.",
+    "SQL Server can only seek when the indexed column appears bare on one side of the comparison.",
+    "Rewrite as a half-open range: WHERE OrderDate >= '2025-06-01' AND OrderDate < '2025-07-01'."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Index Scan"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 200
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "id": "a-01-blocking-chain",
+  "level": "advanced",
+  "order": 1,
+  "title": "Blocking: A Reader Stuck Behind an Uncommitted Writer",
+  "description": "A reader blocks behind an uncommitted writer's exclusive lock; row-versioning (RCSI) lets it read the last committed version without waiting.",
+  "topics": [
+    "concurrency",
+    "locking",
+    "blocking",
+    "isolation"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\nSession A updates Alice's account inside a transaction and then does other work before committing. Session B just wants to **read** the same row — and hangs until A commits.\n\n## Why it's slow\nUnder the default `READ COMMITTED` isolation (locking version), A's `UPDATE` takes an **exclusive (X) lock** on the row and holds it for the whole transaction. B's `SELECT` needs a **shared (S) lock**, which is incompatible with X, so B **blocks** in a lock-wait chain until A releases. The longer A's transaction runs, the longer everyone behind it waits.\n\n## What to look for\n- In the timeline: A **acquires** an X lock; B goes **blocked** waiting on that lock; B only proceeds after A commits.\n- On a real server: `sys.dm_exec_requests` shows B with `blocking_session_id = A` and a `LCK_M_S` wait.\n\n## The concept\nWriters block readers only because readers take shared locks. Turning on **READ_COMMITTED_SNAPSHOT (RCSI)** makes readers use **row versioning** — B reads the last committed version from the version store and never waits. The complementary fix is operational: keep write transactions short so locks are held briefly.",
+  "startingQuery": "-- This is a concurrency lesson. Edit the two session scripts and Run the interleaving.",
+  "hints": [
+    "B is waiting for a lock A holds. Which lock types are incompatible here (X vs S)?",
+    "Either stop readers from taking shared locks, or make A's transaction shorter.",
+    "Enable READ_COMMITTED_SNAPSHOT so readers use row versioning and don't block."
+  ],
+  "passConditions": [],
+  "interleaving": {
+    "description": "Session A holds an uncommitted UPDATE; Session B's SELECT blocks behind it.",
+    "sessions": {
+      "A": [
+        {
+          "sql": "BEGIN TRAN; UPDATE dbo.Accounts SET Balance = Balance - 100 WHERE AccountId = 1;",
+          "afterMs": 0
+        },
+        {
+          "sql": "WAITFOR DELAY '00:00:02'; COMMIT;",
+          "afterMs": 200
+        }
+      ],
+      "B": [
+        {
+          "sql": "SELECT AccountId, Owner, Balance FROM dbo.Accounts WHERE AccountId = 1;",
+          "afterMs": 500
+        }
+      ]
+    },
+    "resolveConditions": [
+      {
+        "type": "maxBlockMs",
+        "value": 300
+      }
+    ],
+    "solutionNote": "Enable READ_COMMITTED_SNAPSHOT (row versioning) so B's SELECT reads the last committed version without waiting; and/or shorten A's transaction so the X lock is released promptly."
+  }
+}

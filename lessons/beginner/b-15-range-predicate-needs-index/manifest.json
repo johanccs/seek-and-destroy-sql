@@ -1,0 +1,34 @@
+{
+  "id": "b-15-range-predicate-needs-index",
+  "level": "beginner",
+  "order": 15,
+  "title": "Range Queries Need an Index Too",
+  "description": "A BETWEEN range on an unindexed column scans; a B-tree index serves ranges as well as equality, seeking straight to the band.",
+  "topics": [
+    "indexing",
+    "range-predicate",
+    "seek-vs-scan"
+  ],
+  "estimatedMinutes": 10,
+  "narrative": "## Scenario\nAn HR screen lists employees in a narrow salary band. There's no index on `Salary`, so finding ~170 people forces SQL Server to read all 200,000 rows.\n\n## Why it's slow\nA `BETWEEN` is a **range predicate**. Without a suitable index, the only way to satisfy it is a **Clustered Index Scan** — read every row and test each against the range. It works, but the cost grows with the whole table, not with how many rows match.\n\n## What to look for\n- A **Clustered Index Scan** of `Employees` with reads proportional to the full table.\n- A tiny result set returned only after a full scan.\n\n## The concept\nAn index isn't just for equality (`=`) lookups — because a B-tree keeps keys **in sorted order**, it's ideal for ranges (`BETWEEN`, `>`, `<`). Add a nonclustered index on `Salary` (INCLUDE the columns you return so it's covering) and the engine **seeks** to the start of the band and walks just the matching rows.",
+  "startingQuery": "SELECT EmployeeId, Name, Salary\nFROM dbo.Employees\nWHERE Salary BETWEEN 149000 AND 149100;",
+  "database": "Lesson_b_15_range_predicate_needs_index",
+  "hints": [
+    "There is no index on Salary, so the range test must scan every row.",
+    "A B-tree index stores keys in order, which makes it perfect for BETWEEN / > / < ranges, not just equality.",
+    "CREATE NONCLUSTERED INDEX IX_Employees_Salary ON dbo.Employees(Salary) INCLUDE (Name); then re-run the query."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Clustered Index Scan"
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

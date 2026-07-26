@@ -1,0 +1,27 @@
+{
+  "id": "a-04-stale-statistics",
+  "level": "advanced",
+  "order": 4,
+  "title": "Stale Statistics & Cardinality Misestimates",
+  "description": "Out-of-date statistics make the optimizer misestimate rows and pick a bad plan; refreshing them restores a good one.",
+  "topics": [
+    "statistics",
+    "cardinality",
+    "estimates"
+  ],
+  "estimatedMinutes": 18,
+  "narrative": "## Scenario\n`SELECT CustomerId, Total FROM Orders WHERE CustomerId = 999` returns ~300k rows but the plan chose an **Index Seek + Key Lookup** (Nested Loops) as if only **one** row matched. It's doing hundreds of thousands of lookups.\n\n## Why it's slow\nThis is the classic **ascending-key** problem. Statistics were captured when the table only held `CustomerId` values 1–50, so the histogram's maximum key is 50. Then 300k rows for `CustomerId = 999` were loaded, but the histogram was never refreshed (auto-update is off here to simulate a large table past the auto-update threshold). Because 999 sits **beyond the end of the histogram**, the optimizer estimates **~1 row**, picks a seek + per-row lookup, and then actually processes 300k — a catastrophic misestimate.\n\n## What to look for\n- A huge gap between **Estimated** (~1) and **Actual** (~300k) rows on the seek.\n- A **Nested Loops** plan built for a single row doing **per-row lookups** against the table — watch the logical reads explode into the hundreds of thousands.\n\n## The concept\nThe optimizer is only as good as its statistics. Values inserted above the histogram's top boundary are invisible to it until stats are refreshed. `UPDATE STATISTICS` rebuilds the histogram; with a correct estimate the optimizer abandons the per-row lookup plan for a set-based scan. On real systems, keep auto-update stats on and/or maintain stats on large, volatile, ever-increasing key columns.",
+  "startingQuery": "SELECT CustomerId, Total FROM Orders WHERE CustomerId = 999;",
+  "hints": [
+    "Compare Estimated vs Actual rows on the operators — how far off is it?",
+    "The histogram tops out at CustomerId = 50; value 999 was inserted afterward and sits past the end of the histogram, so it estimates ~1 row.",
+    "Run UPDATE STATISTICS dbo.Orders WITH FULLSCAN, then re-run the query."
+  ],
+  "passConditions": [
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 20000
+    }
+  ]
+}

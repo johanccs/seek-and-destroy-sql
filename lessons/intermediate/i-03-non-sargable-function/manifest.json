@@ -1,0 +1,30 @@
+{
+  "id": "i-03-non-sargable-function",
+  "level": "intermediate",
+  "order": 3,
+  "title": "A Function on the Column Blocks the Seek",
+  "description": "A function applied to a column in the WHERE clause defeats the index; rewrite it so the column is compared directly.",
+  "topics": [
+    "sargability",
+    "query-rewrite",
+    "indexing"
+  ],
+  "estimatedMinutes": 12,
+  "narrative": "## Scenario\nFinding admin accounts with `WHERE LEFT(Email, 5) = 'admin'` scans the entire `Users` table — even though there is a perfectly good index on `Email`.\n\n## Why it's slow\nWrapping the indexed column in a function (`LEFT(Email, 5)`) makes the predicate **non-SARGable**: SQL Server must compute `LEFT(...)` for every row before it can test it, so it cannot navigate the B-tree to the matching range. The result is an **Index Scan** of all 300k rows.\n\n## What to look for\n- An **Index Scan** (not a Seek) on `IX_Users_Email`, reading every row.\n- A `Scalar Operator (LEFT(...))` applied as a residual predicate.\n\n## The concept\nKeep the indexed column **bare** on one side of the predicate so the optimizer can seek a range. `LEFT(Email, 5) = 'admin'` is logically the same as a prefix match: `Email LIKE 'admin%'`. A trailing-wildcard `LIKE` **is** SARGable — SQL Server seeks the range `['admin', 'admio')` and touches only the matching rows.",
+  "startingQuery": "SELECT UserId, Email FROM Users WHERE LEFT(Email, 5) = 'admin';",
+  "hints": [
+    "The column Email is wrapped in LEFT(...), so the index can't be seeked — every row is scanned.",
+    "A prefix test can be rewritten as a range the index understands.",
+    "Rewrite as: SELECT UserId, Email FROM Users WHERE Email LIKE 'admin%';"
+  ],
+  "passConditions": [
+    {
+      "type": "noOperator",
+      "operator": "Index Scan"
+    },
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    }
+  ]
+}

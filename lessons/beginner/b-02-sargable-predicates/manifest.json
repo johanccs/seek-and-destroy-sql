@@ -1,0 +1,37 @@
+{
+  "id": "b-02-sargable-predicates",
+  "level": "beginner",
+  "order": 2,
+  "title": "Sargable Predicates: Keep the Column Bare",
+  "description": "Wrapping a column in a function makes a predicate non-sargable and forces a scan; keep the column bare so the index can seek.",
+  "topics": [
+    "sargability",
+    "indexing",
+    "query-rewrite"
+  ],
+  "estimatedMinutes": 12,
+  "narrative": "## Scenario\nFinance wants accounts whose balance, after a 10% projected interest bump, would exceed 110,000: `WHERE Balance * 1.10 > 110000`. There's an index on `Balance`, but the 200k-row table is scanned every time even though only ~50 rows qualify.\n\n## Why it's slow\nDoing arithmetic on the **column** (`Balance * 1.10`) makes the predicate **non-sargable**. SQL Server would have to multiply every row before it could compare, so it can't use the `Balance` index to *seek* a range — it can only **scan** every row (an **Index Scan** of the whole Balance index).\n\n## What to look for\n- An **Index Scan** (reads all rows) instead of an **Index Seek**.\n- Logical reads across the whole table for a query returning a handful of rows.\n\n## The concept\nAlgebraically move the operation to the **constant** side so the column stays bare: `Balance * 1.10 > 110000` becomes `Balance > 100000` (divide both sides by 1.10). Now the index seeks straight to the ~50 qualifying rows. Rule of thumb: never wrap an indexed column in a function or arithmetic inside a `WHERE`/`JOIN` predicate.",
+  "startingQuery": "SELECT * FROM Accounts WHERE Balance * 1.10 > 110000;",
+  "hints": [
+    "IX_Accounts_Balance exists but isn't used. What is being done to the Balance column?",
+    "Balance * 1.10 applies arithmetic to the column, making it non-sargable.",
+    "Rearrange so the column is bare: Balance * 1.10 > 110000 is the same as Balance > 100000."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Index Scan"
+    },
+    {
+      "type": "maxLogicalReads",
+      "value": 300
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "id": "i-02-filtered-index",
+  "level": "intermediate",
+  "order": 2,
+  "title": "Filtered Indexes for Rare-Value Queries",
+  "description": "A filtered index over just the rows a query cares about is tiny and fast, avoiding a scan of a mostly-irrelevant table.",
+  "topics": [
+    "indexing",
+    "filtered-index",
+    "plan-reading"
+  ],
+  "estimatedMinutes": 12,
+  "narrative": "## Scenario\nA fulfillment dashboard runs `SELECT ... FROM Orders WHERE Status = 'Pending'` constantly. Only ~1% of the 400k rows are `Pending`, but the query does a full **Clustered Index Scan** — it reads all 400k rows to find ~4k.\n\n## Why it's slow\nThere is no index supporting the `Status` predicate, so SQL Server scans the whole table. A normal index on `Status` would work, but its key would be dominated by the 396k `'Completed'` rows you never query — wasted space and maintenance.\n\n## What to look for\n- A **Clustered Index Scan** on `Orders` reading far more rows than the query returns.\n\n## The concept\nA **filtered index** indexes only the rows matching a predicate: `CREATE INDEX ... ON Orders(Status) WHERE Status = 'Pending'`. It is tiny (a few thousand rows), so the seek is fast and the index is cheap to maintain. Add `INCLUDE` columns to cover the query and avoid key lookups. Filtered indexes are ideal for skewed columns where you only query the rare values (open orders, soft-deleted flags, error states).",
+  "startingQuery": "SELECT OrderId, CustomerId, Total FROM Orders WHERE Status = 'Pending';",
+  "hints": [
+    "The plan scans all 400k rows but returns ~4k — you need an index on Status.",
+    "A full index on Status wastes space on the 99% 'Completed' rows you never filter for.",
+    "Create a FILTERED index: CREATE NONCLUSTERED INDEX IX_Orders_Pending ON dbo.Orders(Status) INCLUDE (CustomerId, Total) WHERE Status = 'Pending';"
+  ],
+  "passConditions": [
+    {
+      "type": "noOperator",
+      "operator": "Clustered Index Scan"
+    },
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    }
+  ]
+}

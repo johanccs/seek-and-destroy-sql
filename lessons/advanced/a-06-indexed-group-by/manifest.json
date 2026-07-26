@@ -1,0 +1,32 @@
+{
+  "id": "a-06-indexed-group-by",
+  "level": "advanced",
+  "order": 6,
+  "title": "Indexed Aggregation: Stream vs Hash Aggregate",
+  "description": "A GROUP BY with no supporting index uses a Hash Aggregate; an index in group order enables a cheaper Stream Aggregate.",
+  "topics": [
+    "indexing",
+    "aggregation",
+    "group-by",
+    "stream-aggregate",
+    "hash-match"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\n`SELECT CustomerId, COUNT(*), SUM(Total) FROM Orders GROUP BY CustomerId` aggregates 300,000 rows into ~3,000 customer groups. The plan scans the clustered index and finishes with a **Hash Match** aggregate.\n\n## Why it's slow\nA **Hash Match (Aggregate)** builds an in-memory hash table with one bucket per group and requires a **memory grant** up front. If the server is under memory pressure — or the optimizer underestimates the group count — that grant can be too small and the aggregate **spills to tempdb**, turning a CPU operation into disk I/O. There's nothing ordered by `CustomerId` for SQL Server to exploit, so hashing is its only option.\n\n## What to look for\n- A **Hash Match** operator (logical *Aggregate*) at the top of the plan.\n- A full **Clustered Index Scan** feeding it, because no index is ordered by the grouping column.\n\n## The concept\nGive the optimizer a stream **already ordered by the GROUP BY column**. Create a nonclustered index on `CustomerId` (INCLUDE `Total` so it also covers the `SUM`). Now SQL Server reads the ordered index and uses a **Stream Aggregate**: because equal keys are adjacent, it collapses each group in a single pass with no hash table and no memory grant — immune to aggregate spills.",
+  "startingQuery": "SELECT CustomerId, COUNT(*) AS Cnt, SUM(Total) AS TotalSum FROM Orders GROUP BY CustomerId;",
+  "hints": [
+    "A Hash Match aggregate is chosen when nothing feeds the GROUP BY in sorted order.",
+    "A Stream Aggregate needs its input pre-sorted on the grouping key -- what provides sorted order for free?",
+    "Create a nonclustered index on CustomerId and INCLUDE (Total) so it also covers the SUM."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Stream Aggregate"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Hash Match"
+    }
+  ]
+}

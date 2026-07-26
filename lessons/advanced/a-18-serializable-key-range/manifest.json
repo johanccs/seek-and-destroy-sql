@@ -1,0 +1,51 @@
+{
+  "id": "a-18-serializable-key-range",
+  "level": "advanced",
+  "order": 18,
+  "title": "SERIALIZABLE Key-Range Locks Block Inserts",
+  "description": "A SERIALIZABLE read takes key-range locks that block inserts into that range; use the weakest correct isolation so writers proceed.",
+  "topics": [
+    "concurrency",
+    "locking",
+    "isolation",
+    "key-range",
+    "phantoms"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\nA reporting transaction (Session A) counts one customer's orders under **`SERIALIZABLE`** isolation and then does more work before committing. Meanwhile Session B just wants to **insert a new order** for that same customer — and it hangs until A commits, even though B's new row didn't exist when A ran its count.\n\n## Why it blocks\n`SERIALIZABLE` guarantees the same query re-run inside the transaction would see **no phantoms** — no rows that appeared after the fact. SQL Server enforces that with **key-range locks**: A's `SELECT ... WHERE CustomerId = 5` locks not just the matching rows but the whole **index range** for `CustomerId = 5` (using `IX_Orders_CustomerId`). B's `INSERT` of a `CustomerId = 5` row must take a range-insert lock in exactly that range, which conflicts — so B blocks for A's entire transaction.\n\n## What to look for\n- B waits on a `RangeI-N` / `RangeS` lock (a key-range lock), not an ordinary row lock.\n- The block lasts as long as A's `SERIALIZABLE` transaction stays open.\n\n## The concept\nUse the weakest isolation that's still correct. Most reporting reads don't need phantom protection; dropping A to the default **`READ COMMITTED`** (or `SNAPSHOT`, which uses row versioning) means A never takes key-range locks, so B's insert into that range proceeds immediately. Reserve `SERIALIZABLE` for the rare case where a repeated read truly must be phantom-free — and keep those transactions short.",
+  "startingQuery": "-- This is a concurrency lesson. Lower Session A's isolation level so it stops taking key-range locks, then Run the interleaving.",
+  "hints": [
+    "B's INSERT is blocked by a key-range lock, not a row lock. Something made A lock the whole CustomerId = 5 range.",
+    "SERIALIZABLE prevents phantoms by locking the index range the query read. That range-lock is what blocks the insert.",
+    "Drop Session A to READ COMMITTED (or SNAPSHOT). Then A takes no key-range locks and B can insert into the range: SET TRANSACTION ISOLATION LEVEL READ COMMITTED;"
+  ],
+  "passConditions": [],
+  "interleaving": {
+    "description": "Session A counts CustomerId = 5 orders under SERIALIZABLE (taking key-range locks on that range); Session B's INSERT of a new CustomerId = 5 order blocks behind the range lock.",
+    "sessions": {
+      "A": [
+        {
+          "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE; BEGIN TRAN; SELECT COUNT(*) FROM dbo.Orders WHERE CustomerId = 5;",
+          "afterMs": 0
+        },
+        {
+          "sql": "WAITFOR DELAY '00:00:02'; COMMIT;",
+          "afterMs": 200
+        }
+      ],
+      "B": [
+        {
+          "sql": "INSERT INTO dbo.Orders (CustomerId, Amount) VALUES (5, 99.99);",
+          "afterMs": 500
+        }
+      ]
+    },
+    "resolveConditions": [
+      {
+        "type": "maxBlockMs",
+        "value": 500
+      }
+    ],
+    "solutionNote": "Lower Session A's isolation from SERIALIZABLE to READ COMMITTED (or SNAPSHOT). Under READ COMMITTED the SELECT takes only brief shared locks (no key-range locks), so B's INSERT into the CustomerId = 5 range is never blocked. Keep SERIALIZABLE only where phantom-free repeated reads are truly required."
+  }
+}

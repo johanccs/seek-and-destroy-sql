@@ -1,0 +1,28 @@
+{
+  "id": "e-02-window-sort-elimination",
+  "level": "expert",
+  "order": 2,
+  "title": "Window Functions: Eliminate the Sort",
+  "description": "A ROW_NUMBER window sorts the whole table; an index matching its PARTITION BY / ORDER BY supplies the order with no Sort.",
+  "topics": [
+    "window-functions",
+    "row-number",
+    "sort",
+    "indexing",
+    "ordering"
+  ],
+  "estimatedMinutes": 20,
+  "narrative": "## Scenario\n`ROW_NUMBER() OVER (PARTITION BY CustomerId ORDER BY OrderDate)` numbers each customer's orders chronologically over all 300,000 rows. The plan scans the clustered index and then performs an explicit **Sort** before the window operator.\n\n## Why it's slow\nA window function's `PARTITION BY` + `ORDER BY` requires its input to arrive ordered by exactly those columns — here `(CustomerId, OrderDate)`. Nothing provides that order, so SQL Server injects a **blocking Sort**: it must buffer and sort the entire input before emitting a single row. On large inputs that Sort needs a big memory grant and **spills to tempdb** when the grant is too small, adding disk I/O to what should be a streaming operation.\n\n## What to look for\n- An explicit **Sort** operator between the scan and the window (Segment / Sequence Project or Window Aggregate).\n- The Sort's ordering columns match the window's `PARTITION BY` + `ORDER BY`.\n\n## The concept\nBuild an index whose key **matches the window specification**: partition columns first, then order columns — `(CustomerId, OrderDate)`. The optimizer reads the already-ordered index and streams it straight into the window operator, so the **Sort disappears** entirely. This is one of the highest-leverage tricks for paging, gaps-and-islands, and running-total queries.",
+  "startingQuery": "SELECT OrderId, CustomerId, OrderDate, ROW_NUMBER() OVER (PARTITION BY CustomerId ORDER BY OrderDate) AS rn FROM Orders;",
+  "hints": [
+    "The window's PARTITION BY / ORDER BY forces a specific input ordering; where does that ordering come from today?",
+    "With no matching index the engine must add a blocking Sort before it can number the rows.",
+    "Create an index keyed (CustomerId, OrderDate) -- partition column first, then the order column -- to match the window exactly."
+  ],
+  "passConditions": [
+    {
+      "type": "noOperator",
+      "operator": "Sort"
+    }
+  ]
+}

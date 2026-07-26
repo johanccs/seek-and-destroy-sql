@@ -1,0 +1,31 @@
+{
+  "id": "e-05-forwarded-records",
+  "level": "expert",
+  "order": 5,
+  "title": "Forwarded Records in Heaps",
+  "description": "Forwarded records in a heap make a scan chase pointers across pages; rebuilding the heap removes the forwarding.",
+  "topics": [
+    "heaps",
+    "storage",
+    "io"
+  ],
+  "estimatedMinutes": 18,
+  "narrative": "## Scenario\n`Orders` is a **heap** (no clustered index). It was loaded with tiny rows, then a batch job filled in a large `Notes` column on about half of them. Now a simple `SELECT COUNT(*) FROM Orders` reads *far* more pages than the table actually occupies.\n\n## Why it's slow\nWhen you enlarge a variable-length column in a heap and the row no longer fits on its page, SQL Server moves the row to a new page and leaves a **forwarding pointer** in the original slot. A scan that hits the old slot must **follow the pointer** to the forwarded row (an extra read) and then continue. With ~50,000 forwarded records, the allocation-order scan does roughly **4× the logical reads** of the underlying pages.\n\n## What to look for\n- `sys.dm_db_index_physical_stats(...)` shows a high **`forwarded_record_count`**.\n- In `STATISTICS IO`: logical reads far exceeding the table's real `page_count`.\n\n## The concept\nForwarding only happens in **heaps**. Remove the pointers by **rebuilding the heap** (`ALTER TABLE ... REBUILD`, which relocates every row and resets `forwarded_record_count` to 0), or by adding a **clustered index** so the table becomes a b-tree that has no forwarding at all.",
+  "startingQuery": "SELECT COUNT(*) FROM Orders;",
+  "database": "Lesson_e_05_forwarded_records",
+  "hints": [
+    "Compare STATISTICS IO logical reads to the real page_count from sys.dm_db_index_physical_stats — the gap is the forwarding overhead.",
+    "Forwarded records exist only in heaps, created when an in-place update grows a row off its page.",
+    "Rebuild the heap to clear the forwarding pointers: ALTER TABLE dbo.Orders REBUILD;"
+  ],
+  "passConditions": [
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 30000
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

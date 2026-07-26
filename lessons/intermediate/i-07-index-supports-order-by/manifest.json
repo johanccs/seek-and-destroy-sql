@@ -1,0 +1,31 @@
+{
+  "id": "i-07-index-supports-order-by",
+  "level": "intermediate",
+  "order": 7,
+  "title": "Let the Index Serve the ORDER BY",
+  "description": "An INCLUDE column can cover a query but only a KEY column provides order; key the index on the ORDER BY column to remove the Sort.",
+  "topics": [
+    "indexing",
+    "order-by",
+    "sort",
+    "key-column",
+    "include-column"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\n`SELECT OrderId, OrderDate, Total FROM Orders WHERE CustomerId = 100 ORDER BY OrderDate DESC` seeks one customer's orders and sorts them newest-first. The index `IX_Orders_CustomerId (CustomerId) INCLUDE (OrderDate, Total)` even *covers* the query — yet the plan still contains a **Sort**.\n\n## Why it's slow\nThe index is keyed only on `CustomerId`. `OrderDate` and `Total` are **INCLUDE** columns: they ride along in the leaf level so the query is covered, but they impose **no order**. So the seek returns customer 100's rows in whatever physical order they sit — and SQL Server must add a **Sort** to satisfy `ORDER BY OrderDate`. At 100 rows the Sort is cheap, but the same pattern over thousands of rows per key needs a memory grant and can spill to tempdb.\n\n## What to look for\n- A **Sort** operator sitting on top of an Index Seek, ordering by a column the index doesn't key on.\n- The ORDER BY column present only as an INCLUDE, not in the index key.\n\n## The concept\nMake the sort column part of the **key**, right after the equality column: `(CustomerId, OrderDate)`. Now the seek on `CustomerId = 100` returns rows already ordered by `OrderDate`, and `ORDER BY OrderDate DESC` becomes a free backward scan of that range — the **Sort disappears**. The rule: an INCLUDE column can *cover* a query, but only a **key** column can provide *order*.",
+  "startingQuery": "SELECT OrderId, OrderDate, Total FROM Orders WHERE CustomerId = 100 ORDER BY OrderDate DESC;",
+  "hints": [
+    "The index covers the query, but OrderDate is only an INCLUDE column -- included columns carry data, not order.",
+    "Because the seeked rows aren't ordered by OrderDate, the plan adds a Sort to satisfy ORDER BY.",
+    "Rebuild the index as (CustomerId, OrderDate) so OrderDate is a key column and the ORDER BY needs no Sort."
+  ],
+  "passConditions": [
+    {
+      "type": "noOperator",
+      "operator": "Sort"
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

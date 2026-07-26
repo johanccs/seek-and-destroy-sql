@@ -1,0 +1,34 @@
+{
+  "id": "e-07-nonclustered-columnstore",
+  "level": "expert",
+  "order": 7,
+  "title": "Nonclustered Columnstore for Analytics",
+  "description": "A rowstore GROUP BY scans in row mode; a nonclustered columnstore index enables batch-mode aggregation while the table still serves OLTP.",
+  "topics": [
+    "columnstore",
+    "aggregation",
+    "htap"
+  ],
+  "estimatedMinutes": 20,
+  "narrative": "## Scenario\nThe `Orders` table is a classic OLTP rowstore (clustered on `OrderId`). A reporting screen runs an analytical roll-up over all 500,000 rows:\n\n```sql\nSELECT Status, COUNT(*), SUM(Total) FROM Orders GROUP BY Status;\n```\n\nIt does a full **Clustered Index Scan** plus a Hash Aggregate every time.\n\n## Why it's slow\nRowstore stores whole rows together, so an aggregate over two columns still drags **every page of every row** through memory. That's fine for OLTP point lookups but wasteful for column-wide analytics.\n\n## The fix: a nonclustered columnstore index (NCCI)\n```sql\nCREATE NONCLUSTERED COLUMNSTORE INDEX NCCI_Orders ON dbo.Orders(Status, Total);\n```\n\nAn NCCI stores just those columns **column-by-column**, heavily compressed, and unlocks **batch-mode** execution. The optimizer now answers the GROUP BY from the columnstore — no rowstore scan — while the clustered rowstore keeps serving transactional queries. This hybrid (HTAP) pattern gives you analytics speed without a separate copy of the data.\n\n## What to look for\n- Bad: a **Clustered Index Scan** on `Orders`.\n- Good: the plan reads **`NCCI_Orders`** instead (columnstore, batch mode).\n\n> Note: columnstore scans surface in the plan as an *Index Scan* on the NCCI, and their I/O isn't counted as ordinary logical reads — so this lesson grades on the index used, not on `STATISTICS IO`.",
+  "startingQuery": "SELECT Status, COUNT(*) AS Cnt, SUM(Total) AS Rev FROM Orders GROUP BY Status;",
+  "database": "Lesson_e_07_nonclustered_columnstore",
+  "hints": [
+    "The GROUP BY does a full Clustered Index Scan of the rowstore. Rowstore drags whole rows through memory even for a two-column aggregate.",
+    "A columnstore index stores columns separately, compressed, and enables batch-mode aggregation.",
+    "Add a nonclustered columnstore index: CREATE NONCLUSTERED COLUMNSTORE INDEX NCCI_Orders ON dbo.Orders(Status, Total);"
+  ],
+  "passConditions": [
+    {
+      "type": "indexUsed",
+      "index": "NCCI_Orders"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Clustered Index Scan"
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+# Secrets
+.env
+
+# .NET
+api/**/bin/
+api/**/obj/
+
+# Node / Vite
+web/node_modules/
+web/dist/
+web/*.tsbuildinfo
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Claude Code session memory (local to this workstation, not app content)
+.remember/

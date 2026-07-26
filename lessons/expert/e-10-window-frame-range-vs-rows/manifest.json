@@ -1,0 +1,29 @@
+{
+  "id": "e-10-window-frame-range-vs-rows",
+  "level": "expert",
+  "order": 10,
+  "title": "Running Totals: RANGE vs ROWS",
+  "description": "A running total's default RANGE frame uses a slow on-disk worktable; ROWS UNBOUNDED PRECEDING computes it in memory.",
+  "topics": [
+    "window-functions",
+    "frame",
+    "worktable",
+    "spool",
+    "tempdb"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\nA running-total query — `SUM(Amount) OVER (ORDER BY Id)` — is far slower than it should be over 100,000 rows. The data is already ordered by the clustered key, so there's no Sort. Yet it churns through hundreds of thousands of extra reads against a worktable.\n\n## Why it's slow\nWhen you write `OVER (ORDER BY Id)` **without a frame clause**, SQL Server applies the default frame: `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`. `RANGE` must treat all rows with the *same* ORDER BY value as one peer group, which forces an **on-disk Window Spool** (a worktable in tempdb) — that's the ~600,000 worktable reads. It's doing far more work than a simple running sum requires.\n\n## What to look for\n- A massive **Worktable** logical-read count in STATISTICS IO, dwarfing the reads on the real table.\n- A Window Spool operator running on disk rather than in memory.\n\n## The concept\nName the frame explicitly with **`ROWS`**: `SUM(Amount) OVER (ORDER BY Id ROWS UNBOUNDED PRECEDING)`. `ROWS` counts physical rows up to the current one, which SQL Server can compute with a fast **in-memory** spool — the worktable disappears. For running totals, always spell out `ROWS UNBOUNDED PRECEDING`; the default `RANGE` is both slower and (when the ORDER BY has ties) subtly different in meaning.",
+  "startingQuery": "SELECT Id, SUM(Amount) OVER (ORDER BY Id) AS RunningTotal\nFROM dbo.Ledger\nORDER BY Id;",
+  "database": "Lesson_e_10_window_frame_range_vs_rows",
+  "hints": [
+    "There's no Sort -- the cost is a huge Worktable. What frame does OVER (ORDER BY Id) use by default?",
+    "Omitting the frame means RANGE UNBOUNDED PRECEDING, which uses a slow on-disk window spool.",
+    "Specify the frame as ROWS: SUM(Amount) OVER (ORDER BY Id ROWS UNBOUNDED PRECEDING). ROWS uses a fast in-memory spool."
+  ],
+  "passConditions": [
+    {
+      "type": "maxLogicalReads",
+      "value": 5000
+    }
+  ]
+}

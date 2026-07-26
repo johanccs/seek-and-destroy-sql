@@ -1,0 +1,34 @@
+{
+  "id": "b-06-union-all",
+  "level": "beginner",
+  "order": 6,
+  "title": "UNION vs UNION ALL: Skip the Needless Dedupe",
+  "description": "UNION removes duplicates with a costly sort/merge; when rows are already distinct, UNION ALL skips that work.",
+  "topics": [
+    "union",
+    "union-all",
+    "distinct",
+    "set-operators"
+  ],
+  "estimatedMinutes": 10,
+  "narrative": "## Scenario\n`SELECT OrderId, Total FROM Orders WHERE CustomerId = 100 UNION SELECT OrderId, Total FROM Orders WHERE CustomerId = 200` combines two customers' orders. Both index seeks are fast, but the plan adds a **Merge** step to remove duplicates.\n\n## Why it's slow\n`UNION` always means `UNION` **DISTINCT**: SQL Server must guarantee the combined result has no duplicate rows, so it adds a dedupe operator (here a Merge union; on other data a Hash Match or Sort) on top of the two seeks. But the two branches filter on *different* customers and `OrderId` is unique — they **cannot** overlap. That duplicate-removal is pure wasted work: extra CPU, memory, and sometimes a tempdb spill, for a guarantee you didn't need.\n\n## What to look for\n- A **Merge Join** / **Hash Match** / **Sort** sitting above the branches whose only job is deduplication.\n- Two branches you know are disjoint (or a unique key that makes duplicates impossible).\n\n## The concept\nUse `UNION ALL` when you know the inputs can't produce duplicates. It tells the optimizer to skip the distinct check and simply **Concatenate** the branches — no Merge, no Sort, no memory grant. Reserve plain `UNION` for the cases where you genuinely need duplicates collapsed.",
+  "startingQuery": "SELECT OrderId, Total FROM Orders WHERE CustomerId = 100 UNION SELECT OrderId, Total FROM Orders WHERE CustomerId = 200;",
+  "hints": [
+    "Both index seeks are cheap -- the extra operator above them is only removing duplicates.",
+    "The two branches filter different customers and OrderId is unique, so duplicates are impossible.",
+    "Switch UNION to UNION ALL so SQL Server concatenates instead of deduplicating."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Concatenation"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Merge Join"
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

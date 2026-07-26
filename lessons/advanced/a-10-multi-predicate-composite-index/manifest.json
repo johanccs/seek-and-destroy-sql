@@ -1,0 +1,38 @@
+{
+  "id": "a-10-multi-predicate-composite-index",
+  "level": "advanced",
+  "order": 10,
+  "title": "Composite Indexes for Multiple Equality Predicates",
+  "description": "With only a single-column index the optimizer gives up and scans on two predicates; a composite index over both seeks precisely.",
+  "topics": [
+    "indexing",
+    "covering-index"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\nA support screen looks up one customer's open orders: `WHERE Status = 'Open' AND CustomerId = 42`. There is an index on `Status`, yet the query is slow.\n\n## Why it's slow\nThe only index, `IX_Orders_Status`, keys on **Status alone**. `Status = 'Open'` matches **~66,000 rows** (a third of the table). SQL Server must then test `CustomerId = 42` as a **residual predicate** on every one of those rows — and because the index doesn't cover `CustomerId`, each candidate needs a lookup. Faced with that cost the optimizer typically abandons the index and just does a **Clustered Index Scan** of all 200k rows.\n\n## The concept\nAn index on a **single** column of a multi-predicate filter only narrows *one* dimension. A **composite index keyed on both equality columns** — `(Status, CustomerId)` — lets the engine seek directly to the tiny intersection (~13 rows). Add `INCLUDE (OrderDate, Total)` so the index **covers** the SELECT and no lookup is needed.\n\n## What to look for\n- Bad: a **Clustered Index Scan** (or a Status seek reading tens of thousands of rows).\n- Good: a single **Index Seek** on `(Status, CustomerId)`, a handful of logical reads.\n\n> Contrast with the composite-**key-order** lesson (i-04): there the concern is which column leads for a *range*. Here both predicates are **equality**, so both belong in the key.",
+  "startingQuery": "SELECT OrderId, CustomerId, OrderDate, Total, Status\nFROM Orders\nWHERE Status = 'Open' AND CustomerId = 42;",
+  "database": "Lesson_a_10_multi_predicate_composite",
+  "hints": [
+    "IX_Orders_Status keys on Status only. Status = 'Open' matches ~66k rows, so CustomerId is just a filter applied afterward.",
+    "You need an index that can seek on BOTH equality columns at once — put them both in the key.",
+    "CREATE NONCLUSTERED INDEX IX_Orders_Status_Cust ON dbo.Orders(Status, CustomerId) INCLUDE (OrderDate, Total); then re-run the query."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Clustered Index Scan"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 50
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

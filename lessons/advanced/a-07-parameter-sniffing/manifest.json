@@ -1,0 +1,32 @@
+{
+  "id": "a-07-parameter-sniffing",
+  "level": "advanced",
+  "order": 7,
+  "title": "Bad Estimates from a Local Variable: OPTION (RECOMPILE)",
+  "description": "A local-variable 'unknown' estimate picks a scan a real value wouldn't; OPTION(RECOMPILE) lets the optimizer see the value and seek.",
+  "topics": [
+    "cardinality-estimation",
+    "parameter-sniffing",
+    "recompile",
+    "skew",
+    "statistics"
+  ],
+  "estimatedMinutes": 20,
+  "narrative": "## Scenario\n`DECLARE @s VARCHAR(12) = 'Open'; SELECT OrderId, CustomerId, OrderDate, Total FROM Orders WHERE Status = @s;` returns only ~200 rows (the `Status` values are heavily skewed), yet the plan is a full **Clustered Index Scan** of all 300,000 rows.\n\n## Why it's slow\nThe value lives in a **local variable**. At compile time SQL Server cannot see what `@s` holds, so instead of using the histogram it falls back to the **density vector** — the *average* rows-per-value across all statuses (~100,000). Believing 100,000 rows will match, it decides the non-covering `IX_Orders_Status` seek would trigger 100,000 key lookups and rejects it, scanning the whole table instead. This is the same estimation trap as classic **parameter sniffing**: the plan is built for a guessed cardinality, not the real one.\n\n## What to look for\n- A **Clustered Index Scan** even though the predicate is highly selective.\n- Reads far larger than the handful of rows returned — the estimate, not reality, drove the plan.\n\n## The concept\nAdd `OPTION (RECOMPILE)`. It recompiles at execution time and **embeds the literal value** of `@s`, so the optimizer probes the histogram for `'Open'` specifically, estimates ~200 rows, and switches to an **Index Seek** with a key lookup. `RECOMPILE` trades a little extra CPU per run for an accurate, value-specific plan — ideal for queries over skewed data.",
+  "startingQuery": "DECLARE @s VARCHAR(12) = 'Open'; SELECT OrderId, CustomerId, OrderDate, Total FROM Orders WHERE Status = @s;",
+  "hints": [
+    "The value is in a local variable, so the optimizer can't sniff it and uses the average (density) estimate instead of the histogram.",
+    "That average estimate (~100k rows) is wildly wrong for the rare 'Open' status, so it scans instead of seeking.",
+    "Add OPTION (RECOMPILE) so SQL Server recompiles with the actual value embedded and re-estimates from the histogram."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Clustered Index Scan"
+    }
+  ]
+}

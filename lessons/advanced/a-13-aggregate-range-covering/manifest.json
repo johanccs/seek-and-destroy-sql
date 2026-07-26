@@ -1,0 +1,39 @@
+{
+  "id": "a-13-aggregate-range-covering",
+  "level": "advanced",
+  "order": 13,
+  "title": "Covering Index for a Filtered Aggregate",
+  "description": "A ranged aggregate scans and hash-aggregates the whole table; a covering index over the range seeks and aggregates a small slice.",
+  "topics": [
+    "indexing",
+    "covering-index",
+    "aggregation"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\nA sales report groups recent orders by status:\n\n```sql\nSELECT Status, COUNT(*), SUM(Total)\nFROM Orders\nWHERE OrderDate >= '2025-11-01'\nGROUP BY Status;\n```\n\nThe recent window is a small fraction of the table, yet the query reads **all 200,000 rows** every run.\n\n## Why it's slow\nThe only index is the clustered PK on `OrderId`. Nothing supports the `OrderDate` filter, so SQL Server does a **Clustered Index Scan** of the whole table, then a **Hash Aggregate** — even though only ~16,000 rows fall in the window.\n\n## The concept\nAn index on the **filter column** `OrderDate` lets SQL **seek** straight to the recent slice. Add the columns the aggregate needs (`Status`, `Total`) as **INCLUDE**d columns so the index is **covering** — no lookups back to the table. The engine then reads only the slice, not the whole table.\n\n## What to look for\n- Before: **Clustered Index Scan** + **Hash Match** over ~all rows (hundreds+ logical reads).\n- After: an **Index Seek** over just the window; logical reads drop by an order of magnitude.\n\nThe fix: `CREATE NONCLUSTERED INDEX ... ON Orders(OrderDate) INCLUDE (Status, Total);`",
+  "startingQuery": "SELECT Status, COUNT(*) AS Cnt, SUM(Total) AS Revenue\nFROM Orders\nWHERE OrderDate >= '2025-11-01'\nGROUP BY Status;",
+  "database": "Lesson_a_13_aggregate_range_covering",
+  "hints": [
+    "The filter is on OrderDate but nothing indexes it — the plan scans the whole table before aggregating.",
+    "Index the filter column so SQL can seek the recent slice, and INCLUDE the aggregate's columns (Status, Total) so it never leaves the index.",
+    "CREATE NONCLUSTERED INDEX IX_Orders_OrderDate_Cov ON dbo.Orders(OrderDate) INCLUDE (Status, Total);"
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Clustered Index Scan"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 300
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "id": "i-18-covering-index-avoids-lookup",
+  "level": "intermediate",
+  "order": 18,
+  "title": "Covering the Query to Kill the Key Lookup",
+  "description": "An index that seeks but doesn't carry the returned columns does a Key Lookup per row; INCLUDE them to make the seek covering.",
+  "topics": [
+    "covering-index",
+    "key-lookup",
+    "include",
+    "indexing"
+  ],
+  "estimatedMinutes": 12,
+  "narrative": "## Scenario\nA support dashboard lists all tickets for one agent. There's already an index on `AssignedTo`, and the plan does seek it — yet it still does hundreds of extra reads to return ~150 tickets.\n\n## Why it's slow\n`IX_Tickets_AssignedTo` indexes only `AssignedTo`. The query also returns `Priority` and `Subject`, which live in the clustered index. So for **every** row the seek finds, SQL Server runs back to the base table to fetch those columns — a **Key Lookup** (shown as a **Nested Loops** joining the seek to a Clustered Index Seek). One lookup per matching row adds up fast.\n\n## What to look for\n- An Index Seek feeding a **Nested Loops** into a Clustered Index Seek (that pair *is* the Key Lookup).\n- Logical reads far larger than the handful of pages the matching rows occupy.\n\n## The concept\nMake the index **cover** the query: add the extra output columns as `INCLUDE` columns so they're stored in the index leaf. Then the seek returns everything the query needs in one pass — no trip back to the base table, no Nested Loops, a fraction of the reads. INCLUDE columns don't affect the key order; they just ride along to eliminate lookups.",
+  "startingQuery": "SELECT AssignedTo, Priority, Subject\nFROM dbo.Tickets\nWHERE AssignedTo = 42;",
+  "database": "Lesson_i_18_covering_index_avoids_lookup",
+  "hints": [
+    "The seek is fine; the cost is the per-row trip back to the clustered index (a Key Lookup, shown as Nested Loops) to get Priority and Subject.",
+    "If the index carried Priority and Subject too, no lookup would be needed.",
+    "Rebuild the index to cover the query: CREATE NONCLUSTERED INDEX IX_Tickets_AssignedTo ON dbo.Tickets(AssignedTo) INCLUDE (Priority, Subject) WITH (DROP_EXISTING = ON);"
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Nested Loops"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Tickets",
+      "value": 50
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "e-04-partition-elimination",
+  "level": "expert",
+  "order": 4,
+  "title": "Partition Elimination",
+  "description": "YEAR()/MONTH() on a partitioned column scans every partition; a sargable date range lets the engine eliminate all but the relevant one.",
+  "topics": [
+    "partitioning",
+    "sargability",
+    "io"
+  ],
+  "estimatedMinutes": 20,
+  "narrative": "## Scenario\nThe `Orders` table holds **1.2 million** rows for 2025, **table-partitioned by month** on `OrderDate` (12 monthly partitions). A dashboard runs a *\"June revenue\"* aggregate and it reads the whole table every time.\n\n## Why it's slow\n```sql\nWHERE YEAR(OrderDate) = 2025 AND MONTH(OrderDate) = 6\n```\nWrapping the partition key in `YEAR()`/`MONTH()` hides the date range from the optimizer. It cannot prove which partitions are relevant, so it performs **partition elimination = none** and scans **all 12 partitions** (~1.2M rows).\n\n## The concept — partition elimination\nWhen a predicate is a **sargable range on the partitioning column**, SQL Server compares it to the partition boundaries and **skips whole partitions** it can prove are empty of matches. A half-open month range touches exactly **one** partition:\n```sql\nWHERE OrderDate >= '2025-06-01' AND OrderDate < '2025-07-01'\n```\nSame result, ~100k rows read instead of 1.2M.\n\n## What to look for\n- Logical reads on `Orders` drop roughly **10×** (one partition vs. twelve).\n- In the plan, the Clustered Index Scan's **Actual Partition Count** falls from 12 to 1. (This playground grades on logical reads, since the partition count isn't surfaced separately.)\n\n> This lesson deliberately runs on ~1.2M rows — the scale *is* the point: partition elimination is what keeps big partitioned tables fast.",
+  "startingQuery": "SELECT COUNT(*) AS Cnt, SUM(Total) AS Revenue\nFROM Orders\nWHERE YEAR(OrderDate) = 2025 AND MONTH(OrderDate) = 6;",
+  "database": "Lesson_e_04_partition_elimination",
+  "hints": [
+    "YEAR()/MONTH() wrap the partitioning column, so the optimizer can't match your filter to the monthly partition boundaries — it reads all 12.",
+    "Partition elimination only kicks in for a sargable range directly on OrderDate (no functions around the column).",
+    "Rewrite as a half-open range: WHERE OrderDate >= '2025-06-01' AND OrderDate < '2025-07-01'. This touches a single partition."
+  ],
+  "passConditions": [
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 1500
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

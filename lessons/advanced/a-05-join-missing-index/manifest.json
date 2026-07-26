@@ -1,0 +1,31 @@
+{
+  "id": "a-05-join-missing-index",
+  "level": "advanced",
+  "order": 5,
+  "title": "The Unindexed Foreign Key",
+  "description": "An unindexed foreign key forces a hash join that scans the child table; index the join column for a nested-loops seek.",
+  "topics": [
+    "indexing",
+    "joins",
+    "plan-reading"
+  ],
+  "estimatedMinutes": 14,
+  "narrative": "## Scenario\nFetching the line items for a single order is slow:\n`SELECT i.ItemId, i.Sku, i.Qty FROM OrderItems i JOIN Orders o ON o.OrderId = i.OrderId WHERE o.OrderId = 4242`.\nThe `Orders` side is a one-row seek on the primary key, but the whole query still reads hundreds of thousands of pages.\n\n## Why it's slow\n`OrderItems.OrderId` is a foreign key but has **no index**. To find the ~12 items for order 4242, SQL Server has to **scan all 600k `OrderItems` rows**. Foreign keys are *not* indexed automatically in SQL Server — a classic, easy-to-miss performance hole in transactional schemas.\n\n## What to look for\n- A one-row **seek** on `Orders` feeding a **Nested Loops**/join whose other input is a full **scan of OrderItems**.\n- Enormous logical reads on `OrderItems` relative to the handful of rows returned.\n\n## The concept\nIndex the columns you join on. A nonclustered index on `OrderItems(OrderId)` turns the scan into a seek that reads only the matching items. As a rule, every foreign key that participates in joins or lookups should have a supporting index.",
+  "startingQuery": "SELECT i.ItemId, i.Sku, i.Qty\nFROM OrderItems i\nJOIN Orders o ON o.OrderId = i.OrderId\nWHERE o.OrderId = 4242;",
+  "hints": [
+    "Orders is seeked by its primary key, but how is OrderItems accessed?",
+    "OrderItems.OrderId has no index, so all 600k rows are scanned to find ~12.",
+    "Create a nonclustered index: CREATE INDEX IX_OrderItems_OrderId ON dbo.OrderItems(OrderId);"
+  ],
+  "passConditions": [
+    {
+      "type": "maxLogicalReads",
+      "table": "OrderItems",
+      "value": 200
+    },
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    }
+  ]
+}

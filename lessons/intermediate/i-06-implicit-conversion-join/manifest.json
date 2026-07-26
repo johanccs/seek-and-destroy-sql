@@ -1,0 +1,36 @@
+{
+  "id": "i-06-implicit-conversion-join",
+  "level": "intermediate",
+  "order": 6,
+  "title": "Implicit Conversion on a Join Key",
+  "description": "Joining a VARCHAR key to an INT column converts every row and scans; align the types so the join can seek its index.",
+  "topics": [
+    "implicit-conversion",
+    "join",
+    "type-precedence",
+    "sargability",
+    "indexing"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\n`Orders` stores the customer key as text (`CustomerCode VARCHAR(10)`, indexed), while `Customers.CustomerId` is an `INT`. Joining them for one customer — `... JOIN Customers c ON o.CustomerCode = c.CustomerId WHERE c.CustomerId = 100` — scans all 300,000 orders even though `IX_Orders_CustomerCode` should make it a tiny seek.\n\n## Why it's slow\nThe join compares `VARCHAR` to `INT`. SQL Server resolves the mismatch using **data type precedence**: `INT` outranks `VARCHAR`, so it converts the *lower*-precedence side — `o.CustomerCode` — to `INT`. The predicate effectively becomes `CONVERT(INT, o.CustomerCode) = 100`. That wraps the indexed column in a function, so `IX_Orders_CustomerCode` can no longer be **sought**: the plan degrades to an **Index Scan**, converting every code to check it. (SQL Server usually flags this with a *CardinalityEstimate / PlanAffectingConvert* warning.)\n\n## What to look for\n- An **Index Scan** (not Seek) on the large table's join column.\n- A type mismatch between the two join columns (`VARCHAR` vs `INT`).\n\n## The concept\nKeep the indexed column **bare** and convert the *other* side instead. Cast `c.CustomerId` down to `VARCHAR(10)` so the comparison is `VARCHAR = VARCHAR`: the constant is converted once, and SQL Server **seeks** `IX_Orders_CustomerCode` for the matching code. Reads on `Orders` fall from ~1,000 to a handful. The durable fix is to store join keys in matching types in the first place.",
+  "startingQuery": "SELECT o.OrderId, o.Total FROM Orders o JOIN Customers c ON o.CustomerCode = c.CustomerId WHERE c.CustomerId = 100;",
+  "hints": [
+    "The join compares VARCHAR (CustomerCode) to INT (CustomerId); type precedence converts the VARCHAR column to INT.",
+    "Converting the indexed column wraps it in a function, so it can only be scanned, not sought.",
+    "Cast the INT side down to VARCHAR(10) so the indexed CustomerCode column stays bare and can be seeked."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 30
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "b-18-order-by-needs-index",
+  "level": "beginner",
+  "order": 18,
+  "title": "ORDER BY Without an Index Means a Sort",
+  "description": "Returning the top N by an unindexed column sorts the whole table first; an index in that order reads just the first N.",
+  "topics": [
+    "indexing",
+    "order-by",
+    "sort",
+    "top"
+  ],
+  "estimatedMinutes": 10,
+  "narrative": "## Scenario\nA catalog page shows the first 50 books alphabetically by title. There's no index on `Title`, so returning 50 rows makes SQL Server order all 200,000 first.\n\n## Why it's slow\n`ORDER BY Title` on an unindexed column forces an explicit **Sort** operator: the engine reads every row, sorts the whole set in memory (or tempdb), and only then takes the top 50. The sort — not the reading — dominates the cost, and it grows with the table.\n\n## What to look for\n- A **Sort** operator above a full scan, feeding a Top.\n- Work proportional to the whole table even though only 50 rows are returned.\n\n## The concept\nAn index stores its keys **already sorted**. Create one on `Title` (INCLUDE the columns you display) and the query just reads the first 50 entries in index order — the **Sort disappears** entirely. An index that matches your `ORDER BY` is the cheapest way to serve sorted and top-N queries.",
+  "startingQuery": "SELECT TOP (50) BookId, Title, Price\nFROM dbo.Books\nORDER BY Title;",
+  "database": "Lesson_b_18_order_by_needs_index",
+  "hints": [
+    "There's no index on Title, so the whole table must be sorted before the top 50 can be taken.",
+    "An index keeps keys in sorted order — reading it in order removes the need for a Sort operator.",
+    "CREATE NONCLUSTERED INDEX IX_Books_Title ON dbo.Books(Title) INCLUDE (Price); then re-run."
+  ],
+  "passConditions": [
+    {
+      "type": "noOperator",
+      "operator": "Sort"
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

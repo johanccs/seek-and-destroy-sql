@@ -1,0 +1,40 @@
+{
+  "id": "i-20-composite-equality-range",
+  "level": "intermediate",
+  "order": 20,
+  "title": "A Composite Index for Equality + Range",
+  "description": "A query filtering one store over a date range has no supporting index; a composite (equality, range) index seeks the store then walks the dates.",
+  "topics": [
+    "composite-index",
+    "range-predicate",
+    "indexing",
+    "key-order"
+  ],
+  "estimatedMinutes": 12,
+  "narrative": "## Scenario\nA sales report pulls one store's transactions for a single month: `WHERE StoreId = 7 AND SaleDate >= '2025-06-01' AND SaleDate < '2025-07-01'`. There's no supporting index, so returning ~170 rows scans all 400,000.\n\n## Why it's slow\nThe query combines an **equality** (`StoreId = 7`) with a **range** (`SaleDate` in June). With no index covering both, it's a **Clustered Index Scan**. The order of columns in the fix matters: you want to seek directly to store 7, then walk just its June rows.\n\n## What to look for\n- A full scan for a query that targets one store and one month.\n- Reads proportional to the whole table, not to the small slice returned.\n\n## The concept\nBuild a composite index with the **equality column first, the range column second**: `(StoreId, SaleDate)`. SQL Server seeks to `StoreId = 7`, and because the second key orders those rows by date, it then does a contiguous **range seek** over June. Put the range column first and you'd lose the ability to seek the store. INCLUDE `Amount` so the index also covers the SELECT.",
+  "startingQuery": "SELECT SaleId, SaleDate, Amount\nFROM dbo.Sales\nWHERE StoreId = 7\n  AND SaleDate >= '2025-06-01' AND SaleDate < '2025-07-01';",
+  "database": "Lesson_i_20_composite_equality_range",
+  "hints": [
+    "No index supports StoreId + SaleDate together, so the query scans the whole table.",
+    "You want to seek to the store first, then scan just its date range — so the equality column leads and the range column follows.",
+    "CREATE NONCLUSTERED INDEX IX_Sales_Store_Date ON dbo.Sales(StoreId, SaleDate) INCLUDE (Amount);"
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Clustered Index Scan"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Sales",
+      "value": 50
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

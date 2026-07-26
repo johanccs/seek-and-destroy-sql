@@ -1,0 +1,37 @@
+{
+  "id": "i-01-covering-index",
+  "level": "intermediate",
+  "order": 1,
+  "title": "Covering Indexes: Eliminate Key Lookups",
+  "description": "Turn a seek-plus-lookup into a single covering-index seek by INCLUDE-ing the columns the query returns.",
+  "topics": [
+    "indexing",
+    "covering-index",
+    "key-lookup"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\n`SELECT CustomerId, Total FROM Orders WHERE CustomerId = 100` already seeks the `IX_Orders_CustomerId` index, but the plan still shows a **Key Lookup** (a Clustered Index Seek fed by a Nested Loops) and does more reads than you'd expect.\n\n## Why it's slow\nThe index contains `CustomerId` (and the clustered key `OrderId`) but **not** `Total`. For every matching row SQL Server jumps back to the clustered index to fetch `Total` — that's the **Key Lookup**. At ~100 rows per customer it's tolerable; on hot queries or wider result sets it multiplies reads and can flip the optimizer to a full scan.\n\n## What to look for\n- A **Key Lookup** (Clustered Index Seek) + **Nested Loops** on top of the index seek.\n- Reads higher than the number of rows returned would suggest.\n\n## The concept\nMake the index **covering** by `INCLUDE`-ing the extra columns the query needs (`Total`). Included columns live in the leaf level only, so the seek returns everything without touching the base table — the Key Lookup and Nested Loops disappear.",
+  "startingQuery": "SELECT CustomerId, Total FROM Orders WHERE CustomerId = 100;",
+  "hints": [
+    "The index seeks CustomerId, but which column is missing forces the Key Lookup?",
+    "Total isn't in the index, so each row needs a lookup into the clustered index.",
+    "Recreate the index with INCLUDE (Total) so it covers the query."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Key Lookup"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Nested Loops"
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

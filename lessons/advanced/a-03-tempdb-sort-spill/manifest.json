@@ -1,0 +1,26 @@
+{
+  "id": "a-03-tempdb-sort-spill",
+  "level": "advanced",
+  "order": 3,
+  "title": "Tempdb Sort Spills",
+  "description": "A large ORDER BY spills its sort to tempdb; an index that supplies the order removes the sort entirely.",
+  "topics": [
+    "tempdb",
+    "sort",
+    "memory-grant"
+  ],
+  "estimatedMinutes": 18,
+  "narrative": "## Scenario\n`SELECT TOP (2000) ... FROM Events ORDER BY Amount` on a 500k-row table is slow and hammers tempdb. The plan has a **Sort** operator with a spill warning.\n\n## Why it's slow\nThere is no index on `Amount`, so SQL Server must **sort** all qualifying rows at run time. A sort needs a **memory grant**; when the grant is too small for the data volume, the sort **spills to tempdb** — writing and re-reading pages on disk. Spills show as a warning on the Sort operator and as tempdb worktable I/O. Wide rows (the 200-char `Payload`) make it worse.\n\n## What to look for\n- A **Sort** operator, often with a **spill** warning (Sort Warnings).\n- Worktable/workfile activity in `STATISTICS IO` (tempdb).\n\n## The concept\nThe cheapest sort is the one you never do. An index on `Amount` stores rows in order, so the optimizer reads them pre-sorted and removes the **Sort** entirely — no memory grant, no tempdb spill. (When a sort is unavoidable, fixing the cardinality estimate so the grant is right is the other lever.)",
+  "startingQuery": "SELECT TOP (2000) EventId, UserId, Amount FROM Events ORDER BY Amount, EventId OPTION (MAX_GRANT_PERCENT = 1);",
+  "hints": [
+    "The Sort operator has a warning — what is it spilling to?",
+    "There is no index providing Amount order, so SQL Server sorts at run time and spills to tempdb.",
+    "Create a nonclustered index on Amount so rows arrive pre-sorted, the Sort disappears, and the plan reads the top rows straight from the index (drop the grant hint too)."
+  ],
+  "passConditions": [
+    {
+      "type": "noOperator",
+      "operator": "Sort"
+    }
+  ]
+}

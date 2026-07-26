@@ -1,0 +1,35 @@
+{
+  "id": "a-14-covering-join-and-filter",
+  "level": "advanced",
+  "order": 14,
+  "title": "Covering Index for a Join + Filter",
+  "description": "A join with an extra filter scans the big table; a composite covering index seeks the filtered rows while the small dimension scans harmlessly.",
+  "topics": [
+    "indexing",
+    "covering-index",
+    "joins"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\nA regional report sums revenue for open orders belonging to customers in one region:\n\n```sql\nSELECT c.Region, COUNT(*), SUM(o.Total)\nFROM Customers c\nJOIN Orders o ON o.CustomerId = c.CustomerId\nWHERE c.Region = 'R7' AND o.Status = 'Open'\nGROUP BY c.Region;\n```\n\nOnly ~50 of 5,000 customers are in region `R7`, yet the query reads the entire 200,000-row `Orders` table.\n\n## Why it's slow\n`Orders` has **no index** on `CustomerId` or `Status`. SQL Server can't seek the orders for those 50 customers, so it does a **Hash Match** join that **scans all of `Orders`** and probes it against the tiny customer set. The filter on `Status` is applied late, after the whole table is read.\n\n## What to look for\n- A **Clustered Index Scan** on `Orders` feeding a **Hash Match** join.\n- Logical reads on `Orders` in the hundreds even though the answer touches only a few hundred rows.\n\n## The fix\nCreate a composite index on the **join key + filter column** and `INCLUDE` the measure: `Orders(CustomerId, Status) INCLUDE(Total)`. Now the plan seeks `Orders` once per matching customer (a Nested Loops of Index Seeks), the index **covers** the query, and logical reads collapse.",
+  "startingQuery": "SELECT c.Region, COUNT(*) AS Cnt, SUM(o.Total) AS Rev\nFROM Customers c\nJOIN Orders o ON o.CustomerId = c.CustomerId\nWHERE c.Region = 'R7' AND o.Status = 'Open'\nGROUP BY c.Region;",
+  "database": "Lesson_a_14_covering_join_and_filter",
+  "hints": [
+    "Region 'R7' has only ~50 customers, but Orders is scanned in full. What supports the join to Orders?",
+    "There is no index on Orders(CustomerId) or Orders(Status), so the optimizer hash-joins by scanning the whole table.",
+    "Create IX_Orders_Cust_Status ON Orders(CustomerId, Status) INCLUDE(Total) so the join seeks and the index covers Total."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 400
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

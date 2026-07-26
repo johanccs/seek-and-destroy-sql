@@ -1,0 +1,26 @@
+IF DB_ID('Lesson_e_10_window_frame_range_vs_rows') IS NOT NULL
+BEGIN
+    ALTER DATABASE Lesson_e_10_window_frame_range_vs_rows SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE Lesson_e_10_window_frame_range_vs_rows;
+END
+GO
+CREATE DATABASE Lesson_e_10_window_frame_range_vs_rows;
+GO
+USE Lesson_e_10_window_frame_range_vs_rows;
+GO
+CREATE TABLE dbo.Ledger
+(
+    Id     INT IDENTITY(1,1) CONSTRAINT PK_Ledger PRIMARY KEY CLUSTERED,
+    Amount DECIMAL(12,2) NOT NULL
+);
+GO
+-- 100,000 rows. The clustered PK already orders by Id, so the running total needs
+-- no Sort -- the only difference between the two versions is the window FRAME.
+;WITH n AS (SELECT TOP (100000) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) rn
+            FROM sys.all_objects a CROSS JOIN sys.all_objects b)
+INSERT INTO dbo.Ledger (Amount)
+SELECT (rn % 500) + 1
+FROM n;
+GO
+UPDATE STATISTICS dbo.Ledger WITH FULLSCAN;
+GO

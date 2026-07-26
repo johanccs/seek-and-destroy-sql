@@ -1,0 +1,62 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlperf-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${SA_PASSWORD:-Sql_Perf_Pass123!}"
+      MSSQL_PID: "Developer"
+    ports:
+      # host 14330 to avoid clashing with any pre-existing SQL Server on 1433;
+      # containers on the compose network still reach it as sqlserver:1433
+      - "14330:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  api:
+    build:
+      context: ./api
+    container_name: sqlperf-api
+    environment:
+      ConnectionStrings__Sql: "Server=sqlserver,1433;User Id=sa;Password=${SA_PASSWORD:-Sql_Perf_Pass123!};TrustServerCertificate=True;"
+      Lessons__Path: "/lessons"
+      ASPNETCORE_URLS: "http://+:8080"
+      # Used by the Settings "recreate SQL container" action to run docker/compose
+      # commands against the HOST's Docker daemon (docker-outside-of-docker).
+      SA_PASSWORD: "${SA_PASSWORD:-Sql_Perf_Pass123!}"
+      COMPOSE_PROJECT_DIR: "/workspace"
+    ports:
+      - "5080:8080"
+    volumes:
+      - ./lessons:/lessons:ro
+      # Grants the API container control of the HOST Docker daemon so it can delete
+      # and recreate the sqlserver container/image/volume from the Settings page.
+      # This is a real privilege escalation (equivalent to root on the host) -- only
+      # enable this mount in trusted local/dev environments, never in a shared or
+      # internet-facing deployment. See docs in README.md "Settings & disaster recovery".
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace:ro
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+    container_name: sqlperf-web
+    environment:
+      # baked at build for the SPA; nginx serves the built assets
+      VITE_API_BASE: "http://localhost:5080"
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+volumes:
+  mssql-data:

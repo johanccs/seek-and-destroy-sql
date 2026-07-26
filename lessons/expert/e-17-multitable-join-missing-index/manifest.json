@@ -1,0 +1,32 @@
+{
+  "id": "e-17-multitable-join-missing-index",
+  "level": "expert",
+  "order": 17,
+  "title": "The One Missing Index in a Multi-Table Join",
+  "description": "In a multi-table join one unindexed join key forces a full scan that dominates the plan; index that key for a nested-loops seek.",
+  "topics": [
+    "joins",
+    "indexing",
+    "foreign-key",
+    "hash-match"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\nA customer statement joins `Customers` → `Orders` → `OrderLines` for a single customer. `Customers` and `Orders` are indexed and seek nicely, but the query still reads all 500,000 order lines. One missing index sits at the bottom of the join tree and dominates the whole plan.\n\n## Why it's slow\n`OrderLines.OrderId` has no index. Once the query has the handful of orders for the customer, it has no way to seek their lines — so the optimizer falls back to a **Hash Match** that scans the entire `OrderLines` table to find the matches. In multi-table joins, the slowest operator is usually a single unindexed join key, and it's easy to miss because the *other* joins look healthy.\n\n## What to look for\n- Customers and Orders seek, but `OrderLines` is fully scanned (Hash Match), dwarfing the other tables' reads.\n- Reads on `OrderLines` proportional to the whole table, not to one customer's lines.\n\n## The concept\nIndex every join key, especially the foreign key on the many-side (`OrderLines.OrderId`). With it in place the plan becomes a chain of **Nested Loops + Index Seeks**: for the customer's orders, seek straight to their lines. When tuning a multi-join, find the table with the biggest scan and check whether its join column is indexed.",
+  "startingQuery": "SELECT o.OrderId, l.LineId, l.Amount\nFROM dbo.Customers c\nJOIN dbo.Orders o ON o.CustomerId = c.CustomerId\nJOIN dbo.OrderLines l ON l.OrderId = o.OrderId\nWHERE c.CustomerId = 42;",
+  "database": "Lesson_e_17_multitable_join_missing_index",
+  "hints": [
+    "Customers and Orders seek fine; it's OrderLines that gets fully scanned. Which join key on OrderLines has no index?",
+    "OrderLines.OrderId is unindexed, so the join to it can only Hash Match over the whole table.",
+    "CREATE NONCLUSTERED INDEX IX_OrderLines_OrderId ON dbo.OrderLines(OrderId) INCLUDE (Amount); then re-run."
+  ],
+  "passConditions": [
+    {
+      "type": "maxLogicalReads",
+      "table": "OrderLines",
+      "value": 300
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

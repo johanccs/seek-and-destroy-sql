@@ -1,0 +1,40 @@
+{
+  "id": "b-16-index-the-join-column",
+  "level": "beginner",
+  "order": 16,
+  "title": "Index the Column You Join On",
+  "description": "An unindexed foreign key forces the join to scan the whole child table; index the join column to seek each parent's rows.",
+  "topics": [
+    "indexing",
+    "joins",
+    "foreign-key",
+    "seek-vs-scan"
+  ],
+  "estimatedMinutes": 10,
+  "narrative": "## Scenario\nFetching one customer's orders joins `Customers` to `Orders` on `CustomerId`. `Customers` is tiny and seeks instantly, but pulling ~100 orders reads the entire 300,000-row `Orders` table.\n\n## Why it's slow\n`Orders.CustomerId` has **no index**. Once the query knows the customer, it still has no fast way to find that customer's rows in `Orders`, so it falls back to a **Clustered Index Scan** — reading every order to find the matching 100. Foreign-key columns are join targets, but SQL Server does **not** index them automatically.\n\n## What to look for\n- `Customers` is seeked, but `Orders` is fully scanned.\n- Reads scale with the whole `Orders` table, not with one customer's orders.\n\n## The concept\nIndex the columns you join on. A nonclustered index on `Orders.CustomerId` (INCLUDE the columns you return so it covers) turns the join into a **Nested Loops + Index Seek**: for the one customer, seek straight to their orders. Indexing foreign keys is one of the highest-value, lowest-effort tuning habits.",
+  "startingQuery": "SELECT o.OrderId, o.Total\nFROM dbo.Orders o\nJOIN dbo.Customers c ON o.CustomerId = c.CustomerId\nWHERE c.CustomerId = 42;",
+  "database": "Lesson_b_16_index_the_join_column",
+  "hints": [
+    "Customers seeks fine; it's Orders that gets scanned. What's missing on Orders.CustomerId?",
+    "Foreign-key columns aren't indexed automatically. The join has no index to seek on the Orders side.",
+    "CREATE NONCLUSTERED INDEX IX_Orders_CustomerId ON dbo.Orders(CustomerId) INCLUDE (Total); then re-run."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Clustered Index Scan"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 50
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

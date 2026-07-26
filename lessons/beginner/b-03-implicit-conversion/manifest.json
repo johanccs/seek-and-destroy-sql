@@ -1,0 +1,33 @@
+{
+  "id": "b-03-implicit-conversion",
+  "level": "beginner",
+  "order": 3,
+  "title": "Implicit Conversions Kill Index Seeks",
+  "description": "Comparing an indexed string column to a number makes SQL Server convert every row and abandon the index; match the literal's type to keep the seek.",
+  "topics": [
+    "implicit-conversion",
+    "indexing",
+    "data-types"
+  ],
+  "estimatedMinutes": 12,
+  "narrative": "## Scenario\n`AccountCode` is a `VARCHAR(20)` column with an index on it. A developer queries `WHERE AccountCode = 1050000` (an **integer** literal). The query scans 250k rows and the plan shows a yellow warning.\n\n## Why it's slow\nWhen you compare a `VARCHAR` column to an `INT`, SQL Server follows **data-type precedence**: `INT` outranks `VARCHAR`, so it converts the **column** to `INT` on every row — `CONVERT_IMPLICIT(int, AccountCode)`. That function-on-the-column makes the predicate non-sargable, so the index can't seek. The plan shows an **implicit conversion / CONVERT_IMPLICIT** warning.\n\n## What to look for\n- A scan instead of a seek, plus a **type-conversion warning** on the operator.\n- `CONVERT_IMPLICIT` in the Seek/Scan predicate text.\n\n## The concept\nMatch the literal's type to the column: quote it as a string `'1050000'`. Better yet, fix the schema so codes are stored in the right type. With a matching type the `AccountCode` index seeks directly.",
+  "startingQuery": "SELECT * FROM Customers WHERE AccountCode = 1050000;",
+  "hints": [
+    "Note the yellow warning on the operator — what type conversion is happening?",
+    "AccountCode is VARCHAR but the literal 1050000 is INT; INT has higher precedence so the COLUMN gets converted.",
+    "Quote the literal so it matches the column type: WHERE AccountCode = '1050000'."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "maxLogicalReads",
+      "value": 50
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "e-11-missing-index-recommendation",
+  "level": "expert",
+  "order": 11,
+  "title": "Reading the Optimizer's Missing-Index Hint",
+  "description": "The plan carries the optimizer's own missing-index recommendation; learn to read and apply it (with judgment) to turn a scan into a seek.",
+  "topics": [
+    "missing-index",
+    "plan-warnings",
+    "indexing",
+    "tuning"
+  ],
+  "estimatedMinutes": 12,
+  "narrative": "## Scenario\nA per-customer order lookup scans all 500,000 rows. Notice what the plan itself is telling you: SQL Server attaches a **Missing Index** recommendation to it — the engine has already worked out which index would help and by roughly how much.\n\n## Why it's slow\nThere's no index on `CustomerId`, so the query is a **Clustered Index Scan**. During optimization SQL Server records that a nonclustered index on `CustomerId` would cut the estimated cost dramatically, and surfaces that as a green **Missing Index** hint in the plan (and in `sys.dm_db_missing_index_details`).\n\n## What to look for\n- A **Missing Index** warning on the plan, with a suggested key/INCLUDE column list and an impact percentage.\n- A full scan feeding a small result.\n\n## The concept\nThe optimizer's missing-index hints are a great *starting point* — but apply judgment, don't blindly `CREATE` every one. They ignore existing indexes (you may just need to widen one), they suggest per-query indexes that can pile up and slow writes, and the `INCLUDE` lists can be huge. Here the recommendation is sound: add the nonclustered index on `CustomerId` (INCLUDE the returned columns) and the scan becomes a seek — and the hint disappears.",
+  "startingQuery": "SELECT OrderId, OrderDate, Total\nFROM dbo.Orders\nWHERE CustomerId = 1234;",
+  "database": "Lesson_e_11_missing_index_recommendation",
+  "hints": [
+    "The plan carries a Missing Index recommendation -- read what index it suggests.",
+    "The suggested index is a nonclustered index on CustomerId, INCLUDE-ing the columns the query returns.",
+    "CREATE NONCLUSTERED INDEX IX_Orders_CustomerId ON dbo.Orders(CustomerId) INCLUDE (OrderDate, Total); then re-run -- the hint and the scan both disappear."
+  ],
+  "passConditions": [
+    {
+      "type": "noWarning",
+      "warning": "MissingIndex"
+    },
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Clustered Index Scan"
+    },
+    {
+      "type": "resultUnchanged"
+    }
+  ]
+}

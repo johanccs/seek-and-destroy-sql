@@ -1,0 +1,26 @@
+{
+  "id": "b-05-select-star-lookup",
+  "level": "beginner",
+  "order": 5,
+  "title": "SELECT * Triggers a Key Lookup",
+  "description": "SELECT * forces a Key Lookup back to the table for columns the index doesn't hold; select only what you need (or cover the index) to drop the lookup.",
+  "topics": [
+    "indexing",
+    "covering-index",
+    "plan-reading"
+  ],
+  "estimatedMinutes": 10,
+  "narrative": "## Scenario\n`SELECT * FROM Orders WHERE CustomerId = 777` seeks the index on `CustomerId` but the plan also shows a **Key Lookup** and **Nested Loops** — extra work for every matching row.\n\n## Why it's slow\nThe index `IX_Orders_Customer` contains `CustomerId` plus the common columns `OrderDate` and `Status`. But `SELECT *` also asks for `Notes`, which is **not** in the index. So for each matching row SQL Server does a **Key Lookup** back into the clustered index to fetch `Notes`. Lookups are random reads and, at higher row counts, can flip the optimizer to a full scan.\n\n## What to look for\n- A **Nested Loops** join feeding a lookup back into the clustered index (shown as a *Key Lookup* or a *Clustered Index Seek*) hanging off an otherwise efficient Index Seek.\n\n## The concept\nAsk only for the columns you actually need. If the query selects just the columns the index already covers (`OrderId`, `CustomerId`, `OrderDate`, `Status`), the seek is **covering** and the Key Lookup disappears. `SELECT *` is a habit that quietly defeats covering indexes — name your columns.",
+  "startingQuery": "SELECT * FROM Orders WHERE CustomerId = 777;",
+  "hints": [
+    "The seek is fine — what is the Key Lookup fetching?",
+    "SELECT * asks for Notes, which isn't in the index, so each row needs a lookup.",
+    "Select only covered columns: SELECT OrderId, CustomerId, OrderDate, Status FROM Orders WHERE CustomerId = 777;"
+  ],
+  "passConditions": [
+    {
+      "type": "noOperator",
+      "operator": "Nested Loops"
+    }
+  ]
+}

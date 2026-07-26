@@ -1,0 +1,33 @@
+{
+  "id": "e-13-top-n-per-group",
+  "level": "expert",
+  "order": 13,
+  "title": "Latest Row Per Group Without a Sort",
+  "description": "The 'latest row per group' query sorts the whole table; an index matching the window's partition and order does it with no Sort.",
+  "topics": [
+    "window-functions",
+    "top-n-per-group",
+    "sort",
+    "indexing"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\nA dashboard needs each customer's **most recent** order — the classic \"latest row per group.\" The query numbers rows within each customer by date and keeps number 1. Over 300,000 orders it sorts the entire table first.\n\n## Why it's slow\n`ROW_NUMBER() OVER (PARTITION BY CustomerId ORDER BY OrderDate DESC)` must present the rows grouped by customer and ordered by date. With no matching index, SQL Server reads the whole table and performs a big **Sort** to produce that order before it can assign row numbers and filter to `rn = 1`.\n\n## What to look for\n- A **Sort** operator over the full table feeding the row-number computation (Sequence Project / Segment).\n- Work proportional to all rows, though only one row per customer survives.\n\n## The concept\nGive the window its ordering for free. An index keyed on **`(CustomerId, OrderDate DESC)`** already stores rows grouped by customer and newest-first within each — exactly what the window needs. The optimizer reads it in order and assigns row numbers with **no Sort**. Matching the index to the window's `PARTITION BY` + `ORDER BY` is the key to fast top-N-per-group queries.",
+  "startingQuery": "WITH Ranked AS (\n    SELECT OrderId, CustomerId, OrderDate, Total,\n           ROW_NUMBER() OVER (PARTITION BY CustomerId ORDER BY OrderDate DESC) AS rn\n    FROM dbo.Orders\n)\nSELECT CustomerId, OrderId, OrderDate, Total\nFROM Ranked\nWHERE rn = 1;",
+  "database": "Lesson_e_13_top_n_per_group",
+  "hints": [
+    "The window has to order 300,000 rows by (CustomerId, OrderDate) and there's no index for it, so it Sorts.",
+    "An index whose key matches the PARTITION BY then ORDER BY of the window supplies that order with no Sort.",
+    "CREATE NONCLUSTERED INDEX IX_Orders_Cust_Date ON dbo.Orders(CustomerId, OrderDate DESC) INCLUDE (Total); then re-run."
+  ],
+  "passConditions": [
+    {
+      "type": "noOperator",
+      "operator": "Sort"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 3000
+    }
+  ]
+}

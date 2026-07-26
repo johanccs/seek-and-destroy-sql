@@ -1,0 +1,33 @@
+{
+  "id": "e-09-hash-aggregate-spill",
+  "level": "expert",
+  "order": 9,
+  "title": "Hash Aggregate Spills From a Bad Estimate",
+  "description": "The same 1-row table-variable estimate starves a Hash Aggregate and spills it; an indexed #temp lets the engine stream the aggregate.",
+  "topics": [
+    "table-variables",
+    "cardinality-estimation",
+    "hash-aggregate",
+    "spill",
+    "tempdb"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\nA rollup loads rows into a **table variable** and then groups them to count per key. With ~50,000 groups it drags and pounds tempdb, even though the aggregation itself is trivial.\n\n## Why it's slow\nTo `GROUP BY` an unordered set, SQL Server builds a **Hash Match (Aggregate)** — a hash table of all the group keys — and sizes its **memory grant** from the estimated row count. A **table variable** is estimated at **1 row**, so the aggregate is granted almost no memory. At run time it must hold 50,000 groups, overflows the grant, and **spills to tempdb** (`SpillToTempDb` on the Hash Match), turning an in-memory aggregation into repeated disk I/O.\n\n## What to look for\n- A **Hash Match (Aggregate)** carrying a `SpillToTempDb` warning.\n- Estimated rows = 1 while actual rows = 200,000 feeding the aggregate.\n\n## The concept\nGive the optimizer honest cardinality. Load into a **`#temp` table** (real statistics) instead of a table variable, and put a **clustered index on the grouping key**. Now the rows arrive already ordered by `G`, so the engine uses a **Stream Aggregate** — it counts each group as it passes, needs no hash table, and has nothing to spill. Ordered input turns grouping from a memory-hungry hash into a streaming count.",
+  "startingQuery": "DECLARE @T TABLE (G INT NOT NULL, Pad CHAR(40) NOT NULL);\nINSERT INTO @T SELECT G, Pad FROM dbo.Src;\nSELECT G, COUNT(*) AS Cnt FROM @T GROUP BY G;",
+  "database": "Lesson_e_09_hash_aggregate_spill",
+  "hints": [
+    "The Hash Match (Aggregate) has a SpillToTempDb warning. Why would it get a tiny memory grant?",
+    "A table variable estimates 1 row, so the hash aggregate is sized for 1 group and spills when it really holds 50,000.",
+    "Load into a #temp table with a clustered index on the grouping column G. Ordered input lets the optimizer use a Stream Aggregate (no hash, no spill): CREATE TABLE #T (G INT NOT NULL, Pad CHAR(40) NOT NULL, INDEX CX CLUSTERED (G));"
+  ],
+  "passConditions": [
+    {
+      "type": "noWarning",
+      "warning": "SpillToTempDb"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Hash Match"
+    }
+  ]
+}

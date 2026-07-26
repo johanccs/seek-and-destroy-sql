@@ -1,0 +1,55 @@
+{
+  "id": "a-02-deadlock-opposite-order",
+  "level": "advanced",
+  "order": 2,
+  "title": "Deadlock: Two Transactions, Opposite Lock Order",
+  "description": "Two transactions updating rows in opposite order deadlock; access rows in a consistent order to break the cycle.",
+  "topics": [
+    "concurrency",
+    "deadlock",
+    "locking"
+  ],
+  "estimatedMinutes": 18,
+  "narrative": "## Scenario\nA money-transfer routine updates two accounts per transaction. Session A transfers 1→2, Session B transfers 2→1. Under load they intermittently fail with *\"Transaction was deadlocked ... chosen as the deadlock victim.\"*\n\n## Why it happens\nA updates row **1** (takes X lock on 1), B updates row **2** (X lock on 2). Now A wants row 2 (held by B) and B wants row 1 (held by A). Each waits for the other — a **cycle**. SQL Server's deadlock monitor detects it and kills the cheaper transaction as the **victim** (error 1205), rolling it back.\n\n## What to look for\n- Timeline: A acquires lock on 1, B acquires lock on 2, both then **block** on the other's row, one becomes the **deadlock victim**.\n- The deadlock graph shows two processes each holding one resource and requesting the other.\n\n## The concept\nDeadlocks from **inconsistent lock ordering** are fixed by imposing a **consistent order**: always touch accounts in ascending `AccountId`. With a global ordering the cycle can't form — the second session just waits briefly, then proceeds. (Keeping transactions short and having the right indexes also reduces the deadlock window.)",
+  "startingQuery": "-- This is a concurrency lesson. Reorder the statements so both sessions lock rows in the same order, then Run.",
+  "hints": [
+    "Watch the lock order: A locks 1 then 2; B locks 2 then 1. That opposite order is the cycle.",
+    "If both sessions always lock the LOWER AccountId first, no cycle can form.",
+    "Reorder Session B to update AccountId 1 before AccountId 2 (ascending order in both)."
+  ],
+  "passConditions": [],
+  "interleaving": {
+    "description": "A locks 1 then wants 2; B locks 2 then wants 1 -> deadlock.",
+    "sessions": {
+      "A": [
+        {
+          "sql": "BEGIN TRAN; UPDATE dbo.Accounts SET Balance = Balance - 100 WHERE AccountId = 1;",
+          "afterMs": 0
+        },
+        {
+          "sql": "UPDATE dbo.Accounts SET Balance = Balance + 100 WHERE AccountId = 2; COMMIT;",
+          "afterMs": 400
+        }
+      ],
+      "B": [
+        {
+          "sql": "BEGIN TRAN; UPDATE dbo.Accounts SET Balance = Balance - 50 WHERE AccountId = 2;",
+          "afterMs": 0
+        },
+        {
+          "sql": "UPDATE dbo.Accounts SET Balance = Balance + 50 WHERE AccountId = 1; COMMIT;",
+          "afterMs": 400
+        }
+      ]
+    },
+    "resolveConditions": [
+      {
+        "type": "noDeadlock"
+      },
+      {
+        "type": "bothCommit"
+      }
+    ],
+    "solutionNote": "Make both sessions update AccountId 1 before AccountId 2 (consistent ascending lock order). The cycle cannot form, so no deadlock."
+  }
+}

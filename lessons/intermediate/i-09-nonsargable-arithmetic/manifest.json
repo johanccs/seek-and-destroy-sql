@@ -1,0 +1,35 @@
+{
+  "id": "i-09-nonsargable-arithmetic",
+  "level": "intermediate",
+  "order": 9,
+  "title": "Arithmetic on a Column Blocks the Seek",
+  "description": "Arithmetic on a column (col * 1.1 > x) blocks the index; move the math to the constant side to keep the seek.",
+  "topics": [
+    "sargability",
+    "indexing"
+  ],
+  "estimatedMinutes": 12,
+  "narrative": "## Scenario\nA report lists orders whose value, after a 10% adjustment, clears a threshold: `WHERE Total * 1.1 > 1500`. `Orders.Total` has a supporting nonclustered index, but the query still **scans** the whole index instead of seeking the range.\n\n## Why it's slow\nA predicate is **sargable** (Search-ARGument-able) only when the indexed column stands **alone** on one side of the comparison. The moment you wrap it in an expression — a function like `YEAR(col)` *or* arithmetic like `col * 1.1` — SQL Server must evaluate that expression for **every row** before it can test the predicate. It cannot use the index's sort order to jump to a range, so it falls back to an **Index Scan**.\n\n## What to look for\n- The plan reads `IX_Orders_Total` with an **Index Scan** covering all rows.\n- Logical reads proportional to the whole table, not the matching slice.\n\n## The concept\nRearrange the algebra so the column is bare and the math lands on the **constant** side. `Total * 1.1 > 1500` is exactly equivalent to `Total > 1500 / 1.1` (≈ 1363.64), which is a clean range the index can **seek**. The result set is identical — only the plan changes. (This is graded on the operator swap and reads because the query returns thousands of rows.)",
+  "startingQuery": "SELECT OrderId, CustomerId, OrderDate, Total FROM Orders WHERE Total * 1.1 > 1500;",
+  "database": "Lesson_i_09_nonsargable_arithmetic",
+  "hints": [
+    "The index on Total exists, but the plan is an Index Scan — the predicate isn't sargable.",
+    "Total * 1.1 wraps the column in arithmetic, so it must be computed for every row before comparison.",
+    "Move the math to the constant side, leaving the column bare: WHERE Total > 1500 / 1.1."
+  ],
+  "passConditions": [
+    {
+      "type": "requireOperator",
+      "operator": "Index Seek"
+    },
+    {
+      "type": "noOperator",
+      "operator": "Index Scan"
+    },
+    {
+      "type": "maxLogicalReads",
+      "table": "Orders",
+      "value": 300
+    }
+  ]
+}

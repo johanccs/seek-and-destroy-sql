@@ -1,0 +1,50 @@
+{
+  "id": "a-20-reader-blocks-writer",
+  "level": "advanced",
+  "order": 20,
+  "title": "When a Reader Blocks a Writer (HOLDLOCK)",
+  "description": "A HOLDLOCK reader keeps its shared lock and blocks a writer; drop the hint (or use snapshot) so the read doesn't hold locks.",
+  "topics": [
+    "concurrency",
+    "locking",
+    "blocking",
+    "isolation"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## Scenario\nWe usually say \"writers block readers.\" Here it's the reverse: a long-running read report (Session A) holds Alice's row with a **`HOLDLOCK`** hint while it finishes, and a simple `UPDATE` (Session B) on that row hangs until the report commits. The report only *reads* — yet it stalls every write to the row.\n\n## Why it blocks\n`HOLDLOCK` (a synonym for `SERIALIZABLE` at the statement level) tells SQL Server to **keep the shared (S) lock** A takes on Alice's row until A's transaction commits — instead of releasing it the instant the read finishes (the default `READ COMMITTED` behavior). B's `UPDATE` needs an **exclusive (X)** lock, which is incompatible with A's still-held S lock, so B waits for A's whole transaction.\n\n## What to look for\n- A takes an **S** lock and holds it; B blocks requesting **X** on the same row.\n- The culprit is the `HOLDLOCK` hint (or a session-wide `REPEATABLE READ`/`SERIALIZABLE` setting), not an uncommitted write.\n\n## The concept\nDon't hold read locks longer than you need. Removing `HOLDLOCK` lets A's shared lock drop as soon as the row is read, so B's update proceeds immediately. If the report genuinely needs a stable view, use **`SNAPSHOT`**/RCSI row-versioning instead — it gives consistent reads with **no** shared locks, so it never blocks writers.",
+  "startingQuery": "-- This is a concurrency lesson. Stop Session A's read from holding its shared lock, then Run the interleaving.",
+  "hints": [
+    "Session A only reads, but it keeps its shared lock until commit. What on A's SELECT forces that?",
+    "HOLDLOCK = SERIALIZABLE for that statement: the S lock is held to the end of the transaction, blocking B's X lock.",
+    "Remove the WITH (HOLDLOCK) hint so the S lock releases right after the read (or switch A to SNAPSHOT for a lock-free consistent read)."
+  ],
+  "passConditions": [],
+  "interleaving": {
+    "description": "Session A holds a shared lock on Alice's row via HOLDLOCK; Session B's UPDATE of that row blocks behind the held S lock.",
+    "sessions": {
+      "A": [
+        {
+          "sql": "BEGIN TRAN; SELECT AccountId, Owner, Balance FROM dbo.Accounts WITH (HOLDLOCK) WHERE AccountId = 1;",
+          "afterMs": 0
+        },
+        {
+          "sql": "WAITFOR DELAY '00:00:02'; COMMIT;",
+          "afterMs": 200
+        }
+      ],
+      "B": [
+        {
+          "sql": "UPDATE dbo.Accounts SET Balance = Balance - 50 WHERE AccountId = 1;",
+          "afterMs": 500
+        }
+      ]
+    },
+    "resolveConditions": [
+      {
+        "type": "maxBlockMs",
+        "value": 500
+      }
+    ],
+    "solutionNote": "Remove the WITH (HOLDLOCK) hint so A's shared lock is released as soon as the row is read (default READ COMMITTED), letting B's UPDATE proceed. If A needs a stable read, use SET TRANSACTION ISOLATION LEVEL SNAPSHOT (row versioning) instead, which takes no shared locks and so never blocks the writer."
+  }
+}
