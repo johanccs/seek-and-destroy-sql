@@ -18,6 +18,7 @@ export default function App() {
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [search, setSearch] = useState("");
 
   const refresh = async () => {
     try {
@@ -40,6 +41,16 @@ export default function App() {
   }, [activeId]);
 
   const pct = progress && progress.totalLessons ? Math.round((progress.solvedLessons / progress.totalLessons) * 100) : 0;
+
+  const q = search.trim().toLowerCase();
+  const matches = (l: LevelGroup["lessons"][number]) =>
+    !q ||
+    l.title.toLowerCase().includes(q) ||
+    l.description.toLowerCase().includes(q) ||
+    l.topics.some((t) => t.toLowerCase().includes(q));
+  const filteredLevels = levels
+    .map((g) => ({ ...g, lessons: g.lessons.filter(matches) }))
+    .filter((g) => g.lessons.length > 0);
 
   return (
     <div className="app">
@@ -67,7 +78,22 @@ export default function App() {
           ⚙ Settings
         </div>
 
-        {levels.map((g) => (
+        <div className="search-box">
+          <input
+            type="text"
+            placeholder="Search lessons (title, topic)…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="search-clear" onClick={() => setSearch("")} aria-label="Clear search">×</button>
+          )}
+        </div>
+        {q && filteredLevels.length === 0 && (
+          <div className="muted search-empty">No lessons match "{search}".</div>
+        )}
+
+        {filteredLevels.map((g) => (
           <div className="level-group" key={g.level}>
             <div className="level-title">
               <span>{LEVEL_TITLES[g.level] ?? g.title}</span>
