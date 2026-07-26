@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 7,
   "title": "Leading Wildcard LIKE Can't Seek",
-  "description": "LIKE '%term%' can't seek because of the leading wildcard; an anchored 'term%' pattern becomes a range seek.",
+  "description": "LIKE '%term%' can't seek because of the leading wildcard; an anchored 'term%' pattern becomes a range seek. Why it matters: \"search contains\" is one of the most requested features in any app, and a leading wildcard is the classic, easy-to-miss reason it doesn't scale.",
   "topics": [
     "like",
     "wildcard",

@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 15,
   "title": "Range Queries Need an Index Too",
-  "description": "A BETWEEN range on an unindexed column scans; a B-tree index serves ranges as well as equality, seeking straight to the band.",
+  "description": "A BETWEEN range on an unindexed column scans; a B-tree index serves ranges as well as equality, seeking straight to the band. Why it matters: range filters (dates, prices, IDs) are everywhere in real screens, and this exact gap is why a report that's fast today grinds to a halt as the table grows.",
   "topics": [
     "indexing",
     "range-predicate",

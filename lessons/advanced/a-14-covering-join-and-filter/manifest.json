@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 14,
   "title": "Covering Index for a Join + Filter",
-  "description": "A join with an extra filter scans the big table; a composite covering index seeks the filtered rows while the small dimension scans harmlessly.",
+  "description": "A join with an extra filter scans the big table; a composite covering index seeks the filtered rows while the small dimension scans harmlessly. Why it matters: joined + filtered queries are one of the most common report shapes in business software, and getting the covering index right is often the single biggest win available.",
   "topics": [
     "indexing",
     "covering-index",

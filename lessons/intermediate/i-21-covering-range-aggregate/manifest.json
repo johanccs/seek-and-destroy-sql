@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 21,
   "title": "Cover the Aggregate to Skip the Full Scan",
-  "description": "A month-end aggregate scans the whole table to find recent rows; a covering index on the date range seeks straight to them.",
+  "description": "A month-end aggregate scans the whole table to find recent rows; a covering index on the date range seeks straight to them. Why it matters: recent-data aggregates (dashboards, monthly summaries) are everywhere, and this is exactly why they slow down as history grows if nobody revisits the indexing.",
   "topics": [
     "covering-index",
     "aggregation",

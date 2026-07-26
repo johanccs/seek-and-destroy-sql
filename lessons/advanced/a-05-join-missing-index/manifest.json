@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 5,
   "title": "The Unindexed Foreign Key",
-  "description": "An unindexed foreign key forces a hash join that scans the child table; index the join column for a nested-loops seek.",
+  "description": "An unindexed foreign key forces a hash join that scans the child table; index the join column for a nested-loops seek. Why it matters: unindexed foreign keys are extremely common in real schemas, and this exact gap is one of the top causes of slow joins in production systems.",
   "topics": [
     "indexing",
     "joins",

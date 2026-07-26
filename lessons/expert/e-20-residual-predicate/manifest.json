@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 20,
   "title": "Seek Predicate vs Residual Predicate",
-  "description": "An index covering only the leading column applies the rest as a residual predicate after a per-row lookup; put the filter columns in the key so they become seek predicates.",
+  "description": "An index covering only the leading column applies the rest as a residual predicate after a per-row lookup; put the filter columns in the key so they become seek predicates. Why it matters: a plan can show an Index Seek and STILL be doing far more work than necessary -- recognizing a residual predicate is what separates a real fix from a false sense of security.",
   "topics": [
     "composite-index",
     "residual-predicate",

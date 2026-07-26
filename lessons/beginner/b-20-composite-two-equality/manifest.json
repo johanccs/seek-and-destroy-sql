@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 20,
   "title": "One Index Over Both Filter Columns",
-  "description": "Filtering on two columns with no matching index scans; a single composite index over both lets the engine seek straight to the rows.",
+  "description": "Filtering on two columns with no matching index scans; a single composite index over both lets the engine seek straight to the rows. Why it matters: multi-column filters are everywhere in real applications, and a single well-designed composite index often replaces several narrower ones.",
   "topics": [
     "composite-index",
     "indexing",

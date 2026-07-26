@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 9,
   "title": "Counting Rows: Pick the Narrowest Index",
-  "description": "COUNT(*) over a wide clustered index reads huge rows; a narrow nonclustered index gives the engine far fewer pages to scan.",
+  "description": "COUNT(*) over a wide clustered index reads huge rows; a narrow nonclustered index gives the engine far fewer pages to scan. Why it matters: COUNT(*) dashboards and health checks run constantly in production; picking the right index for them is a cheap, high-impact optimization most teams never think about.",
   "topics": [
     "indexing",
     "io",

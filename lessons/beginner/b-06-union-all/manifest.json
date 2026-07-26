@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 6,
   "title": "UNION vs UNION ALL: Skip the Needless Dedupe",
-  "description": "UNION removes duplicates with a costly sort/merge; when rows are already distinct, UNION ALL skips that work.",
+  "description": "UNION removes duplicates with a costly sort/merge; when rows are already distinct, UNION ALL skips that work. Why it matters: UNION vs UNION ALL is a one-word difference that's easy to get wrong, and it's a common, avoidable cost in queries that combine multiple result sets.",
   "topics": [
     "union",
     "union-all",

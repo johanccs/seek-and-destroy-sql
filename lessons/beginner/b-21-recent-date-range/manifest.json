@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 21,
   "title": "The \"Last N Days\" Query Needs a Date Index",
-  "description": "A 'last N days' query with no date index scans all history; index the timestamp so the >= cutoff becomes a range seek to the newest rows.",
+  "description": "A 'last N days' query with no date index scans all history; index the timestamp so the >= cutoff becomes a range seek to the newest rows. Why it matters: \"show recent activity\" is one of the most frequently run queries in any system, and it's exactly the kind of query that quietly degrades as history accumulates.",
   "topics": [
     "indexing",
     "range-predicate",

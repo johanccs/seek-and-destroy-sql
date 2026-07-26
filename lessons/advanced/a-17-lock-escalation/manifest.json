@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 17,
   "title": "Lock Escalation: One Big Update Locks the Whole Table",
-  "description": "A single huge UPDATE escalates to a table lock and blocks an unrelated row; batching it under the escalation threshold keeps locks fine-grained.",
+  "description": "A single huge UPDATE escalates to a table lock and blocks an unrelated row; batching it under the escalation threshold keeps locks fine-grained. Why it matters: batch jobs and bulk updates are routine in production, and lock escalation is a common, invisible way they end up blocking completely unrelated user traffic.",
   "topics": [
     "concurrency",
     "locking",

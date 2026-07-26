@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 20,
   "title": "A Composite Index for Equality + Range",
-  "description": "A query filtering one store over a date range has no supporting index; a composite (equality, range) index seeks the store then walks the dates.",
+  "description": "A query filtering one store over a date range has no supporting index; a composite (equality, range) index seeks the store then walks the dates. Why it matters: \"one filter, one date range\" is close to the most common query shape in business reporting -- getting the composite key order right is a core professional skill.",
   "topics": [
     "composite-index",
     "range-predicate",

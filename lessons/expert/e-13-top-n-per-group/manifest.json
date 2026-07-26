@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 13,
   "title": "Latest Row Per Group Without a Sort",
-  "description": "The 'latest row per group' query sorts the whole table; an index matching the window's partition and order does it with no Sort.",
+  "description": "The 'latest row per group' query sorts the whole table; an index matching the window's partition and order does it with no Sort. Why it matters: \"latest per customer/account/entity\" is one of the most frequently needed query patterns in business software, and doing it efficiently at scale is a genuinely valuable skill.",
   "topics": [
     "window-functions",
     "top-n-per-group",

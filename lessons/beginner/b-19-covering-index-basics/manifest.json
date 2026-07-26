@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 19,
   "title": "Covering an Index with INCLUDE",
-  "description": "A non-covering index still needs a per-row lookup for extra columns; add them as INCLUDE columns so the seek returns everything at once.",
+  "description": "A non-covering index still needs a per-row lookup for extra columns; add them as INCLUDE columns so the seek returns everything at once. Why it matters: covering indexes are the difference between a lookup service that scales to millions of calls and one that falls over under load.",
   "topics": [
     "covering-index",
     "include",

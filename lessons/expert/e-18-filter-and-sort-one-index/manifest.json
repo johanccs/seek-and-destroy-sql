@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 18,
   "title": "One Index for Both the Filter and the Sort",
-  "description": "A screen that both filters and sorts scans then sorts; one composite index (filter column, then sort column in its direction) serves both in a single seek.",
+  "description": "A screen that both filters and sorts scans then sorts; one composite index (filter column, then sort column in its direction) serves both in a single seek. Why it matters: \"filter + sort\" (status screens, activity feeds, admin panels) is one of the most common query shapes in production software -- one right index serves both needs at once.",
   "topics": [
     "composite-index",
     "order-by",

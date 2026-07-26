@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 18,
   "title": "Covering the Query to Kill the Key Lookup",
-  "description": "An index that seeks but doesn't carry the returned columns does a Key Lookup per row; INCLUDE them to make the seek covering.",
+  "description": "An index that seeks but doesn't carry the returned columns does a Key Lookup per row; INCLUDE them to make the seek covering. Why it matters: key lookups multiply cost per row returned -- at scale, eliminating them is often the single biggest win available on a hot code path.",
   "topics": [
     "covering-index",
     "key-lookup",

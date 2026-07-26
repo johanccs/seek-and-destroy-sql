@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 10,
   "title": "Composite Indexes for Multiple Equality Predicates",
-  "description": "With only a single-column index the optimizer gives up and scans on two predicates; a composite index over both seeks precisely.",
+  "description": "With only a single-column index the optimizer gives up and scans on two predicates; a composite index over both seeks precisely. Why it matters: multi-condition filters are the norm in real application queries -- this is a foundational skill for designing indexes that actually get used.",
   "topics": [
     "indexing",
     "covering-index"

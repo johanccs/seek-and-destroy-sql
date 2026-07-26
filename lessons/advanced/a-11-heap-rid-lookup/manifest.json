@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 11,
   "title": "Heaps and RID Lookups",
-  "description": "On a heap, a nonclustered seek does a RID Lookup per row; a covering index eliminates the lookup.",
+  "description": "On a heap, a nonclustered seek does a RID Lookup per row; a covering index eliminates the lookup. Why it matters: heaps (tables with no clustered index) are more common than people expect in legacy schemas, and this RID-lookup cost is a frequent, under-diagnosed drag on performance.",
   "topics": [
     "heaps",
     "covering-index",

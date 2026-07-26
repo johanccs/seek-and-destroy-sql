@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 4,
   "title": "Partition Elimination",
-  "description": "YEAR()/MONTH() on a partitioned column scans every partition; a sargable date range lets the engine eliminate all but the relevant one.",
+  "description": "YEAR()/MONTH() on a partitioned column scans every partition; a sargable date range lets the engine eliminate all but the relevant one. Why it matters: partitioning is a standard technique for very large tables in production, and knowing how to write partition-eliminating queries is essential to actually benefiting from it.",
   "topics": [
     "partitioning",
     "sargability",

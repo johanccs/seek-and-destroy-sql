@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 19,
   "title": "Snapshot Isolation Update Conflict (Error 3960)",
-  "description": "SNAPSHOT isolation aborts a read-modify-write with error 3960 when another session changed the row; serialize it or reserve the row with UPDLOCK.",
+  "description": "SNAPSHOT isolation aborts a read-modify-write with error 3960 when another session changed the row; serialize it or reserve the row with UPDLOCK. Why it matters: optimistic concurrency (SNAPSHOT isolation) trades blocking for outright transaction failures under contention -- a tradeoff every team adopting it needs to understand before they hit it in production.",
   "topics": [
     "concurrency",
     "isolation",

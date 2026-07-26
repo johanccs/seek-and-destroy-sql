@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 14,
   "title": "Mixed ASC/DESC ORDER BY Needs Matching Key Directions",
-  "description": "An all-ascending index can't satisfy an ORDER BY that mixes ASC and DESC; the index key directions must match the sort.",
+  "description": "An all-ascending index can't satisfy an ORDER BY that mixes ASC and DESC; the index key directions must match the sort. Why it matters: multi-column sorts with mixed directions (e.g. category ascending, price descending) show up constantly in product listings and reports -- and this is a subtle, common way indexing them goes wrong.",
   "topics": [
     "indexing",
     "order-by",

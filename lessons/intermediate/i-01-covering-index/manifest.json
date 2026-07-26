@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 1,
   "title": "Covering Indexes: Eliminate Key Lookups",
-  "description": "Turn a seek-plus-lookup into a single covering-index seek by INCLUDE-ing the columns the query returns.",
+  "description": "Turn a seek-plus-lookup into a single covering-index seek by INCLUDE-ing the columns the query returns. Why it matters: covering indexes are one of the highest-leverage tuning techniques available -- they eliminate a whole class of expensive lookups with zero query rewrite.",
   "topics": [
     "indexing",
     "covering-index",

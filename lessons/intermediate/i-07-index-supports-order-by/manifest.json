@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 7,
   "title": "Let the Index Serve the ORDER BY",
-  "description": "An INCLUDE column can cover a query but only a KEY column provides order; key the index on the ORDER BY column to remove the Sort.",
+  "description": "An INCLUDE column can cover a query but only a KEY column provides order; key the index on the ORDER BY column to remove the Sort. Why it matters: \"filter then sort\" is an everyday query shape, and this is a common, easy-to-miss reason a seemingly well-indexed query still pays for an expensive sort.",
   "topics": [
     "indexing",
     "order-by",

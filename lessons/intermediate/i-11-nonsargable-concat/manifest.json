@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 11,
   "title": "Searching a Concatenated Value Blocks the Seek",
-  "description": "Concatenating columns to compare (first + ' ' + last) can't seek; compare the underlying indexed columns instead.",
+  "description": "Concatenating columns to compare (first + ' ' + last) can't seek; compare the underlying indexed columns instead. Why it matters: \"full name\" and other concatenated-field searches are extremely common in application code, and this is exactly why they don't scale without a rewrite.",
   "topics": [
     "sargability",
     "indexing"

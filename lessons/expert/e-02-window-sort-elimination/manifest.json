@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 2,
   "title": "Window Functions: Eliminate the Sort",
-  "description": "A ROW_NUMBER window sorts the whole table; an index matching its PARTITION BY / ORDER BY supplies the order with no Sort.",
+  "description": "A ROW_NUMBER window sorts the whole table; an index matching its PARTITION BY / ORDER BY supplies the order with no Sort. Why it matters: window functions (ROW_NUMBER, RANK, running totals) are increasingly common in modern application code, and matching the supporting index to the window is a high-leverage, underused optimization.",
   "topics": [
     "window-functions",
     "row-number",

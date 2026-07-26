@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 16,
   "title": "The Conversion Deadlock (Read-Then-Update the Same Row)",
-  "description": "Two sessions that read then update the same row under REPEATABLE READ deadlock upgrading shared locks to exclusive; an UPDLOCK hint on the read serializes them.",
+  "description": "Two sessions that read then update the same row under REPEATABLE READ deadlock upgrading shared locks to exclusive; an UPDLOCK hint on the read serializes them. Why it matters: this deadlock shape is subtler than the classic textbook case and catches experienced developers off guard, since it can occur on a single row with no obvious lock-order mistake.",
   "topics": [
     "concurrency",
     "locking",

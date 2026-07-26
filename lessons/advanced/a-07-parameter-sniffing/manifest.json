@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 7,
   "title": "Bad Estimates from a Local Variable: OPTION (RECOMPILE)",
-  "description": "A local-variable 'unknown' estimate picks a scan a real value wouldn't; OPTION(RECOMPILE) lets the optimizer see the value and seek.",
+  "description": "A local-variable 'unknown' estimate picks a scan a real value wouldn't; OPTION(RECOMPILE) lets the optimizer see the value and seek. Why it matters: parameter sniffing is one of the most notorious, hard-to-diagnose SQL Server performance issues in production -- the same stored procedure can be instant for one caller and catastrophic for another.",
   "topics": [
     "cardinality-estimation",
     "parameter-sniffing",

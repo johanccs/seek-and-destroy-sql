@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 16,
   "title": "Index the Column You Join On",
-  "description": "An unindexed foreign key forces the join to scan the whole child table; index the join column to seek each parent's rows.",
+  "description": "An unindexed foreign key forces the join to scan the whole child table; index the join column to seek each parent's rows. Why it matters: foreign keys are NOT indexed automatically in SQL Server -- this is one of the highest-value, lowest-effort tuning habits a developer can build.",
   "topics": [
     "indexing",
     "joins",

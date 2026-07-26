@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 1,
   "title": "Table Scan vs. Index Seek",
-  "description": "An equality lookup on an unindexed column scans the whole table; a nonclustered index turns the Clustered Index Scan into a fast Index Seek.",
+  "description": "An equality lookup on an unindexed column scans the whole table; a nonclustered index turns the Clustered Index Scan into a fast Index Seek. Why it matters: this is the single most common cause of a \"why is the app suddenly slow\" ticket -- and usually a five-minute fix once you know what to check.",
   "topics": [
     "indexing",
     "plan-reading"

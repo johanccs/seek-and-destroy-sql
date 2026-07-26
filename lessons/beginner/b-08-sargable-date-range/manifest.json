@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 8,
   "title": "Sargable Date Ranges",
-  "description": "YEAR()/MONTH() on a date column blocks the index; a half-open date range (>= start AND < end) seeks instead.",
+  "description": "YEAR()/MONTH() on a date column blocks the index; a half-open date range (>= start AND < end) seeks instead. Why it matters: date filtering (\"this month\", \"today\", \"this year\") appears in nearly every report -- writing it in a sargable form is a core, everyday skill.",
   "topics": [
     "sargability",
     "indexing",

@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 13,
   "title": "Covering Index for a Filtered Aggregate",
-  "description": "A ranged aggregate scans and hash-aggregates the whole table; a covering index over the range seeks and aggregates a small slice.",
+  "description": "A ranged aggregate scans and hash-aggregates the whole table; a covering index over the range seeks and aggregates a small slice. Why it matters: date-ranged aggregate reports (sales this month, activity this week) are a core business-reporting pattern, and this technique keeps them fast as data accumulates.",
   "topics": [
     "indexing",
     "covering-index",

@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 12,
   "title": "CTEs Are Not Materialized",
-  "description": "A CTE referenced several times is re-executed each time; materializing it into a #temp table computes it once.",
+  "description": "A CTE referenced several times is re-executed each time; materializing it into a #temp table computes it once. Why it matters: CTEs are a beloved readability tool, but this is a common, costly misconception -- knowing when SQL Server actually materializes (or doesn't) a CTE prevents accidental repeated work.",
   "topics": [
     "cte",
     "temp-tables",

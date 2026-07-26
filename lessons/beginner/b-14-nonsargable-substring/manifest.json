@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 14,
   "title": "SUBSTRING/LEFT vs. LIKE Prefix",
-  "description": "SUBSTRING(col,1,n) in a WHERE clause can't use an index; an anchored LIKE 'prefix%' does the same test with a seek.",
+  "description": "SUBSTRING(col,1,n) in a WHERE clause can't use an index; an anchored LIKE 'prefix%' does the same test with a seek. Why it matters: prefix searches (SKUs, codes, names) are a common pattern, and knowing the sargable rewrite is the difference between a fast lookup and a full scan.",
   "topics": [
     "sargability",
     "indexing",

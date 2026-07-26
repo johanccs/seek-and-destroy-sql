@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 5,
   "title": "Deep Pagination: OFFSET vs Keyset Seek",
-  "description": "Deep OFFSET pagination re-reads every skipped row; keyset (seek) pagination jumps straight to the next page.",
+  "description": "Deep OFFSET pagination re-reads every skipped row; keyset (seek) pagination jumps straight to the next page. Why it matters: pagination is in almost every application with a list view, and OFFSET-based paging is a extremely common pattern that quietly gets worse page by page as users page deeper.",
   "topics": [
     "pagination",
     "offset-fetch",

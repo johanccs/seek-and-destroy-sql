@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 3,
   "title": "Columnstore for Analytic Aggregation",
-  "description": "A large rowstore aggregation scans in row mode; a columnstore index processes compressed columns in batch mode for a fraction of the cost.",
+  "description": "A large rowstore aggregation scans in row mode; a columnstore index processes compressed columns in batch mode for a fraction of the cost. Why it matters: analytics and reporting workloads are a huge and growing share of real-world SQL Server use, and columnstore is the single biggest lever for making them fast at scale.",
   "topics": [
     "columnstore",
     "aggregation",

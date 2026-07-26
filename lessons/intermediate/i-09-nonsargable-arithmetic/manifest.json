@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 9,
   "title": "Arithmetic on a Column Blocks the Seek",
-  "description": "Arithmetic on a column (col * 1.1 > x) blocks the index; move the math to the constant side to keep the seek.",
+  "description": "Arithmetic on a column (col * 1.1 > x) blocks the index; move the math to the constant side to keep the seek. Why it matters: business calculations (discounts, taxes, totals) routinely end up in WHERE clauses, and this is a common, easy-to-miss way they quietly kill an index.",
   "topics": [
     "sargability",
     "indexing"

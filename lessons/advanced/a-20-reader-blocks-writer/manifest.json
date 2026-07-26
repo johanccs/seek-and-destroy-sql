@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 20,
   "title": "When a Reader Blocks a Writer (HOLDLOCK)",
-  "description": "A HOLDLOCK reader keeps its shared lock and blocks a writer; drop the hint (or use snapshot) so the read doesn't hold locks.",
+  "description": "A HOLDLOCK reader keeps its shared lock and blocks a writer; drop the hint (or use snapshot) so the read doesn't hold locks. Why it matters: \"readers block writers\" reverses the usual assumption and is a common source of confusing incidents when a report or dashboard query holds locks longer than expected.",
   "topics": [
     "concurrency",
     "locking",

@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 12,
   "title": "MIN and MAX: Read Just the Ends",
-  "description": "MIN/MAX over an unindexed column scans the table; an index lets the engine read a single value from one end.",
+  "description": "MIN/MAX over an unindexed column scans the table; an index lets the engine read a single value from one end. Why it matters: MIN/MAX lookups (first/last order, earliest/latest event) are common in dashboards, and this technique turns a full scan into a near-instant lookup.",
   "topics": [
     "indexing",
     "aggregation"

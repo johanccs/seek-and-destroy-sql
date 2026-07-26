@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 16,
   "title": "The Convert Warning That Poisons Estimates",
-  "description": "The plan's implicit-conversion warning means the column was converted — killing both the seek and the row estimate; match the literal's type.",
+  "description": "The plan's implicit-conversion warning means the column was converted — killing both the seek and the row estimate; match the literal's type. Why it matters: this warning is one of the most under-read signals in a query plan -- learning to spot and act on it catches problems most tuning checklists miss entirely.",
   "topics": [
     "implicit-conversion",
     "cardinality-estimation",

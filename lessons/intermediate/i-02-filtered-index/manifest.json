@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 2,
   "title": "Filtered Indexes for Rare-Value Queries",
-  "description": "A filtered index over just the rows a query cares about is tiny and fast, avoiding a scan of a mostly-irrelevant table.",
+  "description": "A filtered index over just the rows a query cares about is tiny and fast, avoiding a scan of a mostly-irrelevant table. Why it matters: most tables have a small \"active\"/\"pending\"/\"error\" subset that gets queried constantly -- filtered indexes are an underused, high-value technique for exactly that shape of workload.",
   "topics": [
     "indexing",
     "filtered-index",

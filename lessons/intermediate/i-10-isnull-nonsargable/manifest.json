@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 10,
   "title": "Finding NULLs: ISNULL Blocks the Seek",
-  "description": "ISNULL(col,0)=0 wraps the column and scans; test col IS NULL directly to use the index.",
+  "description": "ISNULL(col,0)=0 wraps the column and scans; test col IS NULL directly to use the index. Why it matters: NULL-handling patterns like ISNULL/COALESCE are everywhere in real queries, and this is one of the most common ways they accidentally disable a perfectly good index.",
   "topics": [
     "sargability",
     "nulls",

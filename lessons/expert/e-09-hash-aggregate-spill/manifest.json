@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 9,
   "title": "Hash Aggregate Spills From a Bad Estimate",
-  "description": "The same 1-row table-variable estimate starves a Hash Aggregate and spills it; an indexed #temp lets the engine stream the aggregate.",
+  "description": "The same 1-row table-variable estimate starves a Hash Aggregate and spills it; an indexed #temp lets the engine stream the aggregate. Why it matters: the same table-variable trap applies to GROUP BY, not just sorting -- recognizing the pattern once means catching it everywhere it appears.",
   "topics": [
     "table-variables",
     "cardinality-estimation",

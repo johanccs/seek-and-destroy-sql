@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 13,
   "title": "DATEDIFF on a Column Blocks the Seek",
-  "description": "DATEDIFF on a date column is non-sargable and scans; rewrite the condition as a plain date range to seek.",
+  "description": "DATEDIFF on a date column is non-sargable and scans; rewrite the condition as a plain date range to seek. Why it matters: date-math predicates are everywhere in reporting, and this is one of the most common ways they silently become non-sargable.",
   "topics": [
     "sargability",
     "dates",

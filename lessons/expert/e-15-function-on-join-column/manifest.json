@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 15,
   "title": "A Function on the Join Column Kills the Seek",
-  "description": "Wrapping a join column in UPPER() makes the predicate non-sargable and scans; compare the column bare and fix case at the data layer.",
+  "description": "Wrapping a join column in UPPER() makes the predicate non-sargable and scans; compare the column bare and fix case at the data layer. Why it matters: \"defensive\" case-normalization on join keys is a common pattern in real codebases, and it's one of the more expensive mistakes to make on a large join.",
   "topics": [
     "sargability",
     "joins",

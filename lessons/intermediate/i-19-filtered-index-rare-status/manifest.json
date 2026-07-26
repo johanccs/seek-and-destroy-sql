@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 19,
   "title": "A Filtered Index for a Rare Status",
-  "description": "Repeatedly querying a rare status in a huge table scans it; a filtered index over just those rows is a tiny, fast seek.",
+  "description": "Repeatedly querying a rare status in a huge table scans it; a filtered index over just those rows is a tiny, fast seek. Why it matters: operations/support dashboards constantly query a small \"needs attention\" slice of a huge table -- this technique keeps those screens fast forever, regardless of table size.",
   "topics": [
     "filtered-index",
     "selectivity",

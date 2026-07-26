@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 15,
   "title": "EXISTS vs COUNT(*) for Existence Checks",
-  "description": "Using COUNT(*) > 0 to test existence reads all matching rows; IF EXISTS / EXISTS stops at the first match.",
+  "description": "Using COUNT(*) > 0 to test existence reads all matching rows; IF EXISTS / EXISTS stops at the first match. Why it matters: \"does this exist\" checks are extremely common in application code, and COUNT(*) > 0 vs EXISTS is a small, everyday habit with a real, measurable performance difference.",
   "topics": [
     "existence",
     "io",

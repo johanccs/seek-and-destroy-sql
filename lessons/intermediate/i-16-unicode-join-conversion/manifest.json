@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 16,
   "title": "The Unicode JOIN Trap (NVARCHAR key meets a VARCHAR index)",
-  "description": "Joining an NVARCHAR key to a VARCHAR indexed column converts the big table and scans; cast the small side down to keep the seek — the classic EF join trap.",
+  "description": "Joining an NVARCHAR key to a VARCHAR indexed column converts the big table and scans; cast the small side down to keep the seek — the classic EF join trap. Why it matters: this specific mismatch is one of the most common, costly performance bugs in ORM-driven applications (Entity Framework and similar) doing cross-table joins.",
   "topics": [
     "implicit-conversion",
     "joins",

@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 2,
   "title": "Sargable Predicates: Keep the Column Bare",
-  "description": "Wrapping a column in a function makes a predicate non-sargable and forces a scan; keep the column bare so the index can seek.",
+  "description": "Wrapping a column in a function makes a predicate non-sargable and forces a scan; keep the column bare so the index can seek. Why it matters: wrapping a column in a function is one of the most common, hardest-to-spot ways developers accidentally disable an index they assume is working.",
   "topics": [
     "sargability",
     "indexing",

@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 4,
   "title": "Stale Statistics & Cardinality Misestimates",
-  "description": "Out-of-date statistics make the optimizer misestimate rows and pick a bad plan; refreshing them restores a good one.",
+  "description": "Out-of-date statistics make the optimizer misestimate rows and pick a bad plan; refreshing them restores a good one. Why it matters: stale statistics are a leading, often-overlooked cause of \"it was fine yesterday\" performance regressions -- especially on fast-growing tables.",
   "topics": [
     "statistics",
     "cardinality",

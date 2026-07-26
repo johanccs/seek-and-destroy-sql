@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 14,
   "title": "The Leading Column Must Be in the Predicate",
-  "description": "A composite index can't seek when the query filters only its second column; index the column you actually search on.",
+  "description": "A composite index can't seek when the query filters only its second column; index the column you actually search on. Why it matters: composite indexes are frequently added for one query and then silently fail to help a different, very similar-looking query -- this is exactly why, and it's a common source of confusion in code review.",
   "topics": [
     "indexing",
     "composite-index"

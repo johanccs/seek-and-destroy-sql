@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 3,
   "title": "Tempdb Sort Spills",
-  "description": "A large ORDER BY spills its sort to tempdb; an index that supplies the order removes the sort entirely.",
+  "description": "A large ORDER BY spills its sort to tempdb; an index that supplies the order removes the sort entirely. Why it matters: tempdb spills degrade every OTHER query sharing the server, not just the one spilling -- a classic, often misdiagnosed cause of \"the whole server feels slow.\"",
   "topics": [
     "tempdb",
     "sort",

@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 4,
   "title": "Composite Key Order: Equality Before Range",
-  "description": "Column order in a composite index decides whether a range predicate can seek; equality column first, range column second.",
+  "description": "Column order in a composite index decides whether a range predicate can seek; equality column first, range column second. Why it matters: composite index design is a fundamental, everyday DBA/developer skill -- getting column order wrong is one of the most common indexing mistakes.",
   "topics": [
     "indexing",
     "composite-index",

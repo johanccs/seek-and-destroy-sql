@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 1,
   "title": "Blocking: A Reader Stuck Behind an Uncommitted Writer",
-  "description": "A reader blocks behind an uncommitted writer's exclusive lock; row-versioning (RCSI) lets it read the last committed version without waiting.",
+  "description": "A reader blocks behind an uncommitted writer's exclusive lock; row-versioning (RCSI) lets it read the last committed version without waiting. Why it matters: blocking is one of the most common production incidents in any transactional system -- and one of the hardest to reproduce in testing, since it only bites under real concurrent load.",
   "topics": [
     "concurrency",
     "locking",

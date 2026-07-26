@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 8,
   "title": "Table Variables, Bad Estimates, and TempDB Spills",
-  "description": "A table variable is estimated at 1 row, starving the sort's memory grant so it spills to tempdb; an indexed #temp gives real cardinality and order.",
+  "description": "A table variable is estimated at 1 row, starving the sort's memory grant so it spills to tempdb; an indexed #temp gives real cardinality and order. Why it matters: table variables are a common, seemingly-safe developer choice that hides a serious scaling trap -- this is one of the most impactful things to know before using them on non-trivial data.",
   "topics": [
     "table-variables",
     "cardinality-estimation",

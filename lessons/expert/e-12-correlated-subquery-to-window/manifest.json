@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 12,
   "title": "Correlated Subquery to Window Function",
-  "description": "A correlated scalar subquery is recomputed per row via a spool; a window function (COUNT(*) OVER ...) computes each group's value in one pass.",
+  "description": "A correlated scalar subquery is recomputed per row via a spool; a window function (COUNT(*) OVER ...) computes each group's value in one pass. Why it matters: correlated subqueries are a very natural first instinct for \"a value about this row's group\" -- knowing the window-function alternative is one of the highest-value modern SQL skills.",
   "topics": [
     "window-functions",
     "correlated-subquery",

@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 17,
   "title": "The One Missing Index in a Multi-Table Join",
-  "description": "In a multi-table join one unindexed join key forces a full scan that dominates the plan; index that key for a nested-loops seek.",
+  "description": "In a multi-table join one unindexed join key forces a full scan that dominates the plan; index that key for a nested-loops seek. Why it matters: in real schemas with many joined tables, ONE missing index deep in the join tree is often the entire reason a \"simple\" report times out.",
   "topics": [
     "joins",
     "indexing",

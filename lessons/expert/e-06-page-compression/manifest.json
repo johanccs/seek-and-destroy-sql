@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 6,
   "title": "Data Compression Cuts I/O",
-  "description": "An uncompressed table reads far more pages than needed for a scan; PAGE compression shrinks it and cuts the I/O.",
+  "description": "An uncompressed table reads far more pages than needed for a scan; PAGE compression shrinks it and cuts the I/O. Why it matters: page compression is a low-effort, high-value lever for I/O-bound tables that many teams never enable simply because they don't know the tradeoffs.",
   "topics": [
     "compression",
     "storage",

@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 5,
   "title": "SELECT * Triggers a Key Lookup",
-  "description": "SELECT * forces a Key Lookup back to the table for columns the index doesn't hold; select only what you need (or cover the index) to drop the lookup.",
+  "description": "SELECT * forces a Key Lookup back to the table for columns the index doesn't hold; select only what you need (or cover the index) to drop the lookup. Why it matters: SELECT * is one of the most widespread habits in real codebases, and this is precisely why it quietly costs more than it looks like it should.",
   "topics": [
     "indexing",
     "covering-index",

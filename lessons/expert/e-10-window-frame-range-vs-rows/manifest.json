@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 10,
   "title": "Running Totals: RANGE vs ROWS",
-  "description": "A running total's default RANGE frame uses a slow on-disk worktable; ROWS UNBOUNDED PRECEDING computes it in memory.",
+  "description": "A running total's default RANGE frame uses a slow on-disk worktable; ROWS UNBOUNDED PRECEDING computes it in memory. Why it matters: running totals and similar window-function patterns are common in financial and analytics code -- this default is one of the most impactful, least-known performance traps in modern T-SQL.",
   "topics": [
     "window-functions",
     "frame",

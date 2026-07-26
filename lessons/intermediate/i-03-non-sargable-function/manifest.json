@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 3,
   "title": "A Function on the Column Blocks the Seek",
-  "description": "A function applied to a column in the WHERE clause defeats the index; rewrite it so the column is compared directly.",
+  "description": "A function applied to a column in the WHERE clause defeats the index; rewrite it so the column is compared directly. Why it matters: this is one of the most common patterns behind \"the query used to be fast\" reports -- a small, well-intentioned code change silently disables an index.",
   "topics": [
     "sargability",
     "query-rewrite",

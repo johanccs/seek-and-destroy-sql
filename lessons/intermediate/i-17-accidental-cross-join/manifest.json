@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 17,
   "title": "The Accidental Cross Join (Missing Join Predicate)",
-  "description": "An old-style comma join with no join predicate produces a Cartesian product (a No-Join-Predicate warning); add the join condition.",
+  "description": "An old-style comma join with no join predicate produces a Cartesian product (a No-Join-Predicate warning); add the join condition. Why it matters: a missing join condition (easy to introduce with old-style comma joins) can silently multiply a query's cost by orders of magnitude -- and sometimes return subtly wrong data too.",
   "topics": [
     "joins",
     "cardinality",

@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 8,
   "title": "NOT IN vs NOT EXISTS: The Nullable Anti-Join Trap",
-  "description": "NOT IN with a nullable column risks wrong results and blows up the plan; NOT EXISTS is safe and far cheaper.",
+  "description": "NOT IN with a nullable column risks wrong results and blows up the plan; NOT EXISTS is safe and far cheaper. Why it matters: NOT IN vs NOT EXISTS is a genuinely common code-review finding -- and NOT IN has a NULL-handling correctness trap on top of the performance cost, making this doubly worth knowing.",
   "topics": [
     "anti-join",
     "not-in",

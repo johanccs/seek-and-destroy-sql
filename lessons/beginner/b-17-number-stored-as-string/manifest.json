@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 17,
   "title": "Quote the Literal: Numbers Stored as Strings",
-  "description": "Querying a VARCHAR column with a numeric literal converts the column and abandons the index; quote the value so it stays a string seek.",
+  "description": "Querying a VARCHAR column with a numeric literal converts the column and abandons the index; quote the value so it stays a string seek. Why it matters: numeric-looking identifiers stored as text (account numbers, codes) are common in real schemas, and this exact mismatch is a frequent, invisible performance trap.",
   "topics": [
     "implicit-conversion",
     "sargability",

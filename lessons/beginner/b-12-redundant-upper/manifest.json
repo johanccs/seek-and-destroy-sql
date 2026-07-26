@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 12,
   "title": "Redundant UPPER() Blocks the Seek",
-  "description": "Wrapping both sides in UPPER() is redundant under a case-insensitive collation and disables the index; compare the column directly.",
+  "description": "Wrapping both sides in UPPER() is redundant under a case-insensitive collation and disables the index; compare the column directly. Why it matters: defensive-looking code (case-insensitive comparisons) is one of the most common accidental performance killers in real codebases -- and it's usually unnecessary.",
   "topics": [
     "sargability",
     "collation",

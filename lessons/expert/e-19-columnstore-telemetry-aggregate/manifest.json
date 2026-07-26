@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 19,
   "title": "Columnstore for a Telemetry Roll-Up",
-  "description": "A per-sensor roll-up over millions of rows scans the rowstore in row mode; a nonclustered columnstore index aggregates it in batch mode.",
+  "description": "A per-sensor roll-up over millions of rows scans the rowstore in row mode; a nonclustered columnstore index aggregates it in batch mode. Why it matters: telemetry and IoT-style data (huge row counts, simple aggregates) is an increasingly common workload shape, and columnstore is the standard modern answer for it.",
   "topics": [
     "columnstore",
     "aggregation",

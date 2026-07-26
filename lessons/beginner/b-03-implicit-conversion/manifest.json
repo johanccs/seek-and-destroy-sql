@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 3,
   "title": "Implicit Conversions Kill Index Seeks",
-  "description": "Comparing an indexed string column to a number makes SQL Server convert every row and abandon the index; match the literal's type to keep the seek.",
+  "description": "Comparing an indexed string column to a number makes SQL Server convert every row and abandon the index; match the literal's type to keep the seek. Why it matters: type mismatches between application code and the database schema are extremely common (especially with ORMs) and silently defeat indexes without any error or warning.",
   "topics": [
     "implicit-conversion",
     "indexing",

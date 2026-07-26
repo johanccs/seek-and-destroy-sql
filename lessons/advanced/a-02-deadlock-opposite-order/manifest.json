@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 2,
   "title": "Deadlock: Two Transactions, Opposite Lock Order",
-  "description": "Two transactions updating rows in opposite order deadlock; access rows in a consistent order to break the cycle.",
+  "description": "Two transactions updating rows in opposite order deadlock; access rows in a consistent order to break the cycle. Why it matters: deadlocks are a top cause of mysterious, intermittent transaction failures in production -- and consistent access ordering is the single cheapest way to prevent them.",
   "topics": [
     "concurrency",
     "deadlock",

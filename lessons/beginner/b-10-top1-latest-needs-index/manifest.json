@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 10,
   "title": "Getting the Latest Row: TOP 1 Needs an Index",
-  "description": "Finding the latest row with TOP 1 + ORDER BY scans and sorts everything; an index on the sort column reads just the first row.",
+  "description": "Finding the latest row with TOP 1 + ORDER BY scans and sorts everything; an index on the sort column reads just the first row. Why it matters: \"get the latest record\" is an extremely common lookup, and this is exactly why it silently gets slower as history accumulates.",
   "topics": [
     "indexing",
     "order-by",

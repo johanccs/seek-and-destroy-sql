@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 18,
   "title": "SERIALIZABLE Key-Range Locks Block Inserts",
-  "description": "A SERIALIZABLE read takes key-range locks that block inserts into that range; use the weakest correct isolation so writers proceed.",
+  "description": "A SERIALIZABLE read takes key-range locks that block inserts into that range; use the weakest correct isolation so writers proceed. Why it matters: choosing the right isolation level is a core production skill -- using stronger guarantees than a query actually needs is a common cause of unexpected blocking.",
   "topics": [
     "concurrency",
     "locking",

@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 9,
   "title": "The Nonclustered Index Tipping Point",
-  "description": "Past the tipping point a non-covering index costs more than a scan, so the optimizer scans; a covering index brings back the seek.",
+  "description": "Past the tipping point a non-covering index costs more than a scan, so the optimizer scans; a covering index brings back the seek. Why it matters: understanding the tipping point is essential for correctly diagnosing why the optimizer \"suddenly\" stops using an index that used to work fine.",
   "topics": [
     "indexing",
     "covering-index",

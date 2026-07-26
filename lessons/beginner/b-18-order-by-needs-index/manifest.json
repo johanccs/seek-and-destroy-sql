@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 18,
   "title": "ORDER BY Without an Index Means a Sort",
-  "description": "Returning the top N by an unindexed column sorts the whole table first; an index in that order reads just the first N.",
+  "description": "Returning the top N by an unindexed column sorts the whole table first; an index in that order reads just the first N. Why it matters: \"show me the latest N\" is one of the most common UI patterns there is, and an unindexed sort is a silent, ever-worsening tax on every page load.",
   "topics": [
     "indexing",
     "order-by",

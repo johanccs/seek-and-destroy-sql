@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 5,
   "title": "Forwarded Records in Heaps",
-  "description": "Forwarded records in a heap make a scan chase pointers across pages; rebuilding the heap removes the forwarding.",
+  "description": "Forwarded records in a heap make a scan chase pointers across pages; rebuilding the heap removes the forwarding. Why it matters: forwarded records are a slow, silent tax that accumulates on heaps under update-heavy workloads -- exactly the kind of issue that goes unnoticed until someone finally investigates \"why do simple scans read so much.\"",
   "topics": [
     "heaps",
     "storage",

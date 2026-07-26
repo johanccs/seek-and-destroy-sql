@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 15,
   "title": "Catch-All (Optional Parameter) Queries",
-  "description": "A '(@p IS NULL OR col=@p)' catch-all gets one bad plan for every case; OPTION(RECOMPILE) folds the unused branches into a seek.",
+  "description": "A '(@p IS NULL OR col=@p)' catch-all gets one bad plan for every case; OPTION(RECOMPILE) folds the unused branches into a seek. Why it matters: \"search with optional filters\" is one of the most commonly built features in business applications, and the naive catch-all pattern is a well-known way to tank performance for every caller at once.",
   "topics": [
     "parameters",
     "recompile",

@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 8,
   "title": "The Unicode Parameter Trap (NVARCHAR vs VARCHAR)",
-  "description": "An NVARCHAR (N'...') literal against a VARCHAR column converts the column and scans — the classic ORM Unicode trap; match the types to seek.",
+  "description": "An NVARCHAR (N'...') literal against a VARCHAR column converts the column and scans — the classic ORM Unicode trap; match the types to seek. Why it matters: this is one of the most common, hardest-to-spot performance bugs introduced by ORMs (like Entity Framework) that default string parameters to Unicode.",
   "topics": [
     "implicit-conversion",
     "sargability",

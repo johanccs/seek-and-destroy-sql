@@ -3,7 +3,7 @@
   "level": "beginner",
   "order": 4,
   "title": "ORDER BY Without an Index Adds a Sort",
-  "description": "An ORDER BY on an unindexed column adds an expensive Sort; an index that stores rows in that order removes it.",
+  "description": "An ORDER BY on an unindexed column adds an expensive Sort; an index that stores rows in that order removes it. Why it matters: sorting is one of the most common operations in any reporting query, and an unindexed sort is one of the most common reasons a report gets slower every month.",
   "topics": [
     "indexing",
     "sorting",

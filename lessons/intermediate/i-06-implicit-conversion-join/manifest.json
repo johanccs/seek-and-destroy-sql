@@ -3,7 +3,7 @@
   "level": "intermediate",
   "order": 6,
   "title": "Implicit Conversion on a Join Key",
-  "description": "Joining a VARCHAR key to an INT column converts every row and scans; align the types so the join can seek its index.",
+  "description": "Joining a VARCHAR key to an INT column converts every row and scans; align the types so the join can seek its index. Why it matters: mismatched key types between joined tables are a common legacy-schema problem, and this is exactly why a join that should be instant scans millions of rows instead.",
   "topics": [
     "implicit-conversion",
     "join",

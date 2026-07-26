@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 7,
   "title": "Nonclustered Columnstore for Analytics",
-  "description": "A rowstore GROUP BY scans in row mode; a nonclustered columnstore index enables batch-mode aggregation while the table still serves OLTP.",
+  "description": "A rowstore GROUP BY scans in row mode; a nonclustered columnstore index enables batch-mode aggregation while the table still serves OLTP. Why it matters: being able to run fast analytics on the SAME table that serves live transactions (HTAP) is a genuinely valuable, modern architecture pattern worth knowing exists.",
   "topics": [
     "columnstore",
     "aggregation",

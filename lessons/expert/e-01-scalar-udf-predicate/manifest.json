@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 1,
   "title": "The Scalar UDF Hiding in Your WHERE Clause",
-  "description": "A scalar UDF in the WHERE clause runs per row and blocks parallelism and good estimates; inline the logic so the query optimizes normally.",
+  "description": "A scalar UDF in the WHERE clause runs per row and blocks parallelism and good estimates; inline the logic so the query optimizes normally. Why it matters: reusable business-logic functions are a natural, common design choice -- but placed in a WHERE clause, a scalar UDF can turn a fast query into a serial, row-by-row disaster at scale.",
   "topics": [
     "scalar-udf",
     "sargability",

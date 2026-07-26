@@ -3,7 +3,7 @@
   "level": "advanced",
   "order": 6,
   "title": "Indexed Aggregation: Stream vs Hash Aggregate",
-  "description": "A GROUP BY with no supporting index uses a Hash Aggregate; an index in group order enables a cheaper Stream Aggregate.",
+  "description": "A GROUP BY with no supporting index uses a Hash Aggregate; an index in group order enables a cheaper Stream Aggregate. Why it matters: GROUP BY reporting queries are everywhere in business software, and this is a reliable, repeatable way to make them dramatically cheaper.",
   "topics": [
     "indexing",
     "aggregation",

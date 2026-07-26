@@ -3,7 +3,7 @@
   "level": "expert",
   "order": 11,
   "title": "Reading the Optimizer's Missing-Index Hint",
-  "description": "The plan carries the optimizer's own missing-index recommendation; learn to read and apply it (with judgment) to turn a scan into a seek.",
+  "description": "The plan carries the optimizer's own missing-index recommendation; learn to read and apply it (with judgment) to turn a scan into a seek. Why it matters: SQL Server hands you free tuning advice on every plan -- knowing how to read and responsibly apply it (not blindly) is a skill that separates junior from senior tuning work.",
   "topics": [
     "missing-index",
     "plan-warnings",
