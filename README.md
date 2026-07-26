@@ -1,4 +1,6 @@
-# SQL Performance Playground
+# SQL Performance Playground a.k.a. "Seek and Destroy"
+
+**Repo:** https://github.com/johanccs/seek-and-destroy-sql
 
 An interactive, web-based playground for developing **Microsoft SQL Server performance-tuning**
 skills — from beginner to expert. You write real T-SQL against a **real SQL Server 2022 engine**,
