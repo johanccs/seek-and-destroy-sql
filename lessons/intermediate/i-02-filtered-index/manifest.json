@@ -15,7 +15,7 @@
   "hints": [
     "The plan scans all 400k rows but returns ~4k — you need an index on Status.",
     "A full index on Status wastes space on the 99% 'Completed' rows you never filter for.",
-    "Create a FILTERED index: CREATE NONCLUSTERED INDEX IX_Orders_Pending ON dbo.Orders(Status) INCLUDE (CustomerId, Total) WHERE Status = 'Pending';"
+    "Create a FILTERED index: CREATE NONCLUSTERED INDEX IX_Orders_Pending ON Orders(Status) INCLUDE (CustomerId, Total) WHERE Status = 'Pending';"
   ],
   "passConditions": [
     {

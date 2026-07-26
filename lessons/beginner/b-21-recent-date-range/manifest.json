@@ -12,12 +12,11 @@
   ],
   "estimatedMinutes": 10,
   "narrative": "## Scenario\nA security screen shows recent logins: everything since a cutoff timestamp. `Logins` has no index on `LoginAt`, so this \"last few days\" query reads all 300,000 rows every time it runs.\n\n## Why it's slow\n`WHERE LoginAt >= @cutoff` is an open-ended **range**. With no index on the date column, the only option is a **Clustered Index Scan** — read the entire table and keep the rows past the cutoff. This is one of the most common queries in any app, and unindexed it gets slower as history grows.\n\n## What to look for\n- A Clustered Index Scan for a query that only wants the newest slice of rows.\n- Cost that rises with total history, not with how many recent rows match.\n\n## The concept\nIndex the timestamp you filter and sort on. A nonclustered index on `LoginAt` keeps rows in chronological order, so `>=` a cutoff becomes a **range Index Seek** straight to the recent tail. Date/time columns used for \"recent\", \"between\", and \"order by newest\" queries are almost always worth an index.",
-  "startingQuery": "SELECT LoginId, UserId, LoginAt\nFROM dbo.Logins\nWHERE LoginAt >= '2025-12-31T00:00:00';",
-  "database": "Lesson_b_21_recent_date_range",
+  "startingQuery": "SELECT LoginId, UserId, LoginAt\nFROM Logins\nWHERE LoginAt >= '2025-12-31T00:00:00';",
   "hints": [
     "There's no index on LoginAt, so the whole table is scanned to find recent rows.",
     "A date index keeps rows in time order, turning >= cutoff into a range seek to the newest rows.",
-    "CREATE NONCLUSTERED INDEX IX_Logins_LoginAt ON dbo.Logins(LoginAt) INCLUDE (UserId); then re-run."
+    "CREATE NONCLUSTERED INDEX IX_Logins_LoginAt ON Logins(LoginAt) INCLUDE (UserId); then re-run."
   ],
   "passConditions": [
     {

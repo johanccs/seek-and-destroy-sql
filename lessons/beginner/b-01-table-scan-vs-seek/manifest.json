@@ -14,7 +14,7 @@
   "hints": [
     "Look at the operator reading Orders — is it a Scan or a Seek? A Scan touches every page.",
     "There is no index whose key column is CustomerId, so the predicate can't be seeked.",
-    "Create a nonclustered index: CREATE NONCLUSTERED INDEX IX_Orders_CustomerId ON dbo.Orders(CustomerId);"
+    "Create a nonclustered index: CREATE NONCLUSTERED INDEX IX_Orders_CustomerId ON Orders(CustomerId);"
   ],
   "passConditions": [
     {

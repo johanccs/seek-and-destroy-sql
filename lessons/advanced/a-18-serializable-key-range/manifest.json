@@ -25,7 +25,7 @@
     "sessions": {
       "A": [
         {
-          "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE; BEGIN TRAN; SELECT COUNT(*) FROM dbo.Orders WHERE CustomerId = 5;",
+          "sql": "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE; BEGIN TRAN; SELECT COUNT(*) FROM Orders WHERE CustomerId = 5;",
           "afterMs": 0
         },
         {
@@ -35,7 +35,7 @@
       ],
       "B": [
         {
-          "sql": "INSERT INTO dbo.Orders (CustomerId, Amount) VALUES (5, 99.99);",
+          "sql": "INSERT INTO Orders (CustomerId, Amount) VALUES (5, 99.99);",
           "afterMs": 500
         }
       ]

@@ -12,7 +12,6 @@
   "estimatedMinutes": 12,
   "narrative": "## Scenario\nA worklist screen shows *unassigned* orders — rows where `AssignedTo IS NULL`. Only 200 of 200,000 orders are unassigned, and `AssignedTo` is indexed, yet the query scans the whole index.\n\n## Why it's slow\nThe query is written `WHERE ISNULL(AssignedTo, 0) = 0`. Wrapping the column in `ISNULL()` (or `COALESCE()`) is **non-sargable**: SQL Server must evaluate the function for *every* row before it can test the predicate, so it **scans** the entire index instead of seeking.\n\n## What to look for\n- In the plan: an **Index Scan** on `IX_Orders_AssignedTo` reading all 200k index rows to return 200.\n- In `STATISTICS IO`: hundreds of logical reads for a 200-row result.\n\n## The concept\n`NULL`s are stored in the index and sort at its **start**, so the predicate `AssignedTo IS NULL` can **seek** straight to them. Any function around the column — even `ISNULL()` whose only purpose is to test for NULL — throws that away. Use `IS NULL` / `IS NOT NULL` directly.",
   "startingQuery": "SELECT OrderId, CustomerId, OrderDate, Total FROM Orders WHERE ISNULL(AssignedTo, 0) = 0;",
-  "database": "Lesson_i_10_isnull_nonsargable",
   "hints": [
     "Look at the operator on Orders — is it a Scan or a Seek? A function on the column forces a Scan.",
     "ISNULL(AssignedTo, 0) must be computed for every row, so the index key can't be seeked.",

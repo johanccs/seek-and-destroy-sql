@@ -15,7 +15,7 @@
   "hints": [
     "Orders is seeked by its primary key, but how is OrderItems accessed?",
     "OrderItems.OrderId has no index, so all 600k rows are scanned to find ~12.",
-    "Create a nonclustered index: CREATE INDEX IX_OrderItems_OrderId ON dbo.OrderItems(OrderId);"
+    "Create a nonclustered index: CREATE INDEX IX_OrderItems_OrderId ON OrderItems(OrderId);"
   ],
   "passConditions": [
     {

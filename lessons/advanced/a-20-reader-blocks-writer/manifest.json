@@ -24,7 +24,7 @@
     "sessions": {
       "A": [
         {
-          "sql": "BEGIN TRAN; SELECT AccountId, Owner, Balance FROM dbo.Accounts WITH (HOLDLOCK) WHERE AccountId = 1;",
+          "sql": "BEGIN TRAN; SELECT AccountId, Owner, Balance FROM Accounts WITH (HOLDLOCK) WHERE AccountId = 1;",
           "afterMs": 0
         },
         {
@@ -34,7 +34,7 @@
       ],
       "B": [
         {
-          "sql": "UPDATE dbo.Accounts SET Balance = Balance - 50 WHERE AccountId = 1;",
+          "sql": "UPDATE Accounts SET Balance = Balance - 50 WHERE AccountId = 1;",
           "afterMs": 500
         }
       ]

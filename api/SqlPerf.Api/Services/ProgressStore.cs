@@ -3,19 +3,24 @@ using SqlPerf.Api.Models;
 
 namespace SqlPerf.Api.Services;
 
-// AppMeta database: persists per-lesson progress across restarts.
+// Progress lives in the `dbo` schema of the same shared app database that lesson
+// content uses (see SqlExecutor) -- NOT a separate database, since a second database
+// would be billable on Azure SQL's single-free-database tier and defeat the point of
+// consolidating everything into one database.
 public sealed class ProgressStore
 {
     private readonly string _masterCs;
-    private readonly string _appMetaCs;
+    private readonly string _appCs;
+    private readonly string _appDatabase;
     private bool _ready;
 
     public ProgressStore(IConfiguration cfg)
     {
         var baseCs = cfg.GetConnectionString("Sql")
             ?? throw new InvalidOperationException("ConnectionStrings:Sql missing");
+        _appDatabase = cfg["Sql:AppDatabase"] ?? "SqlPerfDb";
         _masterCs = new SqlConnectionStringBuilder(baseCs) { InitialCatalog = "master" }.ConnectionString;
-        _appMetaCs = new SqlConnectionStringBuilder(baseCs) { InitialCatalog = "AppMeta" }.ConnectionString;
+        _appCs = new SqlConnectionStringBuilder(baseCs) { InitialCatalog = _appDatabase }.ConnectionString;
     }
 
     public async Task EnsureReadyAsync()
@@ -24,9 +29,13 @@ public sealed class ProgressStore
         await using (var c = new SqlConnection(_masterCs))
         {
             await c.OpenAsync();
-            await Exec(c, "IF DB_ID('AppMeta') IS NULL CREATE DATABASE AppMeta;");
+            await Exec(c, $"IF DB_ID('{_appDatabase}') IS NULL CREATE DATABASE [{_appDatabase}];");
+            // One-time, database-wide, one-way-safe: lets any lesson (e.g.
+            // a-19-snapshot-update-conflict) use SET TRANSACTION ISOLATION LEVEL
+            // SNAPSHOT. Idempotent -- a no-op once already ON.
+            await Exec(c, $"ALTER DATABASE [{_appDatabase}] SET ALLOW_SNAPSHOT_ISOLATION ON;");
         }
-        await using (var c = new SqlConnection(_appMetaCs))
+        await using (var c = new SqlConnection(_appCs))
         {
             await c.OpenAsync();
             await Exec(c, """
@@ -51,7 +60,7 @@ public sealed class ProgressStore
     public async Task<ProgressDto> GetAsync(string lessonId)
     {
         await EnsureReadyAsync();
-        await using var c = new SqlConnection(_appMetaCs);
+        await using var c = new SqlConnection(_appCs);
         await c.OpenAsync();
         await using var cmd = new SqlCommand(
             "SELECT Solved, BestLogicalReads, BestDurationMs FROM dbo.LessonProgress WHERE LessonId=@id", c);
@@ -68,7 +77,7 @@ public sealed class ProgressStore
     {
         await EnsureReadyAsync();
         var map = new Dictionary<string, ProgressDto>(StringComparer.OrdinalIgnoreCase);
-        await using var c = new SqlConnection(_appMetaCs);
+        await using var c = new SqlConnection(_appCs);
         await c.OpenAsync();
         await using var cmd = new SqlCommand(
             "SELECT LessonId, Solved, BestLogicalReads, BestDurationMs FROM dbo.LessonProgress", c);
@@ -89,7 +98,7 @@ public sealed class ProgressStore
         var bestReads = Min(existing.BestLogicalReads, logicalReads);
         var bestDur = Min(existing.BestDurationMs, durationMs);
 
-        await using var c = new SqlConnection(_appMetaCs);
+        await using var c = new SqlConnection(_appCs);
         await c.OpenAsync();
         await using var cmd = new SqlCommand("""
             MERGE dbo.LessonProgress AS t
@@ -114,7 +123,7 @@ public sealed class ProgressStore
     public async Task<int> ResetAllAsync()
     {
         await EnsureReadyAsync();
-        await using var c = new SqlConnection(_appMetaCs);
+        await using var c = new SqlConnection(_appCs);
         await c.OpenAsync();
         await using var cmd = new SqlCommand("DELETE FROM dbo.LessonProgress;", c) { CommandTimeout = 60 };
         return await cmd.ExecuteNonQueryAsync();

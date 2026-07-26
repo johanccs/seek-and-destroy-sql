@@ -12,7 +12,6 @@
   "estimatedMinutes": 10,
   "narrative": "## Scenario\nA dashboard shows orders from the **last 7 days**. The developer wrote the filter with `DATEDIFF`:\n\n```sql\nWHERE DATEDIFF(DAY, OrderDate, '2026-01-01') BETWEEN 0 AND 6\n```\n\nThere is a perfectly good index on `OrderDate`, yet the query scans the whole table.\n\n## Why it's slow\nWrapping the column in `DATEDIFF(...)` (or `DATEADD`, `YEAR`, `MONTH`, ...) produces a **computed value**. SQL Server can only seek on the *bare* indexed column, so it must evaluate the function for **every row** — an **Index Scan** — before it can filter.\n\n> Note: `CAST(OrderDate AS DATE)` is a special case the optimizer *can* still seek. But `DATEDIFF`/`DATEADD` around the column are **not** sargable.\n\n## The fix\nExpress the same window as a **half-open range** on the raw column:\n\n```sql\nWHERE OrderDate >= '2025-12-26' AND OrderDate < '2026-01-02'\n```\n\nNow the index can **seek** straight to the matching rows.\n\n## What to look for\n- Bad: an **Index Scan** on `IX_Orders_OrderDate` reading all 200k rows.\n- Good: an **Index Seek** with a tiny fraction of the logical reads.",
   "startingQuery": "SELECT OrderId, CustomerId, OrderDate, Total FROM Orders WHERE DATEDIFF(DAY, OrderDate, '2026-01-01') BETWEEN 0 AND 6;",
-  "database": "Lesson_b_13_datediff_nonsargable",
   "hints": [
     "The operator reading Orders is a Scan, not a Seek. Why can't the OrderDate index seek?",
     "DATEDIFF(DAY, OrderDate, ...) wraps the column in a function, so the range is hidden from the index.",

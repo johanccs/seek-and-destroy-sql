@@ -6,13 +6,13 @@
 -- Session A:
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 BEGIN TRAN;
-SELECT Balance FROM dbo.Accounts WITH (UPDLOCK) WHERE AccountId = 1;
-UPDATE dbo.Accounts SET Balance = Balance - 100 WHERE AccountId = 1;
+SELECT Balance FROM Accounts WITH (UPDLOCK) WHERE AccountId = 1;
+UPDATE Accounts SET Balance = Balance - 100 WHERE AccountId = 1;
 COMMIT;
 
 -- Session B:
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 BEGIN TRAN;
-SELECT Balance FROM dbo.Accounts WITH (UPDLOCK) WHERE AccountId = 1;
-UPDATE dbo.Accounts SET Balance = Balance - 50 WHERE AccountId = 1;
+SELECT Balance FROM Accounts WITH (UPDLOCK) WHERE AccountId = 1;
+UPDATE Accounts SET Balance = Balance - 50 WHERE AccountId = 1;
 COMMIT;

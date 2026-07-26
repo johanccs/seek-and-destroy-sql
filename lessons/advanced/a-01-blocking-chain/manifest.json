@@ -24,7 +24,7 @@
     "sessions": {
       "A": [
         {
-          "sql": "BEGIN TRAN; UPDATE dbo.Accounts SET Balance = Balance - 100 WHERE AccountId = 1;",
+          "sql": "BEGIN TRAN; UPDATE Accounts SET Balance = Balance - 100 WHERE AccountId = 1;",
           "afterMs": 0
         },
         {
@@ -34,7 +34,7 @@
       ],
       "B": [
         {
-          "sql": "SELECT AccountId, Owner, Balance FROM dbo.Accounts WHERE AccountId = 1;",
+          "sql": "SELECT AccountId, Owner, Balance FROM Accounts WHERE AccountId = 1;",
           "afterMs": 500
         }
       ]

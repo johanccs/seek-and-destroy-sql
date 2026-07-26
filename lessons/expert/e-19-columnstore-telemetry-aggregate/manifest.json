@@ -12,12 +12,11 @@
   ],
   "estimatedMinutes": 15,
   "narrative": "## Scenario\nAn analytics query averages readings per sensor over 800,000 telemetry rows. On the rowstore clustered index it reads the entire table, row by row, every time.\n\n## Why it's slow\nThe clustered index is **row-oriented**: to average one column it still pulls whole rows through the engine, one at a time (row mode). For a scan-everything aggregation, that's a lot of wasted I/O and CPU — rowstore is built for point lookups and small ranges, not for crunching a whole column.\n\n## What to look for\n- A **Clustered Index Scan** feeding a hash aggregate, touching the full table in row mode.\n- An analytical query (`SUM`/`AVG`/`COUNT ... GROUP BY`) over a large table.\n\n## The concept\nAdd a **nonclustered columnstore index** on the aggregated columns. Columnstore stores data by column in compressed segments and processes it in **batch mode** (hundreds of rows per CPU step), so a per-sensor average scans far less data far faster. Nonclustered columnstore lets the same table keep serving OLTP lookups on the rowstore while analytics use the columnstore — the HTAP pattern.",
-  "startingQuery": "SELECT SensorId, AVG(Reading) AS AvgReading, COUNT(*) AS Cnt\nFROM dbo.Measurements\nGROUP BY SensorId;",
-  "database": "Lesson_e_19_columnstore_telemetry_aggregate",
+  "startingQuery": "SELECT SensorId, AVG(Reading) AS AvgReading, COUNT(*) AS Cnt\nFROM Measurements\nGROUP BY SensorId;",
   "hints": [
     "The rowstore clustered index is scanned in row mode to aggregate a whole column -- the wrong storage for analytics.",
     "A columnstore index stores data by column and processes it in batch mode, ideal for SUM/AVG/COUNT over big tables.",
-    "CREATE NONCLUSTERED COLUMNSTORE INDEX NCCI_Measurements ON dbo.Measurements(SensorId, Reading); then re-run."
+    "CREATE NONCLUSTERED COLUMNSTORE INDEX NCCI_Measurements ON Measurements(SensorId, Reading); then re-run."
   ],
   "passConditions": [
     {

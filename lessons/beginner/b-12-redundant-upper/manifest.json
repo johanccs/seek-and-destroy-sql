@@ -12,7 +12,6 @@
   "estimatedMinutes": 10,
   "narrative": "## Scenario\nA login screen looks up a user by email:\n\n```sql\nSELECT CustomerId, Email, Name FROM Customers WHERE UPPER(Email) = UPPER('user12345@example.com');\n```\n\nThe developer wrapped both sides in `UPPER()` \"to be safe\" about case. On a 200,000-row table this now scans the whole `IX_Customers_Email` index.\n\n## Why it's slow\nSQL Server's **default collation is case-INSENSITIVE** (`..._CI_...`). So `UPPER()` is **redundant** — `Email = 'user12345@example.com'` already matches the stored `User12345@Example.com`. Worse, `UPPER(Email)` is a **function on the column**, which makes the predicate **non-sargable**: the index is ordered by `Email`, not by `UPPER(Email)`, so the engine can't seek and must scan every row.\n\n## What to look for\n- An **Index Scan** on `IX_Customers_Email` reading all 200k rows for a single match.\n- A `CONVERT`/`Compute Scalar` applying `UPPER` before the comparison.\n\n## The fix\nDrop the function and compare the column directly. The comparison stays case-insensitive because of the collation, and the index **seeks** straight to the row.",
   "startingQuery": "SELECT CustomerId, Email, Name FROM Customers WHERE UPPER(Email) = UPPER('user12345@example.com');",
-  "database": "Lesson_b_12_redundant_upper",
   "hints": [
     "Look at the operator on Customers -- a Scan touches every row. Why can't it seek IX_Customers_Email?",
     "The index is ordered by Email, not by UPPER(Email). A function on the column defeats the seek.",

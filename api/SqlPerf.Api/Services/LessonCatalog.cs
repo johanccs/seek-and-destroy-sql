@@ -50,16 +50,18 @@ public sealed class LessonCatalog
 
                 var seed = ReadIfExists(Path.Combine(dir, "seed.sql"));
                 var solution = ReadIfExists(Path.Combine(dir, "solution.sql"));
-                var db = string.IsNullOrWhiteSpace(manifest.Database)
-                    ? "Lesson_" + manifest.Id.Replace('-', '_')
-                    : manifest.Database;
+                // The "Database" field here is really a SQL SCHEMA name (all lessons share
+                // one physical database, isolated by schema -- see SqlExecutor). ALWAYS
+                // derive fresh from the id; never trust manifest.Database (some manifests
+                // carry stale/truncated values from the old one-database-per-lesson model).
+                var schema = manifest.Id.Replace('-', '_');
 
                 _byId[manifest.Id] = new Lesson
                 {
                     Manifest = manifest,
                     SeedSql = seed,
                     SolutionSql = solution,
-                    Database = db,
+                    Database = schema,
                 };
             }
             catch (Exception ex)

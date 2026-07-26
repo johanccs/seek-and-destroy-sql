@@ -12,11 +12,10 @@
   "estimatedMinutes": 15,
   "narrative": "## Scenario\n`Orders` is a **heap** — a table with *no clustered index*. A screen runs `SELECT CustomerId, OrderDate, Total, Status FROM Orders WHERE CustomerId = 42`. There is a nonclustered index on `CustomerId`, yet the query still does far more I/O than the ~40 rows it returns.\n\n## Why it's slow\nA heap stores rows in no particular order and identifies each by a physical **RID** (file:page:slot). The nonclustered index on `CustomerId` can **seek** to the matching index rows, but it only holds `CustomerId` (plus the RID). To fetch `OrderDate`, `Total`, and `Status` the engine must follow each RID back into the heap — a **RID Lookup**, driven by a **Nested Loops** operator, once per matching row.\n\n## What to look for\n- In the plan: an **Index Seek** feeding a **Nested Loops** that does a **RID Lookup** into `Orders`.\n- In `STATISTICS IO`: logical reads well above the row count — one lookup per row.\n\n## The concept\nThis is the heap version of a Key Lookup. Eliminate it the same way: make the index **covering** with `INCLUDE (OrderDate, Total, Status)` so the seek returns every needed column and never touches the heap. (Adding a clustered index is the other common fix — it changes lookups from RID Lookups to Key Lookups, but covering the query removes the lookup entirely.)",
   "startingQuery": "SELECT CustomerId, OrderDate, Total, Status FROM Orders WHERE CustomerId = 42;",
-  "database": "Lesson_a_11_heap_rid_lookup",
   "hints": [
     "The seek finds the rows, but which operator fetches the other columns? Look for a Nested Loops / RID Lookup on Orders.",
     "IX_Orders_CustomerId holds only CustomerId — it can't supply OrderDate, Total, or Status without a lookup into the heap.",
-    "Create a covering index: CREATE NONCLUSTERED INDEX IX_Orders_Cust_Cov ON dbo.Orders(CustomerId) INCLUDE (OrderDate, Total, Status);"
+    "Create a covering index: CREATE NONCLUSTERED INDEX IX_Orders_Cust_Cov ON Orders(CustomerId) INCLUDE (OrderDate, Total, Status);"
   ],
   "passConditions": [
     {

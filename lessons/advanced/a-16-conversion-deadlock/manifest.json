@@ -11,12 +11,12 @@
     "isolation"
   ],
   "estimatedMinutes": 15,
-  "narrative": "## Scenario\nTwo money-transfer sessions run the same classic pattern against Alice's account inside a **`REPEATABLE READ`** transaction (chosen so the balance they read stays stable): **read the current balance, then update it**. Individually they're fine. Run them at the same time and one is killed as a **deadlock victim** — even though they only ever touch a *single* row.\n\n## Why it deadlocks\nThis is a **conversion deadlock**, and it needs no opposing lock order. Both sessions `SELECT` account 1 first, each taking a **shared (S)** lock — and S locks are compatible, so both succeed. Under `REPEATABLE READ` that S lock is **held to the end of the transaction** (unlike the default `READ COMMITTED`, which drops it the instant the read finishes). Then each session's `UPDATE` tries to convert its still-held S lock to an **exclusive (X)** lock — incompatible with the *other* session's S lock — so each waits for the other to let go. Neither can, and the deadlock monitor kills one.\n\n## What to look for\n- Both sessions **acquire** an S lock on `Accounts(1)`, then both try to **convert to X** and block on each other.\n- The deadlock graph shows a lock-conversion cycle on the same resource (not two different rows).\n\n## The concept\nReordering rows can't help — there's only one row. The fix is to declare *update intent at read time* so the two reads can't both succeed. Add an **`UPDLOCK`** hint to the `SELECT`: `SELECT ... FROM dbo.Accounts WITH (UPDLOCK) WHERE AccountId = 1`. `UPDLOCK` takes an **update (U)** lock, which is incompatible with another U — so the second session simply *waits* at the read instead of racing to a doomed conversion. One transaction completes, then the other proceeds. (`sp_getapplock` or serializing the work are heavier alternatives.)",
+  "narrative": "## Scenario\nTwo money-transfer sessions run the same classic pattern against Alice's account inside a **`REPEATABLE READ`** transaction (chosen so the balance they read stays stable): **read the current balance, then update it**. Individually they're fine. Run them at the same time and one is killed as a **deadlock victim** — even though they only ever touch a *single* row.\n\n## Why it deadlocks\nThis is a **conversion deadlock**, and it needs no opposing lock order. Both sessions `SELECT` account 1 first, each taking a **shared (S)** lock — and S locks are compatible, so both succeed. Under `REPEATABLE READ` that S lock is **held to the end of the transaction** (unlike the default `READ COMMITTED`, which drops it the instant the read finishes). Then each session's `UPDATE` tries to convert its still-held S lock to an **exclusive (X)** lock — incompatible with the *other* session's S lock — so each waits for the other to let go. Neither can, and the deadlock monitor kills one.\n\n## What to look for\n- Both sessions **acquire** an S lock on `Accounts(1)`, then both try to **convert to X** and block on each other.\n- The deadlock graph shows a lock-conversion cycle on the same resource (not two different rows).\n\n## The concept\nReordering rows can't help — there's only one row. The fix is to declare *update intent at read time* so the two reads can't both succeed. Add an **`UPDLOCK`** hint to the `SELECT`: `SELECT ... FROM Accounts WITH (UPDLOCK) WHERE AccountId = 1`. `UPDLOCK` takes an **update (U)** lock, which is incompatible with another U — so the second session simply *waits* at the read instead of racing to a doomed conversion. One transaction completes, then the other proceeds. (`sp_getapplock` or serializing the work are heavier alternatives.)",
   "startingQuery": "-- This is a concurrency lesson. Add WITH (UPDLOCK) to each session's SELECT and Run the interleaving.",
   "hints": [
     "Both sessions take a shared (S) lock on the same row during the SELECT, then both try to upgrade to exclusive (X). That mutual upgrade is the deadlock.",
     "There is only one row, so reordering access can't help. You need to stop both reads from co-existing.",
-    "Add WITH (UPDLOCK) to each SELECT so the read takes an update (U) lock; the second session then waits instead of deadlocking: SELECT Balance FROM dbo.Accounts WITH (UPDLOCK) WHERE AccountId = 1;"
+    "Add WITH (UPDLOCK) to each SELECT so the read takes an update (U) lock; the second session then waits instead of deadlocking: SELECT Balance FROM Accounts WITH (UPDLOCK) WHERE AccountId = 1;"
   ],
   "passConditions": [],
   "interleaving": {
@@ -24,21 +24,21 @@
     "sessions": {
       "A": [
         {
-          "sql": "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ; BEGIN TRAN; SELECT Balance FROM dbo.Accounts WHERE AccountId = 1;",
+          "sql": "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ; BEGIN TRAN; SELECT Balance FROM Accounts WHERE AccountId = 1;",
           "afterMs": 0
         },
         {
-          "sql": "UPDATE dbo.Accounts SET Balance = Balance - 100 WHERE AccountId = 1; COMMIT;",
+          "sql": "UPDATE Accounts SET Balance = Balance - 100 WHERE AccountId = 1; COMMIT;",
           "afterMs": 300
         }
       ],
       "B": [
         {
-          "sql": "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ; BEGIN TRAN; SELECT Balance FROM dbo.Accounts WHERE AccountId = 1;",
+          "sql": "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ; BEGIN TRAN; SELECT Balance FROM Accounts WHERE AccountId = 1;",
           "afterMs": 100
         },
         {
-          "sql": "UPDATE dbo.Accounts SET Balance = Balance - 50 WHERE AccountId = 1; COMMIT;",
+          "sql": "UPDATE Accounts SET Balance = Balance - 50 WHERE AccountId = 1; COMMIT;",
           "afterMs": 300
         }
       ]

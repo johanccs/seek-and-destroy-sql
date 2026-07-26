@@ -11,7 +11,7 @@
     "lock-escalation"
   ],
   "estimatedMinutes": 15,
-  "narrative": "## Scenario\nA nightly job (Session A) posts interest to 40,000 ledger rows inside one transaction. Meanwhile Session B just wants to correct **one** unrelated row at the far end of the table. B hangs until the batch job commits — even though the two never touch the same rows.\n\n## Why it blocks\nSQL Server starts with fine-grained **row/page locks**, but once a single statement acquires roughly **5,000 locks** it trades them all for one coarse **table lock** — this is **lock escalation**. A's 40,000-row `UPDATE` sails past that threshold and takes an exclusive lock on the *entire* `Ledger` table. Now B's update of row 49,999 can't get even a single row lock, because the whole table is locked. B blocks for the full duration of A's transaction.\n\n## What to look for\n- A's `UPDATE` shows a table-level `X` lock (escalated), not thousands of row locks.\n- B is blocked waiting on an **object-level** lock it should never have needed.\n\n## The concept\nKeep any one statement under the escalation threshold so it never grabs the table. **Batch** the work — update in chunks of ~2,000 rows, each committing on its own — so A only ever holds a handful of locks at a time and B's unrelated row stays free. (The blunt alternative is `ALTER TABLE dbo.Ledger SET (LOCK_ESCALATION = DISABLE)`, but batching also shortens how long any lock is held.)",
+  "narrative": "## Scenario\nA nightly job (Session A) posts interest to 40,000 ledger rows inside one transaction. Meanwhile Session B just wants to correct **one** unrelated row at the far end of the table. B hangs until the batch job commits — even though the two never touch the same rows.\n\n## Why it blocks\nSQL Server starts with fine-grained **row/page locks**, but once a single statement acquires roughly **5,000 locks** it trades them all for one coarse **table lock** — this is **lock escalation**. A's 40,000-row `UPDATE` sails past that threshold and takes an exclusive lock on the *entire* `Ledger` table. Now B's update of row 49,999 can't get even a single row lock, because the whole table is locked. B blocks for the full duration of A's transaction.\n\n## What to look for\n- A's `UPDATE` shows a table-level `X` lock (escalated), not thousands of row locks.\n- B is blocked waiting on an **object-level** lock it should never have needed.\n\n## The concept\nKeep any one statement under the escalation threshold so it never grabs the table. **Batch** the work — update in chunks of ~2,000 rows, each committing on its own — so A only ever holds a handful of locks at a time and B's unrelated row stays free. (The blunt alternative is `ALTER TABLE Ledger SET (LOCK_ESCALATION = DISABLE)`, but batching also shortens how long any lock is held.)",
   "startingQuery": "-- This is a concurrency lesson. Rewrite Session A's giant UPDATE to run in batches, then Run the interleaving.",
   "hints": [
     "B is blocked on a table-level lock, but it only wants one row. Something made A lock the whole table.",
@@ -24,7 +24,7 @@
     "sessions": {
       "A": [
         {
-          "sql": "BEGIN TRAN; UPDATE dbo.Ledger SET Amount = Amount + 1 WHERE LedgerId <= 40000;",
+          "sql": "BEGIN TRAN; UPDATE Ledger SET Amount = Amount + 1 WHERE LedgerId <= 40000;",
           "afterMs": 0
         },
         {
@@ -34,7 +34,7 @@
       ],
       "B": [
         {
-          "sql": "UPDATE dbo.Ledger SET Amount = Amount + 5 WHERE LedgerId = 49999;",
+          "sql": "UPDATE Ledger SET Amount = Amount + 5 WHERE LedgerId = 49999;",
           "afterMs": 500
         }
       ]
@@ -45,6 +45,6 @@
         "value": 500
       }
     ],
-    "solutionNote": "Rewrite A's single 40,000-row UPDATE into a WHILE loop that updates ~2,000 rows per iteration and auto-commits each batch, so no statement ever reaches the ~5,000-lock escalation threshold. A then only holds a few locks at a time and B's unrelated row (49999) is never blocked. Alternatively ALTER TABLE dbo.Ledger SET (LOCK_ESCALATION = DISABLE)."
+    "solutionNote": "Rewrite A's single 40,000-row UPDATE into a WHILE loop that updates ~2,000 rows per iteration and auto-commits each batch, so no statement ever reaches the ~5,000-lock escalation threshold. A then only holds a few locks at a time and B's unrelated row (49999) is never blocked. Alternatively ALTER TABLE Ledger SET (LOCK_ESCALATION = DISABLE)."
   }
 }

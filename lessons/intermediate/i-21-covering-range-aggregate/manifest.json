@@ -12,12 +12,11 @@
   ],
   "estimatedMinutes": 12,
   "narrative": "## Scenario\nA month-end summary totals payments by method for December: `SELECT Method, SUM(Amount) ... WHERE PaidAt >= '2025-12-01' GROUP BY Method`. December is ~1/12 of the data, but the report reads all 400,000 rows every time.\n\n## Why it's slow\nThere's no index on `PaidAt`, so the only way to find December's rows is a **Clustered Index Scan** of the whole table; the date filter is applied afterward. The aggregation itself is cheap — the cost is reading every row to locate the recent slice.\n\n## What to look for\n- A Clustered Index Scan feeding the aggregate, with reads across the full table.\n- Only a fraction of the scanned rows actually qualify for the date range.\n\n## The concept\nGive the range predicate an index and let it **cover** the aggregate: `(PaidAt)` as the key, with `Method` and `Amount` as `INCLUDE`d columns. Now the engine range-seeks straight to December and reads only those rows and only the columns the query needs — no scan, no trip to the base table. (The grouping still uses a hash aggregate, but over a small slice instead of the whole table.)",
-  "startingQuery": "SELECT Method, SUM(Amount) AS Total\nFROM dbo.Payments\nWHERE PaidAt >= '2025-12-01'\nGROUP BY Method;",
-  "database": "Lesson_i_21_covering_range_aggregate",
+  "startingQuery": "SELECT Method, SUM(Amount) AS Total\nFROM Payments\nWHERE PaidAt >= '2025-12-01'\nGROUP BY Method;",
   "hints": [
     "The date filter has no index, so the whole table is scanned before the range is applied.",
     "An index on PaidAt would let the query seek straight to December; INCLUDE the columns it aggregates so no lookup is needed.",
-    "CREATE NONCLUSTERED INDEX IX_Payments_PaidAt ON dbo.Payments(PaidAt) INCLUDE (Method, Amount);"
+    "CREATE NONCLUSTERED INDEX IX_Payments_PaidAt ON Payments(PaidAt) INCLUDE (Method, Amount);"
   ],
   "passConditions": [
     {

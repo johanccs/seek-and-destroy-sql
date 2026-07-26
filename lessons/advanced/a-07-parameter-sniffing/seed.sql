@@ -1,14 +1,4 @@
-IF DB_ID('Lesson_a_07_parameter_sniffing') IS NOT NULL
-BEGIN
-    ALTER DATABASE Lesson_a_07_parameter_sniffing SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-    DROP DATABASE Lesson_a_07_parameter_sniffing;
-END
-GO
-CREATE DATABASE Lesson_a_07_parameter_sniffing;
-GO
-USE Lesson_a_07_parameter_sniffing;
-GO
-CREATE TABLE dbo.Orders
+CREATE TABLE Orders
 (
     OrderId    INT IDENTITY(1,1) CONSTRAINT PK_Orders PRIMARY KEY,
     CustomerId INT           NOT NULL,
@@ -22,7 +12,7 @@ GO
 -- estimate wrong for the rare value.
 ;WITH n AS (SELECT TOP (300000) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) rn
             FROM sys.all_objects a CROSS JOIN sys.all_objects b)
-INSERT INTO dbo.Orders (CustomerId, OrderDate, Total, Status)
+INSERT INTO Orders (CustomerId, OrderDate, Total, Status)
 SELECT (rn % 3000) + 1, DATEADD(DAY, -(rn % 365), CAST('2025-01-01' AS DATE)),
        CAST((rn % 900) + 1 AS DECIMAL(10,2)),
        CASE WHEN rn <= 200 THEN 'Open' WHEN rn % 2 = 0 THEN 'Closed' ELSE 'Shipped' END
@@ -31,7 +21,7 @@ GO
 -- A NON-covering index on Status: a seek here still needs a key lookup for the
 -- other selected columns, so the optimizer only picks it when it believes few
 -- rows match. That decision depends entirely on the row estimate.
-CREATE NONCLUSTERED INDEX IX_Orders_Status ON dbo.Orders(Status);
+CREATE NONCLUSTERED INDEX IX_Orders_Status ON Orders(Status);
 GO
-UPDATE STATISTICS dbo.Orders WITH FULLSCAN;
+UPDATE STATISTICS Orders WITH FULLSCAN;
 GO

@@ -23,21 +23,21 @@
     "sessions": {
       "A": [
         {
-          "sql": "BEGIN TRAN; UPDATE dbo.Accounts SET Balance = Balance - 100 WHERE AccountId = 1;",
+          "sql": "BEGIN TRAN; UPDATE Accounts SET Balance = Balance - 100 WHERE AccountId = 1;",
           "afterMs": 0
         },
         {
-          "sql": "UPDATE dbo.Accounts SET Balance = Balance + 100 WHERE AccountId = 2; COMMIT;",
+          "sql": "UPDATE Accounts SET Balance = Balance + 100 WHERE AccountId = 2; COMMIT;",
           "afterMs": 400
         }
       ],
       "B": [
         {
-          "sql": "BEGIN TRAN; UPDATE dbo.Accounts SET Balance = Balance - 50 WHERE AccountId = 2;",
+          "sql": "BEGIN TRAN; UPDATE Accounts SET Balance = Balance - 50 WHERE AccountId = 2;",
           "afterMs": 0
         },
         {
-          "sql": "UPDATE dbo.Accounts SET Balance = Balance + 50 WHERE AccountId = 1; COMMIT;",
+          "sql": "UPDATE Accounts SET Balance = Balance + 50 WHERE AccountId = 1; COMMIT;",
           "afterMs": 400
         }
       ]

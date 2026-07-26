@@ -11,12 +11,11 @@
   ],
   "estimatedMinutes": 12,
   "narrative": "## Scenario\nAn operations dashboard constantly queries the few hundred shipments in an `Exception` state out of 500,000 total. Almost every row is `Delivered`, yet finding the rare exceptions scans the whole table.\n\n## Why it's slow\nWithout a helpful index, `WHERE Status = 'Exception'` is a **Clustered Index Scan**. A plain index on `Status` would work but is wasteful: 99.8% of its entries are for `Delivered` rows you never search for — a huge index mostly full of noise, and its poor selectivity can even make the optimizer ignore it.\n\n## What to look for\n- A full scan (or a large index scan) to return a tiny sliver of rows.\n- A predicate that's highly selective in practice but sits on a low-cardinality column.\n\n## The concept\nA **filtered index** indexes only the rows matching a `WHERE` clause. `CREATE INDEX ... WHERE Status = 'Exception'` builds a tiny index over just the ~1,000 exception rows — cheap to store, cheap to maintain, and a fast **Index Seek** for exactly the query you run all day. Filtered indexes shine when you repeatedly query a small, well-defined subset of a big table.",
-  "startingQuery": "SELECT ShipmentId, Carrier, ShippedAt\nFROM dbo.Shipments\nWHERE Status = 'Exception';",
-  "database": "Lesson_i_19_filtered_index_rare_status",
+  "startingQuery": "SELECT ShipmentId, Carrier, ShippedAt\nFROM Shipments\nWHERE Status = 'Exception';",
   "hints": [
     "The query wants a few hundred rows out of 500,000 but scans everything. Status has only two values, so a normal index is mostly 'Delivered' noise.",
     "Index only the rows you care about with a filtered index (a WHERE clause on the index).",
-    "CREATE NONCLUSTERED INDEX IX_Shipments_Exception ON dbo.Shipments(Status) INCLUDE (Carrier, ShippedAt) WHERE Status = 'Exception';"
+    "CREATE NONCLUSTERED INDEX IX_Shipments_Exception ON Shipments(Status) INCLUDE (Carrier, ShippedAt) WHERE Status = 'Exception';"
   ],
   "passConditions": [
     {

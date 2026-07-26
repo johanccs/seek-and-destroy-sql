@@ -11,11 +11,10 @@
   "estimatedMinutes": 12,
   "narrative": "## Scenario\nA dashboard shows the earliest and latest order dates:\n\n```sql\nSELECT MIN(OrderDate), MAX(OrderDate) FROM Orders;\n```\n\nIt reads the **entire** 200,000-row table every time it refreshes.\n\n## Why it's slow\nNothing indexes `OrderDate`. To find the smallest and largest values SQL Server has no choice but to look at **every row** — a **Clustered Index Scan** feeding an aggregate. Cost grows with the table.\n\n## The concept\nIn an index, rows are stored **in order**, so the minimum sits at one end and the maximum at the other. With an index on `OrderDate`, SQL Server can satisfy `MIN` and `MAX` by reading just the **two ends** of the index (a pair of tiny `TOP`/seek operations) instead of scanning all rows.\n\n## What to look for\n- Before: a **Clustered Index Scan** reading ~all pages (hundreds+ logical reads).\n- After: a plan with **`TOP`** operators and only a handful of logical reads.\n\nThe fix is a nonclustered index on `OrderDate`.",
   "startingQuery": "SELECT MIN(OrderDate) AS Earliest, MAX(OrderDate) AS Latest FROM Orders;",
-  "database": "Lesson_i_12_min_max_index",
   "hints": [
     "MIN/MAX over an unindexed column must scan every row — look for a Clustered Index Scan in the plan.",
     "In an ordered index the smallest value is at one end and the largest at the other; SQL can read just those.",
-    "Create the index: CREATE NONCLUSTERED INDEX IX_Orders_OrderDate ON dbo.Orders(OrderDate);"
+    "Create the index: CREATE NONCLUSTERED INDEX IX_Orders_OrderDate ON Orders(OrderDate);"
   ],
   "passConditions": [
     {

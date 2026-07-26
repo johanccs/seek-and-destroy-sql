@@ -12,12 +12,11 @@
   ],
   "estimatedMinutes": 15,
   "narrative": "## Scenario\nFinding one customer's `Open` orders uses the index on `CustomerId` — the plan even shows an Index Seek. Yet it does far more work than the small result suggests. The index only gets you *part* of the way.\n\n## Why it's slow\n`IX_Orders_CustomerId` covers only `CustomerId`, so the **seek predicate** is `CustomerId = 42` — and that matches all **4,000** of that customer's orders. `Status = 'Open'` isn't in the index, so it can only be applied as a **residual predicate** *after* the engine looks each of those 4,000 rows up in the clustered index. You seek to 4,000 rows and a key-lookup on every one, just to keep the ~200 that are Open.\n\n## What to look for\n- An Index Seek whose **Seek Predicate** is only `CustomerId`, with `Status` shown as a **Predicate** (residual), plus a Key Lookup / Nested Loops.\n- Reads far larger than the final row count — the tell-tale of a residual filter.\n\n## The concept\nPut the columns you filter on **into the index key** so they become seek predicates, not residuals. A composite index `(CustomerId, Status)` (INCLUDE `Total`) seeks directly to `CustomerId = 42 AND Status = 'Open'` — ~200 rows, covered, no lookups. The difference between a *seek predicate* and a *residual predicate* is the difference between reading 200 rows and reading 4,000.",
-  "startingQuery": "SELECT OrderId, Total\nFROM dbo.Orders\nWHERE CustomerId = 42 AND Status = 'Open';",
-  "database": "Lesson_e_20_residual_predicate",
+  "startingQuery": "SELECT OrderId, Total\nFROM Orders\nWHERE CustomerId = 42 AND Status = 'Open';",
   "hints": [
     "The seek only uses CustomerId; Status is a residual predicate applied after looking up all 4,000 of the customer's orders.",
     "Move Status into the index key so it becomes part of the seek, and cover Total to avoid the lookups.",
-    "CREATE NONCLUSTERED INDEX IX_Orders_Cust_Status ON dbo.Orders(CustomerId, Status) INCLUDE (Total); then re-run."
+    "CREATE NONCLUSTERED INDEX IX_Orders_Cust_Status ON Orders(CustomerId, Status) INCLUDE (Total); then re-run."
   ],
   "passConditions": [
     {

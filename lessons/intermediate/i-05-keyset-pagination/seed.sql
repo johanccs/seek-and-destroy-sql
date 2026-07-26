@@ -1,14 +1,4 @@
-IF DB_ID('Lesson_i_05_keyset_pagination') IS NOT NULL
-BEGIN
-    ALTER DATABASE Lesson_i_05_keyset_pagination SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-    DROP DATABASE Lesson_i_05_keyset_pagination;
-END
-GO
-CREATE DATABASE Lesson_i_05_keyset_pagination;
-GO
-USE Lesson_i_05_keyset_pagination;
-GO
-CREATE TABLE dbo.Orders
+CREATE TABLE Orders
 (
     OrderId    INT IDENTITY(1,1) CONSTRAINT PK_Orders PRIMARY KEY,
     CustomerId INT           NOT NULL,
@@ -22,11 +12,11 @@ GO
 -- earlier row because OFFSET has no way to jump ahead.
 ;WITH n AS (SELECT TOP (300000) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) rn
             FROM sys.all_objects a CROSS JOIN sys.all_objects b)
-INSERT INTO dbo.Orders (CustomerId, OrderDate, Total, Status)
+INSERT INTO Orders (CustomerId, OrderDate, Total, Status)
 SELECT (rn % 3000) + 1, DATEADD(DAY, -(rn % 365), CAST('2025-01-01' AS DATE)),
        CAST((rn % 900) + 1 AS DECIMAL(10,2)),
        CASE rn % 3 WHEN 0 THEN 'Open' WHEN 1 THEN 'Shipped' ELSE 'Closed' END
 FROM n;
 GO
-UPDATE STATISTICS dbo.Orders WITH FULLSCAN;
+UPDATE STATISTICS Orders WITH FULLSCAN;
 GO

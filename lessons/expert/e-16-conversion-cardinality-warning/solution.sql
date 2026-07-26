@@ -2,5 +2,5 @@
 -- index seeks again, and -- just as important -- the optimizer's row estimate becomes
 -- accurate, so the convert warning disappears.
 SELECT DeviceId, Serial, Model
-FROM dbo.Devices
+FROM Devices
 WHERE Serial = '500123';

@@ -2,7 +2,7 @@
 -- lets SQL Server seek Orders once per matching customer instead of scanning the
 -- whole table and hash-joining.
 CREATE NONCLUSTERED INDEX IX_Orders_Cust_Status
-    ON dbo.Orders(CustomerId, Status) INCLUDE(Total);
+    ON Orders(CustomerId, Status) INCLUDE(Total);
 
 SELECT c.Region, COUNT(*) AS Cnt, SUM(o.Total) AS Rev
 FROM Customers c

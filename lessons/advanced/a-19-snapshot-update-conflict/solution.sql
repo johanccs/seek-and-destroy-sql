@@ -5,13 +5,13 @@
 -- Session A:
 SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
 BEGIN TRAN;
-SELECT Balance FROM dbo.Accounts WHERE AccountId = 1;
-UPDATE dbo.Accounts SET Balance = Balance - 100 WHERE AccountId = 1;
+SELECT Balance FROM Accounts WHERE AccountId = 1;
+UPDATE Accounts SET Balance = Balance - 100 WHERE AccountId = 1;
 COMMIT;
 
 -- Session B (unchanged):
-UPDATE dbo.Accounts SET Balance = Balance - 50 WHERE AccountId = 1;
+UPDATE Accounts SET Balance = Balance - 50 WHERE AccountId = 1;
 
 -- Alternative: keep SNAPSHOT but reserve the row on read so B can't slip in:
 --   SET TRANSACTION ISOLATION LEVEL SNAPSHOT; BEGIN TRAN;
---   SELECT Balance FROM dbo.Accounts WITH (UPDLOCK) WHERE AccountId = 1;
+--   SELECT Balance FROM Accounts WITH (UPDLOCK) WHERE AccountId = 1;

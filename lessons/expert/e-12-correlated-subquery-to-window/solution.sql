@@ -2,5 +2,5 @@
 -- per-row correlated subquery. One pass, no spool worktable.
 SELECT TOP (100) o.OrderId, o.CustomerId,
        COUNT(*) OVER (PARTITION BY o.CustomerId) AS CustomerOrders
-FROM dbo.Orders o
+FROM Orders o
 ORDER BY o.OrderId;

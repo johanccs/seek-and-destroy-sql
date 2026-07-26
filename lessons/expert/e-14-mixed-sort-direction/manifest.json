@@ -12,12 +12,11 @@
   ],
   "estimatedMinutes": 12,
   "narrative": "## Scenario\nA listing orders products by `Category` ascending, then `Price` **descending**. There's already a composite index on `(Category, Price)` — yet the plan still does a Sort. The index looks right, but its **direction** is wrong.\n\n## Why it's slow\n`IX_Products_Cat_Price_ASC` stores rows as `Category ASC, Price ASC`. The query wants `Category ASC, Price DESC`. Reading the index **forward** gives `Price ASC`; reading it **backward** gives `Category DESC, Price DESC` — neither matches `Category ASC, Price DESC`. A single index scan can't produce a *mixed* ordering, so SQL Server adds an explicit **Sort**.\n\n## What to look for\n- A Sort operator despite a composite index that covers the same columns.\n- The `ORDER BY` mixes ASC and DESC across columns; the index is uniform ASC.\n\n## The concept\nTo satisfy a **mixed-direction** `ORDER BY` without sorting, the index key directions must match it (or be the exact reverse of all of them). Build the index as `(Category ASC, Price DESC)`. Now an ordered forward scan yields exactly `Category ASC, Price DESC` and the Sort disappears. Column *order* isn't enough — for multi-column sorts, direction matters too.",
-  "startingQuery": "SELECT TOP (100) ProductId, Category, Price\nFROM dbo.Products\nORDER BY Category ASC, Price DESC, ProductId ASC;",
-  "database": "Lesson_e_14_mixed_sort_direction",
+  "startingQuery": "SELECT TOP (100) ProductId, Category, Price\nFROM Products\nORDER BY Category ASC, Price DESC, ProductId ASC;",
   "hints": [
     "The existing index is (Category ASC, Price ASC), but you want Price DESC within each Category. Forward or backward, the index can't produce that mixed order.",
     "For a mixed ASC/DESC sort, the index key directions must match the ORDER BY.",
-    "CREATE NONCLUSTERED INDEX IX_Products_Cat_PriceDesc ON dbo.Products(Category ASC, Price DESC); then re-run."
+    "CREATE NONCLUSTERED INDEX IX_Products_Cat_PriceDesc ON Products(Category ASC, Price DESC); then re-run."
   ],
   "passConditions": [
     {

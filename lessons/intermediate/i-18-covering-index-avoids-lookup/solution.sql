@@ -2,10 +2,10 @@
 -- Priority and Subject in the index leaf and never has to look them up. DROP_EXISTING
 -- rebuilds the same-named index in place.
 CREATE NONCLUSTERED INDEX IX_Tickets_AssignedTo
-    ON dbo.Tickets(AssignedTo)
+    ON Tickets(AssignedTo)
     INCLUDE (Priority, Subject)
     WITH (DROP_EXISTING = ON);
 
 SELECT AssignedTo, Priority, Subject
-FROM dbo.Tickets
+FROM Tickets
 WHERE AssignedTo = 42;

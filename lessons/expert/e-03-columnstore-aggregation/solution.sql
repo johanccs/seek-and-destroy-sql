@@ -4,7 +4,7 @@
 -- pages a rowstore scan would. The Clustered Index Scan is replaced by a
 -- columnstore scan of NCCI_FactSales.
 CREATE NONCLUSTERED COLUMNSTORE INDEX NCCI_FactSales
-    ON dbo.FactSales (ProductId, Amount);
+    ON FactSales (ProductId, Amount);
 SELECT ProductId, SUM(Amount) AS Revenue, COUNT(*) AS Cnt
 FROM FactSales
 GROUP BY ProductId;

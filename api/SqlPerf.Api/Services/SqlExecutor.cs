@@ -6,34 +6,41 @@ using SqlPerf.Api.Models;
 
 namespace SqlPerf.Api.Services;
 
-// Provisions lesson databases and runs learner SQL with stats + actual plan capture.
+// Provisions lesson SCHEMAS (all lessons share one physical database, isolated by
+// per-lesson SQL schema + a contained "EXECUTE AS" user, not by separate databases --
+// this is what lets the whole app run on a single Azure SQL free-tier database).
+// Runs learner SQL with stats + actual plan capture.
 public sealed partial class SqlExecutor
 {
     public const int RowCap = 500;
     public const int QueryTimeoutSec = 30;
 
     private readonly string _baseCs;
+    private readonly string _appDatabase;
     private readonly HashSet<string> _seeded = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _seedLock = new(1, 1);
     private readonly Dictionary<string, string> _baselines = new(StringComparer.OrdinalIgnoreCase);
 
-    public SqlExecutor(IConfiguration cfg) =>
+    public SqlExecutor(IConfiguration cfg)
+    {
         _baseCs = cfg.GetConnectionString("Sql")
             ?? throw new InvalidOperationException("ConnectionStrings:Sql missing");
+        _appDatabase = cfg["Sql:AppDatabase"] ?? "SqlPerfDb";
+    }
 
-    private string CsFor(string db) =>
-        new SqlConnectionStringBuilder(_baseCs) { InitialCatalog = db }.ConnectionString;
-    private string MasterCs =>
-        new SqlConnectionStringBuilder(_baseCs) { InitialCatalog = "master" }.ConnectionString;
+    private string AppCs =>
+        new SqlConnectionStringBuilder(_baseCs) { InitialCatalog = _appDatabase }.ConnectionString;
 
-    public async Task<bool> DbExistsAsync(string db)
+    private static string UserOf(string schema) => "u_" + schema;
+
+    public async Task<bool> SchemaExistsAsync(string schema)
     {
-        await using var c = new SqlConnection(MasterCs);
+        await using var c = new SqlConnection(AppCs);
         await c.OpenAsync();
-        await using var cmd = new SqlCommand("SELECT DB_ID(@db)", c);
-        cmd.Parameters.AddWithValue("@db", db);
+        await using var cmd = new SqlCommand("SELECT 1 FROM sys.schemas WHERE name = @s", c);
+        cmd.Parameters.AddWithValue("@s", schema);
         var r = await cmd.ExecuteScalarAsync();
-        return r is not null && r != DBNull.Value;
+        return r is not null;
     }
 
     public async Task EnsureSeededAsync(Lesson lesson)
@@ -43,7 +50,7 @@ public sealed partial class SqlExecutor
         try
         {
             if (_seeded.Contains(lesson.Database)) return;
-            if (!await DbExistsAsync(lesson.Database))
+            if (!await SchemaExistsAsync(lesson.Database))
                 await RunSeedAsync(lesson);
             _seeded.Add(lesson.Database);
         }
@@ -78,13 +85,14 @@ public sealed partial class SqlExecutor
         return string.Join("", rows.OrderBy(s => s, StringComparer.Ordinal));
     }
 
-    private async Task<string> ResultSignatureAsync(string db, string sql)
+    private async Task<string> ResultSignatureAsync(string schema, string sql)
     {
-        await using var c = new SqlConnection(CsFor(db));
+        await using var c = new SqlConnection(AppCs);
         await c.OpenAsync();
-        await using var cmd = new SqlCommand(sql, c) { CommandTimeout = QueryTimeoutSec };
+        await ImpersonateAsync(c, schema);
         try
         {
+            await using var cmd = new SqlCommand(sql, c) { CommandTimeout = QueryTimeoutSec };
             await using var reader = await cmd.ExecuteReaderAsync();
             var cols = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToList();
             var rows = new List<List<object?>>();
@@ -98,6 +106,75 @@ public sealed partial class SqlExecutor
             return SignatureOf(new ResultSetDto(cols, rows, rows.Count, false));
         }
         catch { return ""; }
+        finally
+        {
+            // Never return a connection to the pool while still impersonating.
+            try { await ExecNonQuery(c, "BEGIN TRY REVERT; END TRY BEGIN CATCH END CATCH;"); } catch { }
+        }
+    }
+
+    // Reverts any prior impersonation (harmless if none), then impersonates the
+    // lesson's own contained user, so bare table names in lesson SQL resolve to that
+    // lesson's schema via DEFAULT_SCHEMA -- no schema-qualification needed in content.
+    // Always done at the START of every use (not just once) because a pooled
+    // connection could otherwise carry over a previous lesson's impersonation.
+    private static async Task ImpersonateAsync(SqlConnection c, string schema)
+    {
+        await ExecNonQuery(c, "BEGIN TRY REVERT; END TRY BEGIN CATCH END CATCH;");
+        await ExecNonQuery(c, $"EXECUTE AS USER = '{UserOf(schema)}';");
+    }
+
+    private static async Task ExecNonQuery(SqlConnection c, string sql, int timeoutSec = 30)
+    {
+        await using var cmd = new SqlCommand(sql, c) { CommandTimeout = timeoutSec };
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    // Drops every object owned by the lesson's schema (tables/views/procs/functions --
+    // DROP SCHEMA fails while it still contains objects), then the contained user and
+    // the schema itself. Safe to call when nothing exists yet (first run).
+    private static async Task DropSchemaObjectsAsync(SqlConnection c, string schema, string user)
+    {
+        var drops = new List<(string kind, string name)>();
+        await using (var cmd = new SqlCommand("""
+            SELECT o.type, o.name
+            FROM sys.objects o
+            JOIN sys.schemas s ON s.schema_id = o.schema_id
+            WHERE s.name = @schema AND o.type IN ('U','V','P','FN','IF','TF')
+            """, c))
+        {
+            cmd.Parameters.AddWithValue("@schema", schema);
+            await using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+                drops.Add((r.GetString(0).Trim(), r.GetString(1)));
+        }
+
+        foreach (var (kind, name) in drops)
+        {
+            var keyword = kind switch
+            {
+                "U" => "TABLE",
+                "V" => "VIEW",
+                "P" => "PROCEDURE",
+                "FN" or "IF" or "TF" => "FUNCTION",
+                _ => null
+            };
+            if (keyword is null) continue;
+            await ExecNonQuery(c, $"DROP {keyword} [{schema}].[{name}];", 60);
+        }
+
+        await using (var cmd = new SqlCommand(
+            "IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = @u) DROP USER [" + user + "];", c))
+        {
+            cmd.Parameters.AddWithValue("@u", user);
+            await cmd.ExecuteNonQueryAsync();
+        }
+        await using (var cmd = new SqlCommand(
+            "IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = @s) EXEC('DROP SCHEMA [" + schema + "]');", c))
+        {
+            cmd.Parameters.AddWithValue("@s", schema);
+            await cmd.ExecuteNonQueryAsync();
+        }
     }
 
     private async Task RunSeedAsync(Lesson lesson)
@@ -105,14 +182,34 @@ public sealed partial class SqlExecutor
         if (string.IsNullOrWhiteSpace(lesson.SeedSql))
             throw new InvalidOperationException($"Lesson {lesson.Manifest.Id} has no seed.sql");
 
-        // seed.sql drops+recreates its own DB, so run batches against master.
-        await using var c = new SqlConnection(MasterCs);
+        var schema = lesson.Database;
+        var user = UserOf(schema);
+
+        await using var c = new SqlConnection(AppCs);
         await c.OpenAsync();
-        foreach (var batch in SplitBatches(lesson.SeedSql))
+
+        await DropSchemaObjectsAsync(c, schema, user);
+        // CREATE SCHEMA must be the only statement in its batch -- EXEC(...) sidesteps that.
+        await ExecNonQuery(c, $"EXEC('CREATE SCHEMA [{schema}]');");
+        await ExecNonQuery(c, $"CREATE USER [{user}] WITHOUT LOGIN WITH DEFAULT_SCHEMA = [{schema}];");
+        // db_owner is broad, but this is a trusted single-tenant learning app where every
+        // lesson's DDL (partitioning, columnstore, functions, indexes) needs full rights
+        // within its own schema; narrower per-lesson roles aren't worth the added friction.
+        await ExecNonQuery(c, $"ALTER ROLE db_owner ADD MEMBER [{user}];");
+
+        await ImpersonateAsync(c, schema);
+        try
         {
-            if (string.IsNullOrWhiteSpace(batch)) continue;
-            await using var cmd = new SqlCommand(batch, c) { CommandTimeout = 120 };
-            await cmd.ExecuteNonQueryAsync();
+            foreach (var batch in SplitBatches(lesson.SeedSql))
+            {
+                if (string.IsNullOrWhiteSpace(batch)) continue;
+                await using var cmd = new SqlCommand(batch, c) { CommandTimeout = 120 };
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+        finally
+        {
+            await ExecNonQuery(c, "BEGIN TRY REVERT; END TRY BEGIN CATCH END CATCH;");
         }
     }
 
@@ -141,12 +238,13 @@ public sealed partial class SqlExecutor
         string? planXml = null;
         int rowsAffected = 0;
 
-        await using var c = new SqlConnection(CsFor(lesson.Database));
+        await using var c = new SqlConnection(AppCs);
         c.InfoMessage += (_, e) =>
         {
             foreach (SqlError err in e.Errors) messages.Add(err.Message);
         };
         await c.OpenAsync();
+        await ImpersonateAsync(c, lesson.Database);
 
         var wrapped = "SET STATISTICS IO ON; SET STATISTICS TIME ON; SET STATISTICS XML ON;\n" + userSql;
         await using var cmd = new SqlCommand(wrapped, c) { CommandTimeout = QueryTimeoutSec };
@@ -185,6 +283,11 @@ public sealed partial class SqlExecutor
         catch (SqlException ex)
         {
             return new ExecArtifacts(false, ex.Message, resultSets, null, null, messages, 0);
+        }
+        finally
+        {
+            // Never return a connection to the pool while still impersonating.
+            try { await ExecNonQuery(c, "BEGIN TRY REVERT; END TRY BEGIN CATCH END CATCH;"); } catch { }
         }
 
         var stats = ParseStats(messages, rowsAffected);

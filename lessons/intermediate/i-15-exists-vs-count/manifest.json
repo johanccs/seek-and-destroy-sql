@@ -12,7 +12,6 @@
   "estimatedMinutes": 12,
   "narrative": "## Scenario\nA dashboard needs to know *whether* a customer segment has any open orders. The code asks `SELECT COUNT(*) FROM Orders WHERE Status = 'Open'` and then checks `> 0`.\n\n## Why it's slow\n`COUNT(*)` must read **every** matching row to count them. With ~66,000 open orders, SQL Server seeks into the `Status` index and then scans the entire `'Open'` range — hundreds of logical reads — just to answer a yes/no question.\n\n## What to look for\n- In `STATISTICS IO`: logical reads proportional to the number of matching rows.\n- The plan does a range seek **plus** a Stream Aggregate over the whole range.\n\n## The concept\nWhen you only need to know *if any* rows exist, `EXISTS` (or `IF EXISTS`) **short-circuits** — it stops at the first matching row. The engine seeks to the first `'Open'` order and returns immediately, reading only a few pages regardless of how many matches there are.",
   "startingQuery": "SELECT COUNT(*) FROM Orders WHERE Status = 'Open';",
-  "database": "Lesson_i_15_exists_vs_count",
   "hints": [
     "You don't need the exact count — only whether at least one open order exists.",
     "COUNT(*) reads every matching row; EXISTS stops at the first one it finds.",

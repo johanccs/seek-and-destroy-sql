@@ -10,13 +10,12 @@
     "io"
   ],
   "estimatedMinutes": 18,
-  "narrative": "## Scenario\nA 500,000-row `Orders` table is scanned constantly by reports. Many columns are low-cardinality and repetitive (`Status` has 3 values, `Region` is a padded `CHAR(20)` with 4 values). A simple `SELECT COUNT(*)` reads thousands of pages.\n\n## The idea\n**Data compression** (`ROW` or `PAGE`) stores more rows per page. `PAGE` compression adds per-page **prefix** and **dictionary** encoding, which is extremely effective on repetitive columns. Fewer pages means every scan and range read performs **fewer logical reads** — a pure I/O win, paid for with a little CPU to decompress.\n\n## What to look for\n- Before: a **Clustered Index Scan** reading the full (uncompressed) page count.\n- After a `REBUILD ... WITH (DATA_COMPRESSION = PAGE)`: the same scan reads far fewer pages.\n- Estimate the savings first with `sys.sp_estimate_data_compression_savings`.\n\n## The fix\n`ALTER INDEX PK_Orders ON dbo.Orders REBUILD WITH (DATA_COMPRESSION = PAGE);` then re-run the scan. (Compression trades CPU for I/O, so it shines on read-heavy, scan-heavy, compressible tables.)",
+  "narrative": "## Scenario\nA 500,000-row `Orders` table is scanned constantly by reports. Many columns are low-cardinality and repetitive (`Status` has 3 values, `Region` is a padded `CHAR(20)` with 4 values). A simple `SELECT COUNT(*)` reads thousands of pages.\n\n## The idea\n**Data compression** (`ROW` or `PAGE`) stores more rows per page. `PAGE` compression adds per-page **prefix** and **dictionary** encoding, which is extremely effective on repetitive columns. Fewer pages means every scan and range read performs **fewer logical reads** — a pure I/O win, paid for with a little CPU to decompress.\n\n## What to look for\n- Before: a **Clustered Index Scan** reading the full (uncompressed) page count.\n- After a `REBUILD ... WITH (DATA_COMPRESSION = PAGE)`: the same scan reads far fewer pages.\n- Estimate the savings first with `sys.sp_estimate_data_compression_savings`.\n\n## The fix\n`ALTER INDEX PK_Orders ON Orders REBUILD WITH (DATA_COMPRESSION = PAGE);` then re-run the scan. (Compression trades CPU for I/O, so it shines on read-heavy, scan-heavy, compressible tables.)",
   "startingQuery": "SELECT COUNT(*) FROM Orders;",
-  "database": "Lesson_e_06_page_compression",
   "hints": [
     "COUNT(*) scans the clustered index. Its cost is the number of PAGES, not rows -- how could we fit more rows per page?",
     "Region (CHAR(20), 4 values) and Status (3 values) are highly repetitive -- ideal for PAGE dictionary/prefix compression.",
-    "ALTER INDEX PK_Orders ON dbo.Orders REBUILD WITH (DATA_COMPRESSION = PAGE); then re-run SELECT COUNT(*)."
+    "ALTER INDEX PK_Orders ON Orders REBUILD WITH (DATA_COMPRESSION = PAGE); then re-run SELECT COUNT(*)."
   ],
   "passConditions": [
     {

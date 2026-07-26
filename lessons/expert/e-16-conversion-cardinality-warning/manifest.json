@@ -12,8 +12,7 @@
   ],
   "estimatedMinutes": 12,
   "narrative": "## Scenario\nA device lookup by `Serial` (a `VARCHAR`) is passed a numeric literal: `WHERE Serial = 500123`. The plan scans all 200,000 rows and carries a yellow-triangle warning most people scroll past — `PlanAffectingConvert` (\"type conversion may affect CardinalityEstimate\").\n\n## Why it matters\nBecause `INT` outranks `VARCHAR`, SQL Server converts the *column* — `CONVERT_IMPLICIT(INT, Serial)` — on every row, so the unique index can't be seeked (Index Scan). But the warning names a second, subtler cost: the conversion also **breaks the optimizer's statistics lookup**, so its **row estimate goes bad**. On bigger queries that misestimate cascades — wrong join types, wrong memory grants, spills. The convert warning is the optimizer telling you it's flying blind.\n\n## What to look for\n- A `PlanAffectingConvert` / implicit-conversion warning on the plan (the yellow triangle).\n- An Index Scan where a Seek was expected, plus estimated rows that don't match reality.\n\n## The concept\nTreat the convert warning as a real defect, not decoration. Match the literal (and your app's parameter) to the column's type — `WHERE Serial = '500123'` — so the comparison stays `VARCHAR`-to-`VARCHAR`. The index seeks again **and** the estimates become trustworthy, which keeps the rest of the plan sane.",
-  "startingQuery": "SELECT DeviceId, Serial, Model\nFROM dbo.Devices\nWHERE Serial = 500123;",
-  "database": "Lesson_e_16_conversion_cardinality_warning",
+  "startingQuery": "SELECT DeviceId, Serial, Model\nFROM Devices\nWHERE Serial = 500123;",
   "hints": [
     "The plan warns about a type conversion affecting the cardinality estimate. A numeric literal vs a VARCHAR column forces the column to be converted.",
     "The conversion both blocks the seek (Index Scan) and corrupts the row estimate -- that's what the warning means.",

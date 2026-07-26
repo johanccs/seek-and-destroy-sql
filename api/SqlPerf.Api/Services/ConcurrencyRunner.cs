@@ -11,15 +11,21 @@ public sealed class ConcurrencyRunner
 {
     public const int CapMs = 15_000;
     private readonly string _baseCs;
+    private readonly string _appDatabase;
 
-    public ConcurrencyRunner(IConfiguration cfg) =>
+    public ConcurrencyRunner(IConfiguration cfg)
+    {
         _baseCs = cfg.GetConnectionString("Sql")
             ?? throw new InvalidOperationException("ConnectionStrings:Sql missing");
+        _appDatabase = cfg["Sql:AppDatabase"] ?? "SqlPerfDb";
+    }
 
-    private string CsFor(string db) =>
-        new SqlConnectionStringBuilder(_baseCs) { InitialCatalog = db }.ConnectionString;
+    private string AppCs =>
+        new SqlConnectionStringBuilder(_baseCs) { InitialCatalog = _appDatabase }.ConnectionString;
 
-    public async Task<ConcurrencyResult> RunAsync(string db, Dictionary<string, List<InterleaveStep>> sessions)
+    // All lessons share one database, isolated by schema + a contained "EXECUTE AS" user
+    // (see SqlExecutor). `lessonKey` is that lesson's schema name.
+    public async Task<ConcurrencyResult> RunAsync(string lessonKey, Dictionary<string, List<InterleaveStep>> sessions)
     {
         var events = new ConcurrentBag<TimelineEvent>();
         var sw = Stopwatch.StartNew();
@@ -32,10 +38,13 @@ public sealed class ConcurrencyRunner
 
         async Task RunSession(string name, List<InterleaveStep> steps)
         {
+            SqlConnection? c = null;
             try
             {
-                await using var c = new SqlConnection(CsFor(db));
+                c = new SqlConnection(AppCs);
                 await c.OpenAsync(cts.Token);
+                await using (var impCmd = new SqlCommand($"EXECUTE AS USER = 'u_{lessonKey}';", c))
+                    await impCmd.ExecuteNonQueryAsync(cts.Token);
                 await using (var spidCmd = new SqlCommand("SELECT @@SPID", c))
                     spids[name] = Convert.ToInt32(await spidCmd.ExecuteScalarAsync(cts.Token));
 
@@ -77,6 +86,20 @@ public sealed class ConcurrencyRunner
                 errors.Add($"{name}: {ex.Message}");
                 if (outcome == "completed") outcome = "error";
             }
+            finally
+            {
+                // Never return a connection to the pool while still impersonating.
+                if (c is not null)
+                {
+                    try
+                    {
+                        await using var revertCmd = new SqlCommand("BEGIN TRY REVERT; END TRY BEGIN CATCH END CATCH;", c);
+                        await revertCmd.ExecuteNonQueryAsync();
+                    }
+                    catch { }
+                    await c.DisposeAsync();
+                }
+            }
         }
 
         // Poll for blocking among our two SPIDs.
@@ -85,7 +108,7 @@ public sealed class ConcurrencyRunner
             var blockedActive = new HashSet<string>();
             try
             {
-                await using var c = new SqlConnection(CsFor(db));
+                await using var c = new SqlConnection(AppCs);
                 await c.OpenAsync(cts.Token);
                 while (!cts.IsCancellationRequested)
                 {
@@ -126,7 +149,7 @@ public sealed class ConcurrencyRunner
         try { await done; } catch { }
         try { await poller; } catch { }
 
-        string? deadlockGraph = outcome == "deadlock" ? await TryGetDeadlockGraph(db) : null;
+        string? deadlockGraph = outcome == "deadlock" ? await TryGetDeadlockGraph() : null;
 
         var timeline = events.OrderBy(e => e.TMs).ToList();
         return new ConcurrencyResult(outcome, deadlockVictim, timeline, deadlockGraph,
@@ -140,11 +163,13 @@ public sealed class ConcurrencyRunner
         sql.Trim().Split('\n')[0].Trim() is { Length: > 80 } s ? s[..80] + "…" : sql.Trim().Split('\n')[0].Trim();
 
     // Best-effort: read the most recent deadlock graph from the system_health XEvent session.
-    private async Task<string?> TryGetDeadlockGraph(string db)
+    // Not available on Azure SQL Database (sys.dm_xe_sessions isn't exposed there) -- this
+    // degrades gracefully to null; grading uses `outcome`, not this graph.
+    private async Task<string?> TryGetDeadlockGraph()
     {
         try
         {
-            await using var c = new SqlConnection(CsFor(db));
+            await using var c = new SqlConnection(AppCs);
             await c.OpenAsync();
             await using var cmd = new SqlCommand("""
                 SELECT TOP 1 CAST(event_data AS xml).value('(event/data[@name="xml_report"]/value)[1]','nvarchar(max)')

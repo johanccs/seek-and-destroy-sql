@@ -12,12 +12,11 @@
   ],
   "estimatedMinutes": 10,
   "narrative": "## Scenario\nA product lookup by `Sku` already uses the unique index to find the row — but it still does an extra read per lookup to fetch `Name` and `Price`.\n\n## Why it's slow\n`IX_Products_Sku` contains only `Sku` (plus a pointer to the row). The query also wants `Name` and `Price`, which aren't in the index, so after seeking, SQL Server makes a second hop to the clustered index to retrieve them — a **Key Lookup** (shown as a **Nested Loops** joining the seek to a Clustered Index Seek). For one row it's cheap; multiply it across a busy lookup service and it adds up.\n\n## What to look for\n- An Index Seek followed by a **Nested Loops** into a Clustered Index Seek (that pair is the Key Lookup).\n- More logical reads than the single index seek should need.\n\n## The concept\nA **covering index** contains every column the query touches. Add `Name` and `Price` as **INCLUDE** columns: they're stored in the index leaf (not the key), so the seek returns everything in one step and the lookup disappears. Rule of thumb: index the columns you filter on, INCLUDE the columns you return.",
-  "startingQuery": "SELECT Sku, Name, Price\nFROM dbo.Products\nWHERE Sku = 'SKU012345';",
-  "database": "Lesson_b_19_covering_index_basics",
+  "startingQuery": "SELECT Sku, Name, Price\nFROM Products\nWHERE Sku = 'SKU012345';",
   "hints": [
     "The seek finds the row, but Name and Price aren't in the index, so it looks them up in the base table (Key Lookup = Nested Loops).",
     "If the index also carried Name and Price, no lookup would be needed.",
-    "Rebuild the index to cover the query: CREATE UNIQUE NONCLUSTERED INDEX IX_Products_Sku ON dbo.Products(Sku) INCLUDE (Name, Price) WITH (DROP_EXISTING = ON);"
+    "Rebuild the index to cover the query: CREATE UNIQUE NONCLUSTERED INDEX IX_Products_Sku ON Products(Sku) INCLUDE (Name, Price) WITH (DROP_EXISTING = ON);"
   ],
   "passConditions": [
     {

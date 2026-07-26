@@ -10,13 +10,12 @@
     "optimizer"
   ],
   "estimatedMinutes": 15,
-  "database": "Lesson_a_09_nonclustered_tipping_point",
   "narrative": "## Scenario\n`SELECT CustomerId, OrderDate, Total, Status FROM Orders WHERE CustomerId <= 800` returns roughly 32,000 rows. There is a nonclustered index on `CustomerId`, yet the plan **ignores it** and scans the whole clustered index.\n\n## Why the optimizer refuses the index\nThe index `IX_Orders_CustomerId` is **non-covering**: it holds `CustomerId` (and the clustered key `OrderId`) but not `OrderDate`, `Total`, or `Status`. To return those columns via the index the engine would seek, then perform a **key lookup** into the clustered index for *every* matching row. At ~32k rows those random lookups cost far more than simply scanning the table once, so the optimizer picks a **Clustered Index Scan**.\n\nThis is the **tipping point**: once a predicate matches more than roughly **1–2%** of a table, a non-covering nonclustered index stops being worthwhile and a full scan wins. Below that fraction the seek + lookups win; above it, the scan does.\n\n## What to look for\n- The seed index exists but the plan shows a **Clustered Index Scan** on `Orders`, not a seek.\n- Forcing the seek (with a hint) would expose thousands of extra reads from key lookups.\n\n## The fix\nRaise the index **past** the tipping point by making it **covering**: add the needed columns with `INCLUDE`. A covering index needs no lookups, so a range **Index Seek** reads only the qualifying leaf pages and beats the scan even for tens of thousands of rows.\n\n_This query returns thousands of rows, so we grade on the plan operator and per-table logical reads, not the row set._",
   "startingQuery": "SELECT CustomerId, OrderDate, Total, Status FROM Orders WHERE CustomerId <= 800;",
   "hints": [
     "The nonclustered index exists, but the plan is a Clustered Index Scan — the optimizer chose it on purpose.",
     "The index doesn't cover OrderDate/Total/Status, so using it would mean ~32,000 key lookups. Past ~1-2% of the table, a scan is cheaper.",
-    "Push the index past the tipping point by covering the query: CREATE NONCLUSTERED INDEX IX_Orders_Cust_Cov ON dbo.Orders(CustomerId) INCLUDE(OrderDate, Total, Status);"
+    "Push the index past the tipping point by covering the query: CREATE NONCLUSTERED INDEX IX_Orders_Cust_Cov ON Orders(CustomerId) INCLUDE(OrderDate, Total, Status);"
   ],
   "passConditions": [
     {

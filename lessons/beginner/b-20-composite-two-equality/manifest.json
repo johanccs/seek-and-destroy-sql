@@ -11,12 +11,11 @@
   ],
   "estimatedMinutes": 10,
   "narrative": "## Scenario\nAn inventory check looks up one product in one warehouse: `WHERE WarehouseId = 35 AND ProductId = 1235`. With no matching index, finding a handful of rows scans all 300,000.\n\n## Why it's slow\nThere's no index on these columns, so it's a **Clustered Index Scan**. Neither column alone is very selective (50 warehouses, 6,000 products), but *together* they pin down just a few rows — so the ideal index covers **both**.\n\n## What to look for\n- A full scan for a query that targets one warehouse/product pair.\n- Reads across the whole table to return a tiny result.\n\n## The concept\nWhen a query filters on several columns with `AND`, a single **composite index** over those columns lets SQL Server seek straight to the matching rows: `(WarehouseId, ProductId)`. It's far better than two separate single-column indexes (which the engine would have to combine) and far better than no index at all. INCLUDE `Qty` so the index also covers what you select.",
-  "startingQuery": "SELECT WarehouseId, ProductId, Qty\nFROM dbo.Inventory\nWHERE WarehouseId = 35 AND ProductId = 1235;",
-  "database": "Lesson_b_20_composite_two_equality",
+  "startingQuery": "SELECT WarehouseId, ProductId, Qty\nFROM Inventory\nWHERE WarehouseId = 35 AND ProductId = 1235;",
   "hints": [
     "No index covers WarehouseId and ProductId together, so the whole table is scanned.",
     "The two columns together are highly selective; one composite index over both lets the engine seek.",
-    "CREATE NONCLUSTERED INDEX IX_Inventory_Wh_Prod ON dbo.Inventory(WarehouseId, ProductId) INCLUDE (Qty);"
+    "CREATE NONCLUSTERED INDEX IX_Inventory_Wh_Prod ON Inventory(WarehouseId, ProductId) INCLUDE (Qty);"
   ],
   "passConditions": [
     {

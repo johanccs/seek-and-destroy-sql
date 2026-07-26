@@ -1,15 +1,5 @@
 -- Lesson i-11: Searching a concatenated value blocks the seek
-IF DB_ID('Lesson_i_11_nonsargable_concat') IS NOT NULL
-BEGIN
-    ALTER DATABASE Lesson_i_11_nonsargable_concat SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-    DROP DATABASE Lesson_i_11_nonsargable_concat;
-END
-GO
-CREATE DATABASE Lesson_i_11_nonsargable_concat;
-GO
-USE Lesson_i_11_nonsargable_concat;
-GO
-CREATE TABLE dbo.Customers
+CREATE TABLE Customers
 (
     CustomerId INT IDENTITY(1,1) CONSTRAINT PK_Customers PRIMARY KEY CLUSTERED,
     FirstName  VARCHAR(50)  NOT NULL,
@@ -42,7 +32,7 @@ INSERT INTO @last (nm) VALUES
     SELECT TOP (200000) ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1 AS rn
     FROM sys.all_objects a CROSS JOIN sys.all_objects b
 )
-INSERT INTO dbo.Customers (FirstName, LastName, Email, City)
+INSERT INTO Customers (FirstName, LastName, Email, City)
 SELECT f.nm, l.nm,
        LOWER(f.nm) + '.' + LOWER(l.nm) + CAST(n.rn AS VARCHAR(10)) + '@example.com',
        CASE n.rn % 4 WHEN 0 THEN 'London' WHEN 1 THEN 'Leeds' WHEN 2 THEN 'Bristol' ELSE 'York' END
@@ -52,7 +42,7 @@ JOIN @last  l ON l.id = (n.rn / 50) % 50;
 GO
 -- Composite index that CAN seek by individual name columns (but not by a concatenation).
 CREATE NONCLUSTERED INDEX IX_Customers_Name
-    ON dbo.Customers(LastName, FirstName) INCLUDE (Email);
+    ON Customers(LastName, FirstName) INCLUDE (Email);
 GO
-UPDATE STATISTICS dbo.Customers WITH FULLSCAN;
+UPDATE STATISTICS Customers WITH FULLSCAN;
 GO

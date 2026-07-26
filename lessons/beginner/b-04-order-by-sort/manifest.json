@@ -15,7 +15,7 @@
   "hints": [
     "The Sort operator is doing the work — where would pre-sorted rows come from?",
     "There is no index on Price, so all 200k rows are sorted at run time.",
-    "Create an index: CREATE NONCLUSTERED INDEX IX_Products_Price ON dbo.Products(Price);"
+    "Create an index: CREATE NONCLUSTERED INDEX IX_Products_Price ON Products(Price);"
   ],
   "passConditions": [
     {

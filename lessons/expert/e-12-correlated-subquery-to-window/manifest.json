@@ -12,8 +12,7 @@
   ],
   "estimatedMinutes": 15,
   "narrative": "## Scenario\nA screen lists orders and, next to each, how many orders that customer has placed. It does it with a **correlated scalar subquery** — `(SELECT COUNT(*) FROM Orders o2 WHERE o2.CustomerId = o.CustomerId)`. It works, but it does a lot of redundant counting.\n\n## Why it's slow\nThe subquery is logically evaluated **once per outer row**, recomputing each customer's count over and over. SQL Server softens the blow by caching partial results in a **Worktable (spool)** in tempdb — but that spool is itself thousands of extra logical reads, and the pattern scales badly as rows and customers grow.\n\n## What to look for\n- A **Worktable** with a large logical-read count alongside the base table.\n- A plan with a spool feeding a nested-loops-style repeated aggregate.\n\n## The concept\nCompute the per-group value **once** with a window function: `COUNT(*) OVER (PARTITION BY CustomerId)`. SQL Server segments the rows by customer and counts each group in a single pass — no correlated re-evaluation, no spool worktable. Window functions (`OVER`) are the go-to replacement for \"a value about this row's group\" that people reach for correlated subqueries to express.",
-  "startingQuery": "SELECT TOP (100) o.OrderId, o.CustomerId,\n       (SELECT COUNT(*) FROM dbo.Orders o2 WHERE o2.CustomerId = o.CustomerId) AS CustomerOrders\nFROM dbo.Orders o\nORDER BY o.OrderId;",
-  "database": "Lesson_e_12_correlated_subquery_to_window",
+  "startingQuery": "SELECT TOP (100) o.OrderId, o.CustomerId,\n       (SELECT COUNT(*) FROM Orders o2 WHERE o2.CustomerId = o.CustomerId) AS CustomerOrders\nFROM Orders o\nORDER BY o.OrderId;",
   "hints": [
     "The correlated subquery is evaluated per row; the plan caches it in a Worktable (spool) that costs thousands of reads.",
     "You want each customer's count computed once, not once per order. A window function does exactly that.",
