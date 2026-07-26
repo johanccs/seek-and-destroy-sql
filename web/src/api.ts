@@ -50,6 +50,9 @@ export const api = {
       json<{ sqlServerHost: string; lessonsLoaded: number; progress: ProgressSummary }>,
     ),
 
+  settingsCapabilities: () =>
+    fetch(`${BASE}/api/settings/capabilities`).then(json<{ recreateSqlContainer: boolean }>),
+
   resetAllDatabases: () =>
     fetch(`${BASE}/api/settings/reset-all-databases`, { method: "POST" }).then(
       json<{ lessonsReset: number; failed: number; elapsedMs: number; failures: string[] }>,

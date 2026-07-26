@@ -70,6 +70,7 @@ a { color: var(--accent); }
 .settings-step-output { color: var(--text-dim); word-break: break-word; }
 .settings-fallback { margin-top: 16px; }
 .badge-conc { font-size: 10px; background: var(--warn-bg); color: var(--warn); padding: 1px 5px; border-radius: 3px; }
+.badge-azure { font-size: 10px; background: var(--bg-3); color: var(--text-dim); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
 
 /* Main */
 .main { overflow: hidden; display: flex; flex-direction: column; }

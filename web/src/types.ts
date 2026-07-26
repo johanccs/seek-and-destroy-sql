@@ -20,6 +20,7 @@ export interface LessonSummary {
   solved: boolean;
   bestLogicalReads: number | null;
   bestDurationMs: number | null;
+  azureUnsupported: boolean;
 }
 
 export interface LevelGroup {
@@ -44,6 +45,7 @@ export interface LessonDetail {
   id: string;
   level: Level;
   title: string;
+  description: string;
   topics: string[];
   estimatedMinutes: number;
   narrative: string;
@@ -52,6 +54,7 @@ export interface LessonDetail {
   isConcurrency: boolean;
   interleaving: Interleaving | null;
   progress: LessonProgress;
+  azureUnsupported: boolean;
 }
 
 export interface PlanNode {

@@ -16,8 +16,12 @@ export function SettingsView({ onChanged }: { onChanged: () => void }) {
   const [confirming, setConfirming] = useState<Busy>("");
   const [keepData, setKeepData] = useState(false);
   const [steps, setSteps] = useState<{ step: string; success: boolean; output: string }[]>([]);
+  const [canRecreate, setCanRecreate] = useState<boolean | null>(null);
 
   const load = () => api.settingsInfo().then(setInfo).catch(() => setInfo(null));
+  useEffect(() => {
+    api.settingsCapabilities().then((c) => setCanRecreate(c.recreateSqlContainer)).catch(() => setCanRecreate(false));
+  }, []);
   useEffect(() => { load(); }, []);
 
   async function reseedAll() {
@@ -145,64 +149,75 @@ export function SettingsView({ onChanged }: { onChanged: () => void }) {
 
       <section className="settings-section">
         <h3>Disaster recovery</h3>
-        <p className="muted">
-          If the SQL Server container or its image is deleted (or you just want a
-          guaranteed-clean SQL Server), this deletes the <code>sqlperf-sqlserver</code>{" "}
-          container and image, pulls a fresh SQL Server 2022 image, recreates the
-          container, waits for it to become healthy, and reseeds every lesson database —
-          fully automated, no manual scripts.
-        </p>
-        <label className="settings-checkbox">
-          <input
-            type="checkbox"
-            checked={keepData}
-            onChange={(e) => setKeepData(e.target.checked)}
-            disabled={busy !== ""}
-          />
-          Keep existing data volume (skip wiping lesson/progress data)
-        </label>
-        {confirming === "recreate" ? (
-          <div className="settings-confirm">
-            <span>
-              This deletes the SQL container/image{keepData ? "" : " and all its data"} and
-              takes a couple of minutes. Continue?
-            </span>
-            <button className="btn primary" disabled={busy !== ""} onClick={recreateContainer}>
-              {busy === "recreate" ? "Working…" : "Yes, recreate the SQL container"}
-            </button>
-            <button className="btn" disabled={busy !== ""} onClick={() => setConfirming("")}>Cancel</button>
-          </div>
+        {canRecreate === false ? (
+          <p className="muted">
+            Not available in this deployment — this environment has no Docker daemon to
+            recreate a SQL container against (e.g. Azure SQL Database is a managed
+            service with no container of its own). Use <strong>Reset All Lesson
+            Databases</strong> above to restore every lesson to its seeded state instead.
+          </p>
         ) : (
-          <button className="btn" disabled={busy !== ""} onClick={() => setConfirming("recreate")}>
-            Recreate SQL Server Container
-          </button>
-        )}
+          <>
+            <p className="muted">
+              If the SQL Server container or its image is deleted (or you just want a
+              guaranteed-clean SQL Server), this deletes the <code>sqlperf-sqlserver</code>{" "}
+              container and image, pulls a fresh SQL Server 2022 image, recreates the
+              container, waits for it to become healthy, and reseeds every lesson database —
+              fully automated, no manual scripts.
+            </p>
+            <label className="settings-checkbox">
+              <input
+                type="checkbox"
+                checked={keepData}
+                onChange={(e) => setKeepData(e.target.checked)}
+                disabled={busy !== ""}
+              />
+              Keep existing data volume (skip wiping lesson/progress data)
+            </label>
+            {confirming === "recreate" ? (
+              <div className="settings-confirm">
+                <span>
+                  This deletes the SQL container/image{keepData ? "" : " and all its data"} and
+                  takes a couple of minutes. Continue?
+                </span>
+                <button className="btn primary" disabled={busy !== ""} onClick={recreateContainer}>
+                  {busy === "recreate" ? "Working…" : "Yes, recreate the SQL container"}
+                </button>
+                <button className="btn" disabled={busy !== ""} onClick={() => setConfirming("")}>Cancel</button>
+              </div>
+            ) : (
+              <button className="btn" disabled={busy !== ""} onClick={() => setConfirming("recreate")}>
+                Recreate SQL Server Container
+              </button>
+            )}
 
-        {steps.length > 0 && (
-          <table className="settings-table settings-steps">
-            <tbody>
-              {steps.map((s, i) => (
-                <tr key={i}>
-                  <td>{s.success ? "✓" : "✗"}</td>
-                  <td>{s.step}</td>
-                  <td className="settings-step-output">{s.output.slice(0, 200)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+            {steps.length > 0 && (
+              <table className="settings-table settings-steps">
+                <tbody>
+                  {steps.map((s, i) => (
+                    <tr key={i}>
+                      <td>{s.success ? "✓" : "✗"}</td>
+                      <td>{s.step}</td>
+                      <td className="settings-step-output">{s.output.slice(0, 200)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
 
-        <p className="muted settings-fallback">
-          If the API container itself can't reach Docker (e.g. a locked-down or remote
-          host), run the equivalent script manually from the project root instead:
-        </p>
-        <pre className="settings-code">
+            <p className="muted settings-fallback">
+              If the API container itself can't reach Docker (e.g. a locked-down or remote
+              host), run the equivalent script manually from the project root instead:
+            </p>
+            <pre className="settings-code">
 {`# Windows (PowerShell)
 ./scripts/recreate-sql-container.ps1
 
 # macOS / Linux
 ./scripts/recreate-sql-container.sh`}
-        </pre>
+            </pre>
+          </>
+        )}
       </section>
 
       {message && <div className="hint settings-message">{message}</div>}

@@ -1,4 +1,4 @@
-# SQL Performance Playground a.k.a. "Seek and Destroy"
+# ⚔️ Seek & Destroy — a SQL Performance Playground
 
 **Repo:** https://github.com/johanccs/seek-and-destroy-sql
 

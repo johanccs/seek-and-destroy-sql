@@ -20,6 +20,10 @@ public sealed class Manifest
     public List<string> Hints { get; set; } = new();
     public List<RuleSpec> PassConditions { get; set; } = new();
     public Interleaving? Interleaving { get; set; }
+    // True for lessons that can't fully run on Azure SQL Database's free tier
+    // (e.g. columnstore indexes require Standard S3+/Premium). Surfaced so the SPA
+    // can show a clear note instead of a confusing runtime failure.
+    public bool AzureUnsupported { get; set; }
 }
 
 public sealed class RuleSpec
@@ -64,12 +68,13 @@ public sealed record LevelDto(string Level, string Title, string Description, Li
 
 public sealed record LessonSummaryDto(
     string Id, int Order, string Title, List<string> Topics, int EstimatedMinutes,
-    bool IsConcurrency, bool Solved, int? BestLogicalReads, int? BestDurationMs, string Description);
+    bool IsConcurrency, bool Solved, int? BestLogicalReads, int? BestDurationMs, string Description,
+    bool AzureUnsupported);
 
 public sealed record LessonDetailDto(
     string Id, string Level, string Title, List<string> Topics, int EstimatedMinutes,
     string Narrative, string StartingQuery, List<string> Hints, bool IsConcurrency,
-    object? Interleaving, ProgressDto Progress, string Description);
+    object? Interleaving, ProgressDto Progress, string Description, bool AzureUnsupported);
 
 public sealed record ProgressDto(bool Solved, int? BestLogicalReads, int? BestDurationMs, bool NewlySolved = false);
 
@@ -88,6 +93,8 @@ public sealed record ResetAllDatabasesResultDto(
 public sealed record ResetProgressResultDto(int RowsCleared);
 
 public sealed record RecreateSqlContainerRequest(bool KeepData);
+
+public sealed record SettingsCapabilitiesDto(bool RecreateSqlContainer);
 
 public sealed record RecreateSqlContainerResultDto(
     bool Success, long ElapsedMs, List<Services.DockerStepResult> Steps,

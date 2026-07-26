@@ -30,5 +30,6 @@
     {
       "type": "resultUnchanged"
     }
-  ]
+  ],
+  "azureUnsupported": true
 }

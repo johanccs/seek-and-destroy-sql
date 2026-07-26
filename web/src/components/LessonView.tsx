@@ -66,6 +66,13 @@ export function LessonView({ lesson, onSolved }: { lesson: LessonDetail; onSolve
           <span className="muted">~{lesson.estimatedMinutes} min</span>
           {lesson.progress.solved && <span className="muted"> · ✅ solved</span>}
         </div>
+        {lesson.azureUnsupported && (
+          <div className="hint" style={{ borderColor: "var(--warn)" }}>
+            ⚠️ This lesson needs a SQL Server tier that supports columnstore indexes
+            (Standard S3+, Premium, or vCore General Purpose+). It won't fully work on
+            Azure SQL Database's free tier — run it locally via Docker instead.
+          </div>
+        )}
       </div>
 
       <div className="workspace">

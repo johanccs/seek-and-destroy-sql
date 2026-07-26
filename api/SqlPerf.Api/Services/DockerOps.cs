@@ -18,6 +18,12 @@ public sealed class DockerOps
     private const string ProjectDir = "/workspace";
     private const string ProjectName = "sql-performance";
 
+    // Whether this deployment can actually drive Docker (the socket + project mount
+    // from docker-compose.yml). False on Azure Container Apps or any environment
+    // without that mount -- the Settings page hides the recreate-container action then.
+    public bool IsAvailable() =>
+        File.Exists("/var/run/docker.sock") && Directory.Exists(ProjectDir);
+
     public async Task<List<DockerStepResult>> RecreateSqlContainerAsync(bool keepData, CancellationToken ct)
     {
         var steps = new List<DockerStepResult>();

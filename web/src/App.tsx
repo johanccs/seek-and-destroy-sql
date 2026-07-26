@@ -45,8 +45,8 @@ export default function App() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <h1>SQL Performance Playground</h1>
-          <div className="sub">Tune real T-SQL against a live SQL Server engine</div>
+          <h1>⚔️ Seek &amp; Destroy</h1>
+          <div className="sub">SQL Performance Playground — tune real T-SQL against a live SQL Server engine</div>
         </div>
         <div className="overall">
           <div className="lbl">
@@ -81,7 +81,8 @@ export default function App() {
                   <span className="name">{l.title}</span>
                   {l.description && <span className="desc">{l.description}</span>}
                   <span className="meta">
-                    {l.isConcurrency && <span className="badge-conc">concurrency</span>} ~{l.estimatedMinutes}m
+                    {l.isConcurrency && <span className="badge-conc">concurrency</span>}
+                    {l.azureUnsupported && <span className="badge-azure" title="Not available on Azure SQL Database free tier">local-only</span>} ~{l.estimatedMinutes}m
                     {l.bestLogicalReads != null && ` · best ${l.bestLogicalReads} reads`}
                   </span>
                 </span>

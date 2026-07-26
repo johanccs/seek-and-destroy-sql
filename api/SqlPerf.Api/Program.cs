@@ -61,7 +61,8 @@ app.MapGet("/api/levels", async (LessonCatalog cat, ProgressStore progress) =>
                 var p = prog.GetValueOrDefault(l.Manifest.Id) ?? new ProgressDto(false, null, null);
                 return new LessonSummaryDto(l.Manifest.Id, l.Manifest.Order, l.Manifest.Title,
                     l.Manifest.Topics, l.Manifest.EstimatedMinutes, l.IsConcurrency,
-                    p.Solved, p.BestLogicalReads, p.BestDurationMs, l.Manifest.Description);
+                    p.Solved, p.BestLogicalReads, p.BestDurationMs, l.Manifest.Description,
+                    l.Manifest.AzureUnsupported);
             }).ToList();
         return new LevelDto(lt.key, lt.title, lt.description, lessons);
     }).ToList();
@@ -81,7 +82,8 @@ app.MapGet("/api/lessons/{id}", async (string id, LessonCatalog cat, ProgressSto
     };
     return Results.Json(new LessonDetailDto(l.Manifest.Id, l.Manifest.Level, l.Manifest.Title,
         l.Manifest.Topics, l.Manifest.EstimatedMinutes, l.Manifest.Narrative, l.Manifest.StartingQuery,
-        l.Manifest.Hints, l.IsConcurrency, interleaving, p, l.Manifest.Description));
+        l.Manifest.Hints, l.IsConcurrency, interleaving, p, l.Manifest.Description,
+        l.Manifest.AzureUnsupported));
 });
 
 app.MapGet("/api/lessons/{id}/solution", (string id, LessonCatalog cat) =>
@@ -200,6 +202,12 @@ app.MapPost("/api/settings/reset-progress", async (ProgressStore progress) =>
     return Results.Json(new ResetProgressResultDto(rows));
 });
 
+// Lets the SPA know whether Docker-based actions are available in this deployment
+// (only true locally, where the socket + project root are bind-mounted -- never on
+// Azure Container Apps, which has no host Docker daemon to reach).
+app.MapGet("/api/settings/capabilities", (DockerOps docker) =>
+    Results.Json(new SettingsCapabilitiesDto(docker.IsAvailable())));
+
 // Disaster recovery, run programmatically from the Settings page: deletes the
 // sqlperf-sqlserver container/image (and its data volume, unless keepData), pulls a
 // fresh SQL Server 2022 image, recreates the container via docker compose (against
@@ -208,6 +216,9 @@ app.MapPost("/api/settings/reset-progress", async (ProgressStore progress) =>
 app.MapPost("/api/settings/recreate-sql-container", async (
     RecreateSqlContainerRequest? req, DockerOps docker, LessonCatalog cat, SqlExecutor exec) =>
 {
+    if (!docker.IsAvailable())
+        return Results.Problem("Docker is not available in this deployment.", statusCode: 501);
+
     var sw = System.Diagnostics.Stopwatch.StartNew();
     using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(6));
     var steps = await docker.RecreateSqlContainerAsync(req?.KeepData ?? false, cts.Token);

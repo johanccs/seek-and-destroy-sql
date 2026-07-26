@@ -28,5 +28,6 @@
       "type": "noOperator",
       "operator": "Clustered Index Scan"
     }
-  ]
+  ],
+  "azureUnsupported": true
 }
