@@ -29,7 +29,21 @@ public sealed class ProgressStore
         await using (var c = new SqlConnection(_masterCs))
         {
             await c.OpenAsync();
-            await Exec(c, $"IF DB_ID('{_appDatabase}') IS NULL CREATE DATABASE [{_appDatabase}];");
+            // Azure SQL Database requires CREATE DATABASE to be the only statement in
+            // its batch -- an "IF DB_ID(...) IS NULL CREATE DATABASE ..." conditional
+            // (fine on-prem) fails there. Check existence separately first instead.
+            // Also: DB_ID(name) on Azure SQL only resolves the CURRENTLY connected
+            // database, returning NULL for any other database on the server even when
+            // it exists -- query sys.databases directly instead.
+            bool exists;
+            await using (var cmd = new SqlCommand("SELECT 1 FROM sys.databases WHERE name = @db", c))
+            {
+                cmd.Parameters.AddWithValue("@db", _appDatabase);
+                var r = await cmd.ExecuteScalarAsync();
+                exists = r is not null && r != DBNull.Value;
+            }
+            if (!exists)
+                await Exec(c, $"CREATE DATABASE [{_appDatabase}];");
             // One-time, database-wide, one-way-safe: lets any lesson (e.g.
             // a-19-snapshot-update-conflict) use SET TRANSACTION ISOLATION LEVEL
             // SNAPSHOT. Idempotent -- a no-op once already ON.

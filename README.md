@@ -2,6 +2,9 @@
 
 **Repo:** https://github.com/johanccs/seek-and-destroy-sql
 
+**Live:** https://salmon-field-04fa1fd10.7.azurestaticapps.net (API: https://seek-and-destroy-api.azurewebsites.net)
+— running on Azure SQL Database (free tier) + App Service (B1) + Static Web Apps, South Africa North.
+
 An interactive, web-based playground for developing **Microsoft SQL Server performance-tuning**
 skills — from beginner to expert. You write real T-SQL against a **real SQL Server 2022 engine**,
 see genuine execution plans, `STATISTICS IO/TIME`, locking and deadlocks, and each lesson grades
@@ -121,66 +124,73 @@ script yourself from the project root:
 
 ## Deploying to Azure
 
-This app is three containers plus one stateful engine (SQL Server), so the deployment
-decision that matters most is **how you host SQL Server** — it determines how faithfully
-the curriculum's 80 lessons (compatibility-level tricks, columnstore, partitioning, page
-compression, snapshot/RCSI isolation, lock escalation, `system_health` deadlock graphs)
-behave identically to local Docker.
+**Live deployment:** https://salmon-field-04fa1fd10.7.azurestaticapps.net (South Africa North).
+Total cost: **~$5/month** (see below).
 
-| Option | Compatibility with the lessons | Cost / ops effort |
+### Architecture
+
+All 80 lessons share **one Azure SQL Database** (free tier), isolated by SQL schema + a
+contained `EXECUTE AS` user per lesson (see `SqlExecutor.cs`) instead of one database per
+lesson — this is what makes the free tier viable (Azure SQL's free tier is one database per
+tenant, not a pool). No Docker/containers are involved in the Azure path at all:
+
+| Component | Azure resource | Cost |
 |---|---|---|
-| **A. Containerized SQL Server 2022** (same image as local, on Azure Container Apps or Container Instances, backed by an Azure Files share for `/var/opt/mssql`) | **Identical to local** — same engine, same image | Low-medium cost; you manage the container like any other |
-| **B. SQL Server on an Azure VM** | **Identical to local** | Higher cost; you patch/manage the OS |
-| **C. Azure SQL Database (PaaS)** | Mostly compatible, but **not guaranteed identical** for every lesson — some DBCC/legacy-CE/partitioning/XEvent behaviors differ subtly on the PaaS engine | Cheapest, fully managed, scales down easily |
-| **D. Azure SQL Managed Instance** | Closest PaaS analog to full SQL Server; safest managed option | Most expensive PaaS tier; slow to provision |
+| SQL Server | **Azure SQL Database**, General Purpose Serverless, `--use-free-limit` | **$0/mo** (genuinely free, not a trial) |
+| API | **App Service** (Linux, B1), native `dotnet publish` deploy — no container | ~$13/mo *(F1 free tier also works but its 60 CPU-min/day cap makes bulk operations time out)* |
+| Web SPA | **Static Web Apps** (free tier) — a Vite build is just static files; no nginx container needed | $0/mo |
 
-**Recommended default: Option A** (containerized SQL Server 2022 on Azure Container Apps) —
-it reuses the exact image and seed scripts already in this repo with zero lesson changes,
-while still being a "cloud-native" container deployment.
+Local dev keeps using Docker Compose (three containers, one database per lesson) unchanged —
+the schema-per-lesson model works identically in both places, only the *connection string*
+and *lesson count per HTTP request* differ.
 
-### High-level steps (Option A)
+### Deploy steps (what was actually run)
 
-1. **Registry:** push the `api` and `web` images to Azure Container Registry (ACR).
-   ```bash
-   az acr create -n <acrName> -g <rg> --sku Basic
-   az acr build -r <acrName> -t sqlperf-api:latest ./api
-   az acr build -r <acrName> -t sqlperf-web:latest ./web
-   ```
-2. **Persistent storage for SQL Server:** create an Azure Files share and mount it as the
-   `sqlserver` container's `/var/opt/mssql` volume (Container Apps and Container Instances
-   both support Azure Files mounts).
-3. **Container Apps Environment:** create one environment and three container apps
-   (`sqlserver`, `api`, `web`) inside it so they share a virtual network and can reach each
-   other by name — mirroring the `docker-compose.yml` topology. Give `sqlserver` and `api`
-   **internal-only** ingress; expose `web` (and optionally `api`, if the SPA needs direct
-   browser calls) externally with HTTPS.
-   ```bash
-   az containerapp env create -n sqlperf-env -g <rg> --location <region>
-   az containerapp create -n sqlperf-sqlserver -g <rg> --environment sqlperf-env \
-     --image mcr.microsoft.com/mssql/server:2022-latest \
-     --env-vars ACCEPT_EULA=Y MSSQL_SA_PASSWORD=secretref:sa-password MSSQL_PID=Developer \
-     --ingress internal --target-port 1433
-   az containerapp create -n sqlperf-api -g <rg> --environment sqlperf-env \
-     --image <acrName>.azurecr.io/sqlperf-api:latest \
-     --env-vars ConnectionStrings__Sql="Server=sqlperf-sqlserver;User Id=sa;Password=secretref:sa-password;TrustServerCertificate=True;" \
-     --ingress internal --target-port 8080
-   az containerapp create -n sqlperf-web -g <rg> --environment sqlperf-env \
-     --image <acrName>.azurecr.io/sqlperf-web:latest \
-     --ingress external --target-port 80
-   ```
-   (Bake the real API URL into the `web` image's `VITE_API_BASE` build arg, or front both
-   with Azure Front Door / an Application Gateway for a single hostname.)
-4. **Remove the Docker-socket mount** from the `api` service definition for this
-   environment — Container Apps has no host Docker daemon to reach, and you should not run
-   with that privilege in a shared cloud environment anyway. Use `scripts/recreate-sql-container.*`
-   locally, or redeploy the `sqlserver` container app (`az containerapp update` /
-   `az containerapp revision restart`), for disaster recovery instead.
-5. **Secrets:** store `MSSQL_SA_PASSWORD` in Container Apps secrets (`--secrets sa-password=...`)
-   or Azure Key Vault, not in plain env vars.
-6. **Seed on first boot:** the API already seeds each lesson's database on first access
-   (`EnsureSeededAsync`), so no extra migration step is needed — just hit the app once it's
-   deployed, or click **Reset All Lesson Databases** in Settings.
+```bash
+# Resource group
+az group create -n rg-seek-and-destroy -l southafricanorth
 
-> This repo doesn't yet include ready-to-run Bicep/Terraform for Azure — the steps above
-> are the architecture and CLI commands to follow. Ask for IaC templates once you've picked
-> an option above (A/B/C/D) and I can generate and wire them up.
+# SQL: logical server + free-tier database
+az sql server create -n <server> -g rg-seek-and-destroy -l southafricanorth \
+  --admin-user seekadmin --admin-password <password>
+az sql db create -g rg-seek-and-destroy -s <server> -n SqlPerfDb \
+  -e GeneralPurpose -f Gen5 -c 2 --compute-model Serverless \
+  --use-free-limit --free-limit-exhaustion-behavior AutoPause
+az sql server firewall-rule create -g rg-seek-and-destroy -s <server> \
+  -n AllowAzureServices --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
+
+# API: App Service, native .NET deploy (no Docker)
+az appservice plan create -n seek-and-destroy-plan -g rg-seek-and-destroy -l southafricanorth --is-linux --sku B1
+az webapp create -n <api-app> -g rg-seek-and-destroy -p seek-and-destroy-plan --runtime "DOTNETCORE:10.0"
+az webapp config appsettings set -n <api-app> -g rg-seek-and-destroy --settings \
+  "ConnectionStrings__Sql=Server=tcp:<server>.database.windows.net,1433;Initial Catalog=SqlPerfDb;User ID=seekadmin;Password=<password>;Encrypt=True;TrustServerCertificate=False;" \
+  "Sql__AppDatabase=SqlPerfDb" \
+  "Lessons__Path=/home/site/wwwroot/lessons"
+dotnet publish api/SqlPerf.Api -c Release -o ./publish
+cp -r lessons ./publish/lessons          # lesson content ships inside the deployed app
+# zip ./publish and:
+az webapp deploy -n <api-app> -g rg-seek-and-destroy --src-path deploy.zip --type zip
+
+# Web: Static Web Apps, built with the API's real URL baked in
+az staticwebapp create -n <web-app> -g rg-seek-and-destroy -l centralus
+docker build --build-arg VITE_API_BASE=https://<api-app>.azurewebsites.net --target build -t web-build ./web
+docker create --name extract web-build && docker cp extract:/app/dist ./dist_deploy && docker rm extract
+npx @azure/static-web-apps-cli deploy ./dist_deploy --deployment-token <token> --env production
+```
+
+### Gotchas hit during deployment (already fixed in code)
+
+- **`CREATE DATABASE` must be the only statement in its batch on Azure SQL** — an
+  `IF DB_ID(...) IS NULL CREATE DATABASE ...` conditional (fine on-prem) fails there.
+  `ProgressStore` checks existence via a separate `SELECT` first.
+- **`DB_ID(name)` on Azure SQL only resolves the *currently connected* database** —
+  returns `NULL` for any other database on the same server even when it exists. Query
+  `sys.databases` directly instead.
+- **The bulk "Reset All Lesson Databases" Settings action will 504 on Azure** — resetting
+  all 80 lessons sequentially in one HTTP request (~7s each, ~10 minutes total) exceeds
+  App Service's gateway timeout. Individual lesson resets (what the app actually uses
+  day-to-day) are fast (~2-7s) and unaffected. This is a platform request-timeout limit,
+  not a region/tier problem — it works fine locally (no gateway in front of Kestrel there).
+- **Region matters for latency**, not just cost — if you're geographically far from a
+  region, cumulative round-trip latency across many sequential DB calls (seeding, resets)
+  adds up fast. Deploy close to where you'll actually use it.
