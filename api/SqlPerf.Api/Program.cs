@@ -1,3 +1,4 @@
+using System.Text.Json;
 using SqlPerf.Api.Models;
 using SqlPerf.Api.Services;
 
@@ -8,6 +9,9 @@ builder.Services.AddSingleton<SqlExecutor>();
 builder.Services.AddSingleton<ConcurrencyRunner>();
 builder.Services.AddSingleton<ProgressStore>();
 builder.Services.AddSingleton<DockerOps>();
+builder.Services.AddSingleton<TutorHistoryStore>();
+builder.Services.AddSingleton<TutorService>();
+builder.Services.AddHttpClient("openrouter");
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
@@ -231,6 +235,59 @@ app.MapPost("/api/settings/recreate-sql-container", async (
     sw.Stop();
     return Results.Json(new RecreateSqlContainerResultDto(
         success && (reseed?.Failed ?? 0) == 0, sw.ElapsedMilliseconds, steps, reseed));
+});
+
+// ---- AI Tutor ----
+app.MapGet("/api/tutor/status", (TutorService tutor) =>
+    Results.Json(new { configured = tutor.IsConfigured }));
+
+app.MapGet("/api/lessons/{id}/tutor/history", async (string id, TutorHistoryStore history) =>
+    Results.Json(await history.LoadAsync(id)));
+
+app.MapPost("/api/lessons/{id}/tutor/reset", async (string id, TutorHistoryStore history) =>
+{
+    await history.ClearAsync(id);
+    return Results.Ok();
+});
+
+app.MapPost("/api/lessons/{id}/tutor/chat", async (
+    string id, TutorChatRequest req, LessonCatalog cat, TutorService tutor,
+    TutorHistoryStore historyStore, HttpContext http, CancellationToken ct) =>
+{
+    var l = cat.Get(id);
+    if (l is null) { http.Response.StatusCode = 404; return; }
+    if (string.IsNullOrWhiteSpace(req.Message)) { http.Response.StatusCode = 400; return; }
+
+    var history = await historyStore.LoadAsync(id, ct);
+    await historyStore.AppendAsync(id, new TutorMessage("user", req.Message, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()), ct);
+
+    http.Response.ContentType = "text/event-stream";
+    http.Response.Headers["Cache-Control"] = "no-cache";
+    http.Response.Headers["X-Accel-Buffering"] = "no";
+
+    var sb = new System.Text.StringBuilder();
+    try
+    {
+        await foreach (var chunk in tutor.StreamReplyAsync(l, history, req.Message, ct))
+        {
+            object evt = chunk.Delta is not null
+                ? new { delta = chunk.Delta }
+                : new { costZar = chunk.CostZar, promptTokens = chunk.PromptTokens, completionTokens = chunk.CompletionTokens };
+            if (chunk.Delta is not null) sb.Append(chunk.Delta);
+            await http.Response.WriteAsync($"data: {JsonSerializer.Serialize(evt, Json.Options)}\n\n", ct);
+            await http.Response.Body.FlushAsync(ct);
+        }
+    }
+    catch (Exception ex)
+    {
+        await http.Response.WriteAsync($"data: {JsonSerializer.Serialize(new { error = ex.Message }, Json.Options)}\n\n", ct);
+    }
+    finally
+    {
+        if (sb.Length > 0)
+            await historyStore.AppendAsync(id, new TutorMessage("assistant", sb.ToString(), DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()), ct);
+        await http.Response.WriteAsync("data: [DONE]\n\n", ct);
+    }
 });
 
 app.Run();

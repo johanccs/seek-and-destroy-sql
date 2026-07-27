@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LessonDetail, LevelGroup, ProgressSummary } from "./types";
 import { api } from "./api";
 import { LessonView } from "./components/LessonView";
@@ -19,6 +19,42 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [search, setSearch] = useState("");
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = Number(localStorage.getItem("sidebarWidth"));
+    return saved >= 220 && saved <= 720 ? saved : 300;
+  });
+  const resizing = useRef(false);
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizing.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizing.current) return;
+      const w = Math.min(720, Math.max(220, e.clientX));
+      setSidebarWidth(w);
+    };
+    const onUp = () => {
+      if (!resizing.current) return;
+      resizing.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      setSidebarWidth((w) => {
+        localStorage.setItem("sidebarWidth", String(w));
+        return w;
+      });
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
 
   const refresh = async () => {
     try {
@@ -53,7 +89,7 @@ export default function App() {
     .filter((g) => g.lessons.length > 0);
 
   return (
-    <div className="app">
+    <div className="app" style={{ gridTemplateColumns: `${sidebarWidth}px 1fr` }}>
       <aside className="sidebar">
         <div className="brand">
           <h1>⚔️ Seek &amp; Destroy</h1>
@@ -116,6 +152,7 @@ export default function App() {
             ))}
           </div>
         ))}
+        <div className="sidebar-resize-handle" onMouseDown={onResizeStart} />
       </aside>
 
       <main className="main">

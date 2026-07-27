@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import ReactMarkdown from "react-markdown";
 import type { LessonDetail, RunResult, RunStats } from "../types";
 import { api } from "../api";
 import { ResultsPanel } from "./ResultsPanel";
 import { ConcurrencyView } from "./ConcurrencyView";
+import { TutorPanel } from "./TutorPanel";
 
 export function LessonView({ lesson, onSolved }: { lesson: LessonDetail; onSolved: () => void }) {
   const [sql, setSql] = useState(lesson.startingQuery);
@@ -14,6 +15,12 @@ export function LessonView({ lesson, onSolved }: { lesson: LessonDetail; onSolve
   const [hintCount, setHintCount] = useState(0);
   const [solution, setSolution] = useState<string | null>(null);
   const [busy, setBusy] = useState("");
+  const [narrativeWidth, setNarrativeWidth] = useState(() => {
+    const saved = Number(localStorage.getItem("narrativeWidth"));
+    return saved >= 260 && saved <= 1100 ? saved : 380;
+  });
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const resizing = useRef(false);
 
   useEffect(() => {
     setSql(lesson.startingQuery);
@@ -55,6 +62,38 @@ export function LessonView({ lesson, onSolved }: { lesson: LessonDetail; onSolve
     setSql(s.solution);
   };
 
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    resizing.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizing.current || !workspaceRef.current) return;
+      const left = workspaceRef.current.getBoundingClientRect().left;
+      const w = Math.min(1100, Math.max(260, e.clientX - left));
+      setNarrativeWidth(w);
+    };
+    const onUp = () => {
+      if (!resizing.current) return;
+      resizing.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      setNarrativeWidth((w) => {
+        localStorage.setItem("narrativeWidth", String(w));
+        return w;
+      });
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
   return (
     <div className="lesson">
       <div className="lesson-head">
@@ -73,9 +112,10 @@ export function LessonView({ lesson, onSolved }: { lesson: LessonDetail; onSolve
             Azure SQL Database's free tier — run it locally via Docker instead.
           </div>
         )}
+        <TutorPanel lessonId={lesson.id} />
       </div>
 
-      <div className="workspace">
+      <div className="workspace" ref={workspaceRef} style={{ gridTemplateColumns: `${narrativeWidth}px 1fr` }}>
         <div className="narrative">
           <ReactMarkdown>{lesson.narrative}</ReactMarkdown>
           {Array.from({ length: hintCount }).map((_, i) => (
@@ -86,6 +126,7 @@ export function LessonView({ lesson, onSolved }: { lesson: LessonDetail; onSolve
               <b>Reference solution loaded into the editor.</b>
             </div>
           )}
+          <div className="workspace-resize-handle" onMouseDown={onResizeStart} />
         </div>
 
         {lesson.isConcurrency && lesson.interleaving ? (

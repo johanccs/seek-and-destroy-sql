@@ -31,6 +31,9 @@ services:
       # commands against the HOST's Docker daemon (docker-outside-of-docker).
       SA_PASSWORD: "${SA_PASSWORD:-Sql_Perf_Pass123!}"
       COMPOSE_PROJECT_DIR: "/workspace"
+      OpenRouter__ApiKey: "${OPENROUTER_API_KEY:-}"
+      OpenRouter__Model: "${OPENROUTER_MODEL:-openai/gpt-oss-20b:free}"
+      OpenRouter__UsdToZar: "${OPENROUTER_USD_TO_ZAR:-18.5}"
     ports:
       - "5080:8080"
     volumes:

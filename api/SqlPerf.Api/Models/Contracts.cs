@@ -101,6 +101,7 @@ public sealed record RecreateSqlContainerResultDto(
     ResetAllDatabasesResultDto? Reseed);
 
 public sealed record RunRequest(string Sql);
+public sealed record TutorChatRequest(string Message);
 
 public sealed record ResultSetDto(List<string> Columns, List<List<object?>> Rows, int RowCount, bool Truncated);
 

@@ -5,6 +5,7 @@ import type {
   LevelGroup,
   ProgressSummary,
   RunResult,
+  TutorMessage,
 } from "./types";
 
 const BASE = (import.meta.env.VITE_API_BASE as string) || "http://localhost:5080";
@@ -62,6 +63,53 @@ export const api = {
     fetch(`${BASE}/api/settings/reset-progress`, { method: "POST" }).then(
       json<{ rowsCleared: number }>,
     ),
+
+  tutorStatus: () => fetch(`${BASE}/api/tutor/status`).then(json<{ configured: boolean }>),
+
+  tutorHistory: (lessonId: string) =>
+    fetch(`${BASE}/api/lessons/${lessonId}/tutor/history`).then(json<TutorMessage[]>),
+
+  tutorReset: (lessonId: string) =>
+    fetch(`${BASE}/api/lessons/${lessonId}/tutor/reset`, { method: "POST" }),
+
+  // Streams an assistant reply via SSE. Calls onDelta for each text chunk and
+  // onCost once OpenRouter reports token usage for the finished message.
+  tutorChat: async (
+    lessonId: string,
+    message: string,
+    onDelta: (text: string) => void,
+    onCost: (costZar: number | null) => void,
+    signal?: AbortSignal,
+  ) => {
+    const res = await fetch(`${BASE}/api/lessons/${lessonId}/tutor/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+      signal,
+    });
+    if (!res.ok || !res.body) throw new Error(`${res.status} ${res.statusText}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split("\n\n");
+      buf = parts.pop() ?? "";
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice("data:".length).trim();
+        if (data === "[DONE]") return;
+        const evt = JSON.parse(data) as { delta?: string; costZar?: number | null; error?: string };
+        if (evt.error) throw new Error(evt.error);
+        if (evt.delta) onDelta(evt.delta);
+        if (evt.costZar !== undefined) onCost(evt.costZar);
+      }
+    }
+  },
 
   recreateSqlContainer: (keepData: boolean) =>
     fetch(`${BASE}/api/settings/recreate-sql-container`, {

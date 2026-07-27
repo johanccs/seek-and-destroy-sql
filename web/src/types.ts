@@ -148,6 +148,13 @@ export interface ConcurrencyResult {
   progress: LessonProgress | null;
 }
 
+export interface TutorMessage {
+  role: "user" | "assistant";
+  content: string;
+  ts: number;
+  costZar?: number | null;
+}
+
 export interface ProgressSummary {
   totalLessons: number;
   solvedLessons: number;

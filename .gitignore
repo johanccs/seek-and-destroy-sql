@@ -16,3 +16,6 @@ Thumbs.db
 
 # Claude Code session memory (local to this workstation, not app content)
 .remember/
+
+# Local secrets (OpenRouter key etc.) -- never commit
+api/SqlPerf.Api/appsettings.Development.json
