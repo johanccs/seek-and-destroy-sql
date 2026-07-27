@@ -46,6 +46,12 @@ jobs:
       - name: Build
         run: npm run build
         working-directory: web
+        env:
+          # Vite bakes this into the bundle at build time. Without it, the
+          # app falls back to its http://localhost:5080 dev default, which
+          # is unreachable from a real visitor's browser (this broke the
+          # site once already — see commit history).
+          VITE_API_BASE: https://seek-and-destroy-api.azurewebsites.net
 
       - name: Upload build output
         uses: actions/upload-artifact@v4
