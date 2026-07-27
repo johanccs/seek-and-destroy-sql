@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Seek &amp; Destroy — a SQL Performance Playground</title>
+<meta name="description" content="Learn Microsoft SQL Server performance tuning by doing: 80 interactive lessons against a real SQL Server 2022 engine — real plans, real stats, real deadlocks." />
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161e29;
+    --border: #263140;
+    --text: #d7e0ea;
+    --text-dim: #8b98a8;
+    --accent: #3fb6ff;
+    --good: #34c98e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+  .eyebrow { color: var(--accent); font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 0.75rem; }
+  h1 { font-size: 2.5rem; line-height: 1.2; margin: 0 0 1rem; }
+  h1 code { background: var(--panel); border: 1px solid var(--border); padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.85em; }
+  .lead { color: var(--text-dim); font-size: 1.15rem; max-width: 40rem; margin: 0 0 2rem; }
+  .cta { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 3rem; }
+  .btn {
+    display: inline-block; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600;
+    text-decoration: none; border: 1px solid var(--border);
+  }
+  .btn.primary { background: var(--accent); color: #05121c; border-color: var(--accent); }
+  .btn.secondary { background: var(--panel); color: var(--text); }
+  .proof { display: flex; gap: 1.5rem; flex-wrap: wrap; list-style: none; padding: 0; margin: 0 0 3rem; color: var(--text-dim); font-size: 0.95rem; }
+  .proof li::before { content: "✓ "; color: var(--good); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-bottom: 3rem; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; }
+  .card h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+  .card p { margin: 0; color: var(--text-dim); font-size: 0.95rem; }
+  .levels { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 3rem; }
+  .levels span { background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 0.4rem 0.9rem; font-size: 0.85rem; color: var(--text-dim); }
+  footer { color: var(--text-dim); font-size: 0.85rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+  footer a { color: var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">⚔️ Seek &amp; Destroy</p>
+  <h1>Stop guessing why a query is slow. <code>SET STATISTICS IO ON</code> and see for yourself.</h1>
+  <p class="lead">
+    An interactive, web-based playground for developing Microsoft SQL Server performance-tuning
+    skills — from beginner to expert. Write real T-SQL against a real SQL Server 2022 engine, see
+    genuine execution plans, logical reads, locking and deadlocks, and get graded automatically.
+  </p>
+  <div class="cta">
+    <a class="btn primary" href="https://salmon-field-04fa1fd10.7.azurestaticapps.net/">Try it live — free, no sign-up</a>
+    <a class="btn secondary" href="https://github.com/johanccs/seek-and-destroy-sql">View source on GitHub</a>
+  </div>
+  <ul class="proof">
+    <li>~80 lessons</li>
+    <li>Real SQL Server 2022 engine</li>
+    <li>Graphical execution plans</li>
+    <li>Live deadlock timelines</li>
+    <li>AI tutor, lesson-aware</li>
+  </ul>
+
+  <div class="grid">
+    <div class="card">
+      <h3>1. Run the slow query</h3>
+      <p>Every lesson starts with a deliberately slow query. Inspect the execution plan and statistics tabs to see exactly why.</p>
+    </div>
+    <div class="card">
+      <h3>2. Fix it for real</h3>
+      <p>Add an index, rewrite the query, update statistics, reorder a transaction — against a live SQL Server engine, not a simulation.</p>
+    </div>
+    <div class="card">
+      <h3>3. Get graded automatically</h3>
+      <p>The pass/fail banner shows exactly which measurable conditions you've met — no Table Scan, logical reads under a threshold, Index Seek used.</p>
+    </div>
+  </div>
+
+  <div class="levels">
+    <span>Beginner</span>
+    <span>Intermediate</span>
+    <span>Advanced</span>
+    <span>Expert</span>
+  </div>
+
+  <footer>
+    Built with React + ASP.NET Core + SQL Server 2022. © 2026 Johan Potgieter ·
+    <a href="https://github.com/johanccs/seek-and-destroy-sql">GitHub</a> ·
+    <a href="https://salmon-field-04fa1fd10.7.azurestaticapps.net/">Privacy &amp; Terms (in-app)</a>
+  </footer>
+</div>
+</body>
+</html>
