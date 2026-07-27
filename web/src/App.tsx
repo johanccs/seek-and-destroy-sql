@@ -3,6 +3,7 @@ import type { LessonDetail, LevelGroup, ProgressSummary } from "./types";
 import { api } from "./api";
 import { LessonView } from "./components/LessonView";
 import { SettingsView } from "./components/SettingsView";
+import { difficultyLabel } from "./difficulty";
 
 const LEVEL_TITLES: Record<string, string> = {
   beginner: "Beginner",
@@ -19,6 +20,14 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [search, setSearch] = useState("");
+  const [theme, setTheme] = useState<"dark" | "light">(
+    () => (localStorage.getItem("theme") as "dark" | "light") || "dark",
+  );
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = Number(localStorage.getItem("sidebarWidth"));
     return saved >= 220 && saved <= 720 ? saved : 300;
@@ -92,7 +101,17 @@ export default function App() {
     <div className="app" style={{ gridTemplateColumns: `${sidebarWidth}px 1fr` }}>
       <aside className="sidebar">
         <div className="brand">
-          <h1>⚔️ Seek &amp; Destroy</h1>
+          <div className="brand-row">
+            <h1>⚔️ Seek &amp; Destroy</h1>
+            <button
+              className="theme-toggle"
+              onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+              title="Toggle light/dark theme"
+              aria-label="Toggle light/dark theme"
+            >
+              {theme === "dark" ? "☀️" : "🌙"}
+            </button>
+          </div>
           <div className="sub">SQL Performance Playground — tune real T-SQL against a live SQL Server engine</div>
         </div>
         <div className="overall">
@@ -145,6 +164,7 @@ export default function App() {
                   <span className="meta">
                     {l.isConcurrency && <span className="badge-conc">concurrency</span>}
                     {l.azureUnsupported && <span className="badge-azure" title="Not available on Azure SQL Database free tier">local-only</span>} ~{l.estimatedMinutes}m
+                    <span className="difficulty" title="Difficulty (estimated)"> {difficultyLabel(l.estimatedMinutes)}</span>
                     {l.bestLogicalReads != null && ` · best ${l.bestLogicalReads} reads`}
                   </span>
                 </span>
@@ -159,7 +179,7 @@ export default function App() {
         {showSettings ? (
           <SettingsView onChanged={refresh} />
         ) : lesson ? (
-          <LessonView lesson={lesson} onSolved={refresh} />
+          <LessonView lesson={lesson} onSolved={refresh} theme={theme} />
         ) : (
           <div className="empty">
             <div>

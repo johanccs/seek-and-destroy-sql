@@ -6,8 +6,9 @@ import { api } from "../api";
 import { ResultsPanel } from "./ResultsPanel";
 import { ConcurrencyView } from "./ConcurrencyView";
 import { TutorPanel } from "./TutorPanel";
+import { difficultyLabel } from "../difficulty";
 
-export function LessonView({ lesson, onSolved }: { lesson: LessonDetail; onSolved: () => void }) {
+export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; onSolved: () => void; theme: "dark" | "light" }) {
   const [sql, setSql] = useState(lesson.startingQuery);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
@@ -62,6 +63,55 @@ export function LessonView({ lesson, onSolved }: { lesson: LessonDetail; onSolve
     setSql(s.solution);
   };
 
+  // Keep a live ref so the global keydown listener always calls the current
+  // run/reset without needing to re-bind the listener on every render.
+  const runRef = useRef(run);
+  runRef.current = run;
+  const resetRef = useRef(reset);
+  resetRef.current = reset;
+  const hintRef = useRef(() => setHintCount((c) => Math.min(c + 1, lesson.hints.length)));
+  hintRef.current = () => setHintCount((c) => Math.min(c + 1, lesson.hints.length));
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        runRef.current();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
+        e.preventDefault();
+        hintRef.current();
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "r") {
+        e.preventDefault();
+        resetRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const printLesson = () => {
+    const w = window.open("", "_blank");
+    if (!w) return;
+    const narrativeHtml = document.querySelector(".narrative .markdown-body")?.innerHTML
+      ?? document.querySelector(".narrative")?.innerHTML ?? "";
+    w.document.write(`<!doctype html><html><head><title>${lesson.title} — Seek &amp; Destroy</title>
+      <style>
+        body { font-family: -apple-system, "Segoe UI", sans-serif; max-width: 780px; margin: 40px auto; color: #1c2530; line-height: 1.55; }
+        h1 { font-size: 22px; } h2 { font-size: 17px; margin-top: 28px; } code { background: #eef1f5; padding: 1px 5px; border-radius: 4px; }
+        pre { background: #eef1f5; padding: 10px; border-radius: 6px; overflow-x: auto; }
+        .meta { color: #5b6675; font-size: 13px; margin-bottom: 18px; }
+        .hint-box { border-left: 3px solid #a97400; background: #fbf0d6; padding: 8px 12px; margin: 10px 0; border-radius: 4px; }
+      </style></head><body>
+      <h1>${lesson.title}</h1>
+      <div class="meta">${lesson.level} · ${lesson.topics.join(", ")} · ~${lesson.estimatedMinutes} min</div>
+      ${narrativeHtml}
+      ${lesson.hints.map((h) => `<div class="hint-box">💡 ${h}</div>`).join("")}
+      </body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+  };
+
   const onResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     resizing.current = true;
@@ -97,12 +147,16 @@ export function LessonView({ lesson, onSolved }: { lesson: LessonDetail; onSolve
   return (
     <div className="lesson">
       <div className="lesson-head">
-        <h2>{lesson.title}</h2>
+        <div className="lesson-head-top">
+          <h2>{lesson.title}</h2>
+          <button className="btn ghost small" onClick={printLesson} title="Print / export this lesson as a study reference">🖨 Print</button>
+        </div>
         <div>
           {lesson.topics.map((t) => (
             <span className="topic" key={t}>{t}</span>
           ))}
           <span className="muted">~{lesson.estimatedMinutes} min</span>
+          <span className="muted difficulty" title="Difficulty (estimated)">{difficultyLabel(lesson.estimatedMinutes)}</span>
           {lesson.progress.solved && <span className="muted"> · ✅ solved</span>}
         </div>
         {lesson.azureUnsupported && (
@@ -117,7 +171,9 @@ export function LessonView({ lesson, onSolved }: { lesson: LessonDetail; onSolve
 
       <div className="workspace" ref={workspaceRef} style={{ gridTemplateColumns: `${narrativeWidth}px 1fr` }}>
         <div className="narrative">
-          <ReactMarkdown>{lesson.narrative}</ReactMarkdown>
+          <div className="markdown-body">
+            <ReactMarkdown>{lesson.narrative}</ReactMarkdown>
+          </div>
           {Array.from({ length: hintCount }).map((_, i) => (
             <div className="hint" key={i}>💡 {lesson.hints[i]}</div>
           ))}
@@ -134,11 +190,11 @@ export function LessonView({ lesson, onSolved }: { lesson: LessonDetail; onSolve
         ) : (
           <div className="editor-col">
             <div className="toolbar">
-              <button className="btn primary" onClick={run} disabled={running}>
+              <button className="btn primary" onClick={run} disabled={running} title="Ctrl+Enter">
                 {running ? "Running…" : "▶ Run"}
               </button>
-              <button className="btn" onClick={reset}>↺ Reset Lesson</button>
-              <button className="btn ghost" onClick={() => setHintCount((c) => Math.min(c + 1, lesson.hints.length))} disabled={hintCount >= lesson.hints.length}>
+              <button className="btn" onClick={reset} title="Ctrl+Shift+R">↺ Reset Lesson</button>
+              <button className="btn ghost" onClick={() => setHintCount((c) => Math.min(c + 1, lesson.hints.length))} disabled={hintCount >= lesson.hints.length} title="Ctrl+H">
                 💡 Hint ({hintCount}/{lesson.hints.length})
               </button>
               <div className="spacer" />
@@ -146,7 +202,7 @@ export function LessonView({ lesson, onSolved }: { lesson: LessonDetail; onSolve
               {busy && <span className="muted">{busy}</span>}
             </div>
             <div className="editor-wrap">
-              <Editor height="100%" theme="vs-dark" defaultLanguage="sql" value={sql} onChange={(v) => setSql(v ?? "")} options={{ minimap: { enabled: false }, fontSize: 13, automaticLayout: true }} />
+              <Editor height="100%" theme={theme === "dark" ? "vs-dark" : "light"} defaultLanguage="sql" value={sql} onChange={(v) => setSql(v ?? "")} options={{ minimap: { enabled: false }, fontSize: 13, automaticLayout: true }} />
             </div>
             <ResultsPanel result={result} prevStats={prevStats} />
           </div>

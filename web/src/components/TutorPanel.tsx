@@ -29,6 +29,17 @@ function TutorMarkdown({ content }: { content: string }) {
   );
 }
 
+const TUTOR_NAME = "Sarge";
+
+function ThinkingDots() {
+  return (
+    <span className="tutor-thinking">
+      {TUTOR_NAME} is thinking
+      <span className="tutor-dots"><span>.</span><span>.</span><span>.</span></span>
+    </span>
+  );
+}
+
 function fmtZar(v: number | null | undefined) {
   if (v == null) return null;
   if (v < 0.01) return `R${v.toFixed(4)}`;
@@ -118,18 +129,22 @@ export function TutorPanel({ lessonId }: { lessonId: string }) {
   return (
     <div className={`tutor-panel ${open ? "open" : ""}`}>
       <div className="tutor-toggle" onClick={() => setOpen((o) => !o)}>
-        🤖 AI Tutor {open ? "▾" : "▸"}
+        🤖 {TUTOR_NAME} — AI Tutor {open ? "▾" : "▸"}
         {totalCostZar > 0 && <span className="tutor-cost-total">{fmtZar(totalCostZar)}</span>}
       </div>
       {open && (
         <div className="tutor-body">
           <div className="tutor-messages" ref={listRef}>
             {messages.length === 0 && (
-              <div className="muted tutor-empty">Ask about this lesson — how it works, why it happens, or what to try.</div>
+              <div className="muted tutor-empty">Ask {TUTOR_NAME} about this lesson — how it works, why it happens, or what to try.</div>
             )}
             {messages.map((m, i) => (
               <div className={`tutor-msg ${m.role}`} key={i}>
-                <TutorMarkdown content={m.content || (sending && i === messages.length - 1 ? "…" : "")} />
+                {m.content ? (
+                  <TutorMarkdown content={m.content} />
+                ) : sending && i === messages.length - 1 ? (
+                  <ThinkingDots />
+                ) : null}
                 {m.costZar != null && <div className="tutor-cost">{fmtZar(m.costZar)}</div>}
               </div>
             ))}
@@ -144,7 +159,7 @@ export function TutorPanel({ lessonId }: { lessonId: string }) {
               disabled={sending}
             />
             <button className="btn primary" onClick={send} disabled={sending || !input.trim()}>
-              {sending ? "…" : "Send"}
+              {sending ? "Thinking…" : "Send"}
             </button>
             <button className="btn ghost" onClick={resetChat} disabled={sending} title="Clear chat history">↺</button>
           </div>
