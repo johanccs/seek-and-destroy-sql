@@ -3,6 +3,8 @@ import type { LessonDetail, LevelGroup, ProgressSummary } from "./types";
 import { api } from "./api";
 import { LessonView } from "./components/LessonView";
 import { SettingsView } from "./components/SettingsView";
+import { PrivacyView } from "./components/PrivacyView";
+import { TermsView } from "./components/TermsView";
 import { difficultyLabel } from "./difficulty";
 
 const LEVEL_TITLES: Record<string, string> = {
@@ -19,6 +21,8 @@ export default function App() {
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [search, setSearch] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">(
     () => (localStorage.getItem("theme") as "dark" | "light") || "dark",
@@ -128,7 +132,7 @@ export default function App() {
 
         <div
           className={`settings-nav ${showSettings ? "active" : ""}`}
-          onClick={() => { setShowSettings(true); setActiveId(null); }}
+          onClick={() => { setShowSettings(true); setActiveId(null); setShowPrivacy(false); setShowTerms(false); }}
         >
           ⚙ Settings
         </div>
@@ -156,7 +160,7 @@ export default function App() {
             </div>
             {g.description && <div className="level-desc">{g.description}</div>}
             {g.lessons.map((l) => (
-              <div className={`lesson-row ${activeId === l.id ? "active" : ""}`} key={l.id} onClick={() => { setActiveId(l.id); setShowSettings(false); }}>
+              <div className={`lesson-row ${activeId === l.id ? "active" : ""}`} key={l.id} onClick={() => { setActiveId(l.id); setShowSettings(false); setShowPrivacy(false); setShowTerms(false); }}>
                 <span className={`tick ${l.solved ? "solved" : "unsolved"}`}>{l.solved ? "✓" : "○"}</span>
                 <span className="t">
                   <span className="name">{l.title}</span>
@@ -176,7 +180,11 @@ export default function App() {
       </aside>
 
       <main className="main">
-        {showSettings ? (
+        {showPrivacy ? (
+          <PrivacyView />
+        ) : showTerms ? (
+          <TermsView />
+        ) : showSettings ? (
           <SettingsView onChanged={refresh} />
         ) : lesson ? (
           <LessonView lesson={lesson} onSolved={refresh} theme={theme} />
@@ -189,6 +197,26 @@ export default function App() {
           </div>
         )}
       </main>
+
+      <footer className="site-footer">
+        <span className="footer-copyright">© 2026 Johan Potgieter</span>
+        <nav className="footer-links">
+          <button
+            className={`footer-link ${showPrivacy ? "active" : ""}`}
+            onClick={() => { setShowPrivacy(true); setShowTerms(false); setShowSettings(false); }}
+          >
+            Privacy
+          </button>
+          <button
+            className={`footer-link ${showTerms ? "active" : ""}`}
+            onClick={() => { setShowTerms(true); setShowPrivacy(false); setShowSettings(false); }}
+          >
+            Terms
+          </button>
+          <a href="https://github.com/johanccs/seek-and-destroy-sql" target="_blank" rel="noopener">GitHub</a>
+        </nav>
+        <span className="footer-badge">Built with React + ASP.NET Core</span>
+      </footer>
     </div>
   );
 }
