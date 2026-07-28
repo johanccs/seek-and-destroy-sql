@@ -3,6 +3,7 @@ import { api } from "../api";
 import { FontSizeControl, useFontSize } from "./FontSizeControl";
 
 const FONT_SIZE_PANELS = [
+  { key: "sidebar", label: "Lesson list (sidebar)", defaultSize: 12, preview: "Table Scan vs. Index Seek — An equality lookup on an unindexed column scans the whole table. ~10m ★★☆☆☆" },
   { key: "narrative", label: "Lesson text", defaultSize: 14, preview: "An equality lookup on an unindexed column scans the whole table; a nonclustered index turns the scan into a fast Index Seek." },
   { key: "editor", label: "SQL editor", defaultSize: 13, preview: "SELECT * FROM Orders WHERE CustomerId = 42;" },
   { key: "results", label: "Results / Plan / Stats", defaultSize: 13, preview: "Logical reads: 4  ·  Index Seek on IX_Orders_CustomerId  ·  0 warnings" },

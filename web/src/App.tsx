@@ -5,6 +5,7 @@ import { LessonView } from "./components/LessonView";
 import { SettingsView } from "./components/SettingsView";
 import { PrivacyView } from "./components/PrivacyView";
 import { TermsView } from "./components/TermsView";
+import { FontSizeControl, useFontSize } from "./components/FontSizeControl";
 import { difficultyLabel } from "./difficulty";
 
 const LEVEL_TITLES: Record<string, string> = {
@@ -37,6 +38,7 @@ export default function App() {
     return saved >= 220 && saved <= 720 ? saved : 300;
   });
   const resizing = useRef(false);
+  const sidebarFs = useFontSize("sidebar", 12);
 
   const onResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -152,6 +154,11 @@ export default function App() {
           <div className="muted search-empty">No lessons match "{search}".</div>
         )}
 
+        <div className="sidebar-lessons-header">
+          <FontSizeControl label="Lesson list" fontSize={sidebarFs} />
+        </div>
+
+        <div className="fontsize-zoom-wrap" style={{ "--panel-zoom": sidebarFs.size / 12 } as React.CSSProperties}>
         {filteredLevels.map((g) => (
           <div className="level-group" key={g.level}>
             <div className="level-title">
@@ -176,6 +183,7 @@ export default function App() {
             ))}
           </div>
         ))}
+        </div>
         <div className="sidebar-resize-handle" onMouseDown={onResizeStart} />
       </aside>
 
