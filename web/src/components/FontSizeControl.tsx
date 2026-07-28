@@ -20,8 +20,10 @@ export function useFontSize(key: string, defaultSize: number, min = 10, max = 22
     size,
     min,
     max,
+    defaultSize,
     increase: () => setSize((s) => Math.min(max, s + 1)),
     decrease: () => setSize((s) => Math.max(min, s - 1)),
+    reset: () => setSize(defaultSize),
   };
 }
 
@@ -50,6 +52,16 @@ export function FontSizeControl({ label, fontSize }: { label: string; fontSize: 
         aria-label="Increase text size"
       >
         A+
+      </button>
+      <button
+        type="button"
+        className="fontsize-btn fontsize-reset-btn"
+        onClick={fontSize.reset}
+        disabled={fontSize.size === fontSize.defaultSize}
+        title="Reset to default size"
+        aria-label="Reset to default size"
+      >
+        ↺
       </button>
     </div>
   );

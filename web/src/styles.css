@@ -186,6 +186,9 @@ a { color: var(--accent); }
 }
 .fontsize-btn:hover:not(:disabled) { border-color: var(--accent); }
 .fontsize-btn:disabled { opacity: 0.4; cursor: default; }
+
+.fontsize-reset-btn { color: var(--text-dim); font-size: 12px; }
+.fontsize-reset-btn:hover:not(:disabled) { color: var(--text); }
 .fontsize-value { min-width: 2.8em; text-align: center; color: var(--text-dim); font-size: 11px; }
 
 /* Scopes a panel's own font-size control to just that panel's body — zoom
