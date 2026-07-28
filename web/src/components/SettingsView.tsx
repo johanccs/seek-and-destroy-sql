@@ -1,5 +1,30 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { FontSizeControl, useFontSize } from "./FontSizeControl";
+
+const FONT_SIZE_PANELS = [
+  { key: "narrative", label: "Lesson text", defaultSize: 14, preview: "An equality lookup on an unindexed column scans the whole table; a nonclustered index turns the scan into a fast Index Seek." },
+  { key: "editor", label: "SQL editor", defaultSize: 13, preview: "SELECT * FROM Orders WHERE CustomerId = 42;" },
+  { key: "results", label: "Results / Plan / Stats", defaultSize: 13, preview: "Logical reads: 4  ·  Index Seek on IX_Orders_CustomerId  ·  0 warnings" },
+  { key: "tutor", label: "AI Tutor", defaultSize: 13, preview: "Ask Sarge about this lesson — how it works, why it happens, or what to try." },
+  { key: "concurrency-sessions", label: "Concurrency session editors", defaultSize: 12, preview: "BEGIN TRAN;\nUPDATE Accounts SET Balance = Balance - 100 WHERE Id = 1;" },
+  { key: "concurrency-timeline", label: "Concurrency timeline", defaultSize: 13, preview: "1200ms  A  blocked waiting for key-range lock held by session B" },
+] as const;
+
+function FontSizeSettingsCard({ panel }: { panel: (typeof FONT_SIZE_PANELS)[number] }) {
+  const fs = useFontSize(panel.key, panel.defaultSize);
+  return (
+    <div className="fontsize-settings-card">
+      <div className="fontsize-settings-card-header">
+        <h4>{panel.label}</h4>
+        <FontSizeControl label={panel.label} fontSize={fs} />
+      </div>
+      <p className="fontsize-settings-preview fontsize-zoom-wrap" style={{ "--panel-zoom": fs.size / panel.defaultSize } as React.CSSProperties}>
+        {panel.preview}
+      </p>
+    </div>
+  );
+}
 
 interface Info {
   sqlServerHost: string;
@@ -89,6 +114,19 @@ export function SettingsView({ onChanged }: { onChanged: () => void }) {
         Environment status and database administration. These actions run real database
         operations — no manual scripts needed.
       </p>
+
+      <section className="settings-section">
+        <h3>Text size</h3>
+        <p className="muted">
+          Each panel has its own text size — change it here, or with the A−/A+ control in the
+          panel itself. Your choices are saved on this device.
+        </p>
+        <div className="fontsize-settings-grid">
+          {FONT_SIZE_PANELS.map((panel) => (
+            <FontSizeSettingsCard panel={panel} key={panel.key} />
+          ))}
+        </div>
+      </section>
 
       <section className="settings-section">
         <h3>Environment</h3>

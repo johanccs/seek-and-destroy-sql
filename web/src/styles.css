@@ -136,6 +136,12 @@ a { color: var(--accent); }
 .settings-view h2 { margin: 0 0 4px; }
 .settings-section { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-top: 16px; }
 .settings-section h3 { margin: 0 0 6px; font-size: 14px; }
+
+.fontsize-settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 10px; }
+.fontsize-settings-card { border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; background: var(--bg-3); }
+.fontsize-settings-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.fontsize-settings-card-header h4 { margin: 0; font-size: 12.5px; }
+.fontsize-settings-preview { margin: 0; color: var(--text-dim); line-height: 1.5; white-space: pre-wrap; font-family: var(--mono); }
 .settings-table { border-collapse: collapse; font-size: 13px; margin-top: 6px; }
 .settings-table td { padding: 3px 10px 3px 0; }
 .settings-table td:first-child { color: var(--text-dim); }
