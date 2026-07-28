@@ -1,5 +1,7 @@
 # ⚔️ Seek & Destroy — a SQL Performance Playground
 
+[![CI](https://github.com/johanccs/seek-and-destroy-sql/actions/workflows/ci.yml/badge.svg)](https://github.com/johanccs/seek-and-destroy-sql/actions/workflows/ci.yml)
+
 **Repo:** https://github.com/johanccs/seek-and-destroy-sql
 
 **Live:** https://salmon-field-04fa1fd10.7.azurestaticapps.net (API: https://seek-and-destroy-api.azurewebsites.net)
@@ -12,6 +14,9 @@ your fix automatically.
 
 This is a learning tool for query performance (indexes, bad query patterns, plan reading,
 blocking/deadlocks, tempdb pressure, statistics/caching) — **not** a SQL-syntax tutorial.
+
+![Seek & Destroy lesson list](docs/screenshots/screenshot-home.png)
+![A Seek & Destroy lesson with editor and execution plan](docs/screenshots/screenshot-lesson.png)
 
 ## Architecture
 
