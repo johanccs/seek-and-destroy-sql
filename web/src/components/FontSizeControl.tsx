@@ -3,6 +3,20 @@ import { useEffect, useState } from "react";
 export const FONT_SIZE_STORAGE_PREFIX = "sqlperf-fontsize-";
 const STORAGE_PREFIX = FONT_SIZE_STORAGE_PREFIX;
 
+// A "reset all" click needs every mounted useFontSize instance (which may live in
+// far-apart components — sidebar, editor, tutor, settings cards) to snap back to its
+// own default in place, without a full page reload (which would also blow away
+// unrelated app state like which view/lesson is open). A same-tab custom event does
+// that; the native "storage" event only fires in *other* tabs.
+const RESET_EVENT = "sqlperf-fontsize-reset-all";
+
+export function resetAllFontSizes() {
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith(STORAGE_PREFIX))
+    .forEach((k) => localStorage.removeItem(k));
+  window.dispatchEvent(new Event(RESET_EVENT));
+}
+
 /**
  * One panel's independent text-size setting, persisted in localStorage under
  * its own key so panels never share a size with each other.
@@ -16,6 +30,12 @@ export function useFontSize(key: string, defaultSize: number, min = 10, max = 22
   useEffect(() => {
     localStorage.setItem(STORAGE_PREFIX + key, String(size));
   }, [key, size]);
+
+  useEffect(() => {
+    const onResetAll = () => setSize(defaultSize);
+    window.addEventListener(RESET_EVENT, onResetAll);
+    return () => window.removeEventListener(RESET_EVENT, onResetAll);
+  }, [defaultSize]);
 
   return {
     size,

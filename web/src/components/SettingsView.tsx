@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { FontSizeControl, FONT_SIZE_STORAGE_PREFIX, useFontSize } from "./FontSizeControl";
+import { FontSizeControl, resetAllFontSizes, useFontSize } from "./FontSizeControl";
+import { Toast } from "./Toast";
 
 const FONT_SIZE_PANELS = [
-  { key: "sidebar", label: "Lesson list (sidebar)", defaultSize: 12, preview: "Table Scan vs. Index Seek — An equality lookup on an unindexed column scans the whole table. ~10m ★★☆☆☆" },
   { key: "narrative", label: "Lesson text", defaultSize: 14, preview: "An equality lookup on an unindexed column scans the whole table; a nonclustered index turns the scan into a fast Index Seek." },
   { key: "editor", label: "SQL editor", defaultSize: 13, preview: "SELECT * FROM Orders WHERE CustomerId = 42;" },
   { key: "results", label: "Results / Plan / Stats", defaultSize: 13, preview: "Logical reads: 4  ·  Index Seek on IX_Orders_CustomerId  ·  0 warnings" },
@@ -12,11 +12,18 @@ const FONT_SIZE_PANELS = [
   { key: "concurrency-timeline", label: "Concurrency timeline", defaultSize: 13, preview: "1200ms  A  blocked waiting for key-range lock held by session B" },
 ] as const;
 
-function resetAllFontSizes() {
-  Object.keys(localStorage)
-    .filter((k) => k.startsWith(FONT_SIZE_STORAGE_PREFIX))
-    .forEach((k) => localStorage.removeItem(k));
-  window.location.reload();
+function ResetIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M13.5 8A5.5 5.5 0 1 1 11.8 4M13.5 1.5v3.2h-3.2"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 function FontSizeSettingsCard({ panel }: { panel: (typeof FONT_SIZE_PANELS)[number] }) {
@@ -50,6 +57,18 @@ export function SettingsView({ onChanged }: { onChanged: () => void }) {
   const [keepData, setKeepData] = useState(false);
   const [steps, setSteps] = useState<{ step: string; success: boolean; output: string }[]>([]);
   const [canRecreate, setCanRecreate] = useState<boolean | null>(null);
+  const [fontSizeToast, setFontSizeToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!fontSizeToast) return;
+    const t = setTimeout(() => setFontSizeToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [fontSizeToast]);
+
+  function handleResetAllFontSizes() {
+    resetAllFontSizes();
+    setFontSizeToast("Text sizes reset to default.");
+  }
 
   const load = () => api.settingsInfo().then(setInfo).catch(() => setInfo(null));
   useEffect(() => {
@@ -132,7 +151,9 @@ export function SettingsView({ onChanged }: { onChanged: () => void }) {
               panel itself. Your choices are saved on this device.
             </p>
           </div>
-          <button className="btn" onClick={resetAllFontSizes}>Reset all text sizes</button>
+          <button className="btn" onClick={handleResetAllFontSizes}>
+            <ResetIcon /> Reset all text sizes
+          </button>
         </div>
         <div className="fontsize-settings-grid">
           {FONT_SIZE_PANELS.map((panel) => (
@@ -272,6 +293,7 @@ export function SettingsView({ onChanged }: { onChanged: () => void }) {
       </section>
 
       {message && <div className="hint settings-message">{message}</div>}
+      <Toast message={fontSizeToast} />
     </div>
   );
 }
