@@ -3,7 +3,7 @@
 **Repo:** https://github.com/johanccs/seek-and-destroy-sql
 
 **Live:** https://salmon-field-04fa1fd10.7.azurestaticapps.net (API: https://seek-and-destroy-api.azurewebsites.net)
-— running on Azure SQL Database (free tier) + App Service (B1) + Static Web Apps, South Africa North.
+— running on Azure SQL Database + App Service + Static Web Apps.
 
 An interactive, web-based playground for developing **Microsoft SQL Server performance-tuning**
 skills — from beginner to expert. You write real T-SQL against a **real SQL Server 2022 engine**,
@@ -148,31 +148,31 @@ and *lesson count per HTTP request* differ.
 
 ```bash
 # Resource group
-az group create -n rg-seek-and-destroy -l southafricanorth
+az group create -n <resource-group> -l <region>
 
 # SQL: logical server + free-tier database
-az sql server create -n <server> -g rg-seek-and-destroy -l southafricanorth \
-  --admin-user seekadmin --admin-password <password>
-az sql db create -g rg-seek-and-destroy -s <server> -n SqlPerfDb \
+az sql server create -n <sql-server> -g <resource-group> -l <region> \
+  --admin-user <admin-user> --admin-password <password>
+az sql db create -g <resource-group> -s <sql-server> -n <db-name> \
   -e GeneralPurpose -f Gen5 -c 2 --compute-model Serverless \
   --use-free-limit --free-limit-exhaustion-behavior AutoPause
-az sql server firewall-rule create -g rg-seek-and-destroy -s <server> \
+az sql server firewall-rule create -g <resource-group> -s <sql-server> \
   -n AllowAzureServices --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
 
 # API: App Service, native .NET deploy (no Docker)
-az appservice plan create -n seek-and-destroy-plan -g rg-seek-and-destroy -l southafricanorth --is-linux --sku B1
-az webapp create -n <api-app> -g rg-seek-and-destroy -p seek-and-destroy-plan --runtime "DOTNETCORE:10.0"
-az webapp config appsettings set -n <api-app> -g rg-seek-and-destroy --settings \
-  "ConnectionStrings__Sql=Server=tcp:<server>.database.windows.net,1433;Initial Catalog=SqlPerfDb;User ID=seekadmin;Password=<password>;Encrypt=True;TrustServerCertificate=False;" \
-  "Sql__AppDatabase=SqlPerfDb" \
+az appservice plan create -n <app-service-plan> -g <resource-group> -l <region> --is-linux --sku B1
+az webapp create -n <api-app> -g <resource-group> -p <app-service-plan> --runtime "DOTNETCORE:10.0"
+az webapp config appsettings set -n <api-app> -g <resource-group> --settings \
+  "ConnectionStrings__Sql=Server=tcp:<sql-server>.database.windows.net,1433;Initial Catalog=<db-name>;User ID=<admin-user>;Password=<password>;Encrypt=True;TrustServerCertificate=False;" \
+  "Sql__AppDatabase=<db-name>" \
   "Lessons__Path=/home/site/wwwroot/lessons"
 dotnet publish api/SqlPerf.Api -c Release -o ./publish
 cp -r lessons ./publish/lessons          # lesson content ships inside the deployed app
 # zip ./publish and:
-az webapp deploy -n <api-app> -g rg-seek-and-destroy --src-path deploy.zip --type zip
+az webapp deploy -n <api-app> -g <resource-group> --src-path deploy.zip --type zip
 
 # Web: Static Web Apps, built with the API's real URL baked in
-az staticwebapp create -n <web-app> -g rg-seek-and-destroy -l centralus
+az staticwebapp create -n <web-app> -g <resource-group> -l <region>
 docker build --build-arg VITE_API_BASE=https://<api-app>.azurewebsites.net --target build -t web-build ./web
 docker create --name extract web-build && docker cp extract:/app/dist ./dist_deploy && docker rm extract
 npx @azure/static-web-apps-cli deploy ./dist_deploy --deployment-token <token> --env production
