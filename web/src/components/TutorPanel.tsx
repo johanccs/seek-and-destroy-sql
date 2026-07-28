@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import DOMPurify from "dompurify";
 import { api } from "../api";
 import type { TutorMessage } from "../types";
+import { FontSizeControl, useFontSize } from "./FontSizeControl";
 
 function SafeSvg({ code }: { code: string }) {
   const clean = DOMPurify.sanitize(code, { USE_PROFILES: { svg: true, svgFilters: true } });
@@ -55,6 +56,7 @@ export function TutorPanel({ lessonId }: { lessonId: string }) {
   const [totalCostZar, setTotalCostZar] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const tutorFs = useFontSize("tutor", 13);
 
   useEffect(() => {
     api.tutorStatus().then((s) => setConfigured(s.configured)).catch(() => setConfigured(false));
@@ -134,7 +136,10 @@ export function TutorPanel({ lessonId }: { lessonId: string }) {
       </div>
       {open && (
         <div className="tutor-body">
-          <div className="tutor-messages" ref={listRef}>
+          <div style={{ display: "flex", justifyContent: "flex-end", padding: "6px 14px 0" }}>
+            <FontSizeControl label="AI Tutor" fontSize={tutorFs} />
+          </div>
+          <div className="tutor-messages fontsize-zoom-wrap" style={{ "--panel-zoom": tutorFs.size / 13 } as React.CSSProperties} ref={listRef}>
             {messages.length === 0 && (
               <div className="muted tutor-empty">Ask {TUTOR_NAME} about this lesson — how it works, why it happens, or what to try.</div>
             )}

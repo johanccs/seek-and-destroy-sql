@@ -167,6 +167,27 @@ a { color: var(--accent); }
 .narrative code { background: var(--bg-3); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 12px; }
 .narrative pre { background: var(--bg-3); padding: 10px; border-radius: 6px; overflow-x: auto; }
 
+/* ---------- Per-panel text size control ---------- */
+
+.fontsize-control { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.fontsize-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--border);
+  background: var(--bg-3); color: var(--text); font-size: 11px; font-weight: 600;
+  cursor: pointer; line-height: 1; padding: 0;
+}
+.fontsize-btn:hover:not(:disabled) { border-color: var(--accent); }
+.fontsize-btn:disabled { opacity: 0.4; cursor: default; }
+.fontsize-value { min-width: 2.8em; text-align: center; color: var(--text-dim); font-size: 11px; }
+
+/* Scopes a panel's own font-size control to just that panel's body — zoom
+   (not transform) is used so it reflows correctly, since this app's type
+   scale is in px throughout and a font-size override on a wrapper alone
+   would not cascade into descendants with their own explicit px sizes. */
+.fontsize-zoom-wrap { zoom: var(--panel-zoom, 1); }
+
+.narrative-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+
 .editor-col { display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }
 .toolbar { padding: 10px 16px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .btn { background: var(--bg-3); color: var(--text); border: 1px solid var(--border); padding: 7px 14px; border-radius: 6px; cursor: pointer; }

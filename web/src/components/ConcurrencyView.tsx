@@ -3,6 +3,7 @@ import Editor from "@monaco-editor/react";
 import type { ConcurrencyResult, Interleaving, InterleavingStep } from "../types";
 import { api } from "../api";
 import { PassBanner } from "./PassBanner";
+import { FontSizeControl, useFontSize } from "./FontSizeControl";
 
 function stepsToText(steps: InterleavingStep[]): string {
   return steps.map((s) => `-- afterMs: ${s.afterMs}\n${s.sql}`).join("\n\n");
@@ -23,6 +24,8 @@ export function ConcurrencyView({ lessonId, interleaving }: { lessonId: string; 
   const [b, setB] = useState(stepsToText(interleaving.sessions.B));
   const [running, setRunning] = useState(false);
   const [res, setRes] = useState<ConcurrencyResult | null>(null);
+  const sessionsFs = useFontSize("concurrency-sessions", 12);
+  const timelineFs = useFontSize("concurrency-timeline", 13);
 
   const run = async () => {
     setRunning(true);
@@ -46,14 +49,17 @@ export function ConcurrencyView({ lessonId, interleaving }: { lessonId: string; 
   return (
     <div className="conc">
       <div className="hint">{interleaving.description}</div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+        <FontSizeControl label="Session editors" fontSize={sessionsFs} />
+      </div>
       <div className="sessions">
         <div className="session-panel">
           <div className="head" style={{ color: "var(--accent)" }}>Session A</div>
-          <Editor height="200px" theme="vs-dark" defaultLanguage="sql" value={a} onChange={(v) => setA(v ?? "")} options={{ minimap: { enabled: false }, fontSize: 12 }} />
+          <Editor height="200px" theme="vs-dark" defaultLanguage="sql" value={a} onChange={(v) => setA(v ?? "")} options={{ minimap: { enabled: false }, fontSize: sessionsFs.size }} />
         </div>
         <div className="session-panel">
           <div className="head" style={{ color: "var(--accent-2)" }}>Session B</div>
-          <Editor height="200px" theme="vs-dark" defaultLanguage="sql" value={b} onChange={(v) => setB(v ?? "")} options={{ minimap: { enabled: false }, fontSize: 12 }} />
+          <Editor height="200px" theme="vs-dark" defaultLanguage="sql" value={b} onChange={(v) => setB(v ?? "")} options={{ minimap: { enabled: false }, fontSize: sessionsFs.size }} />
         </div>
       </div>
       <div>
@@ -68,7 +74,10 @@ export function ConcurrencyView({ lessonId, interleaving }: { lessonId: string; 
             {res.deadlockVictim && <span className="muted"> — victim: Session {res.deadlockVictim}</span>}
           </div>
           <PassBanner evaluation={res.evaluation} newlySolved={res.progress?.newlySolved} />
-          <div className="timeline">
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+            <FontSizeControl label="Timeline" fontSize={timelineFs} />
+          </div>
+          <div className="timeline fontsize-zoom-wrap" style={{ "--panel-zoom": timelineFs.size / 13 } as React.CSSProperties}>
             <div className="lane-head muted" style={{ fontWeight: 600, marginBottom: 6 }}>
               <div>t (ms)</div>
               <div>event</div>

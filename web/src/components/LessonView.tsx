@@ -6,6 +6,7 @@ import { api } from "../api";
 import { ResultsPanel } from "./ResultsPanel";
 import { ConcurrencyView } from "./ConcurrencyView";
 import { TutorPanel } from "./TutorPanel";
+import { FontSizeControl, useFontSize } from "./FontSizeControl";
 import { difficultyLabel } from "../difficulty";
 
 export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; onSolved: () => void; theme: "dark" | "light" }) {
@@ -22,6 +23,8 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
   });
   const workspaceRef = useRef<HTMLDivElement>(null);
   const resizing = useRef(false);
+  const narrativeFs = useFontSize("narrative", 14);
+  const editorFs = useFontSize("editor", 13);
 
   useEffect(() => {
     setSql(lesson.startingQuery);
@@ -171,17 +174,23 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
 
       <div className="workspace" ref={workspaceRef} style={{ gridTemplateColumns: `${narrativeWidth}px 1fr` }}>
         <div className="narrative">
-          <div className="markdown-body">
-            <ReactMarkdown>{lesson.narrative}</ReactMarkdown>
+          <div className="narrative-header">
+            <span className="muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".5px" }}>Lesson</span>
+            <FontSizeControl label="Lesson" fontSize={narrativeFs} />
           </div>
-          {Array.from({ length: hintCount }).map((_, i) => (
-            <div className="hint" key={i}>💡 {lesson.hints[i]}</div>
-          ))}
-          {solution && (
-            <div className="hint" style={{ borderColor: "var(--good)" }}>
-              <b>Reference solution loaded into the editor.</b>
+          <div className="fontsize-zoom-wrap" style={{ "--panel-zoom": narrativeFs.size / 14 } as React.CSSProperties}>
+            <div className="markdown-body">
+              <ReactMarkdown>{lesson.narrative}</ReactMarkdown>
             </div>
-          )}
+            {Array.from({ length: hintCount }).map((_, i) => (
+              <div className="hint" key={i}>💡 {lesson.hints[i]}</div>
+            ))}
+            {solution && (
+              <div className="hint" style={{ borderColor: "var(--good)" }}>
+                <b>Reference solution loaded into the editor.</b>
+              </div>
+            )}
+          </div>
           <div className="workspace-resize-handle" onMouseDown={onResizeStart} />
         </div>
 
@@ -200,9 +209,11 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
               <div className="spacer" />
               <button className="btn ghost" onClick={showSolution}>Show Solution</button>
               {busy && <span className="muted">{busy}</span>}
+              <div className="spacer" />
+              <FontSizeControl label="Editor" fontSize={editorFs} />
             </div>
             <div className="editor-wrap">
-              <Editor height="100%" theme={theme === "dark" ? "vs-dark" : "light"} defaultLanguage="sql" value={sql} onChange={(v) => setSql(v ?? "")} options={{ minimap: { enabled: false }, fontSize: 13, automaticLayout: true }} />
+              <Editor height="100%" theme={theme === "dark" ? "vs-dark" : "light"} defaultLanguage="sql" value={sql} onChange={(v) => setSql(v ?? "")} options={{ minimap: { enabled: false }, fontSize: editorFs.size, automaticLayout: true }} />
             </div>
             <ResultsPanel result={result} prevStats={prevStats} />
           </div>

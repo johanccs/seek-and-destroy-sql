@@ -3,11 +3,13 @@ import type { RunResult, RunStats } from "../types";
 import { PlanTree } from "./PlanTree";
 import { StatsPanel } from "./StatsPanel";
 import { PassBanner } from "./PassBanner";
+import { FontSizeControl, useFontSize } from "./FontSizeControl";
 
 type Tab = "results" | "stats" | "plan" | "messages";
 
 export function ResultsPanel({ result, prevStats }: { result: RunResult | null; prevStats: RunStats | null }) {
   const [tab, setTab] = useState<Tab>("results");
+  const resultsFs = useFontSize("results", 13);
   if (!result) return <div className="tab-body muted">Run a query to see results, statistics and the execution plan.</div>;
 
   const planWarnCount = (result.plan?.warnings.length ?? 0) + (result.plan?.missingIndexes.length ?? 0);
@@ -30,10 +32,12 @@ export function ResultsPanel({ result, prevStats }: { result: RunResult | null; 
           <div className={`tab ${tab === "messages" ? "active" : ""}`} onClick={() => setTab("messages")}>
             Messages
           </div>
+          <div className="spacer" />
+          <FontSizeControl label="Results" fontSize={resultsFs} />
         </div>
       </div>
 
-      <div className="tab-body">
+      <div className="tab-body fontsize-zoom-wrap" style={{ "--panel-zoom": resultsFs.size / 13 } as React.CSSProperties}>
         {tab === "results" &&
           (result.resultSets.length === 0 ? (
             <div className="muted">No rows returned.</div>
