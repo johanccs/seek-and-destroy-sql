@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { FontSizeControl, useFontSize } from "./FontSizeControl";
+import { FontSizeControl, FONT_SIZE_STORAGE_PREFIX, useFontSize } from "./FontSizeControl";
 
 const FONT_SIZE_PANELS = [
   { key: "sidebar", label: "Lesson list (sidebar)", defaultSize: 12, preview: "Table Scan vs. Index Seek — An equality lookup on an unindexed column scans the whole table. ~10m ★★☆☆☆" },
@@ -11,6 +11,13 @@ const FONT_SIZE_PANELS = [
   { key: "concurrency-sessions", label: "Concurrency session editors", defaultSize: 12, preview: "BEGIN TRAN;\nUPDATE Accounts SET Balance = Balance - 100 WHERE Id = 1;" },
   { key: "concurrency-timeline", label: "Concurrency timeline", defaultSize: 13, preview: "1200ms  A  blocked waiting for key-range lock held by session B" },
 ] as const;
+
+function resetAllFontSizes() {
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith(FONT_SIZE_STORAGE_PREFIX))
+    .forEach((k) => localStorage.removeItem(k));
+  window.location.reload();
+}
 
 function FontSizeSettingsCard({ panel }: { panel: (typeof FONT_SIZE_PANELS)[number] }) {
   const fs = useFontSize(panel.key, panel.defaultSize);
@@ -117,11 +124,16 @@ export function SettingsView({ onChanged }: { onChanged: () => void }) {
       </p>
 
       <section className="settings-section">
-        <h3>Text size</h3>
-        <p className="muted">
-          Each panel has its own text size — change it here, or with the A−/A+ control in the
-          panel itself. Your choices are saved on this device.
-        </p>
+        <div className="fontsize-settings-header">
+          <div>
+            <h3>Text size</h3>
+            <p className="muted">
+              Each panel has its own text size — change it here, or with the A−/A+ control in the
+              panel itself. Your choices are saved on this device.
+            </p>
+          </div>
+          <button className="btn" onClick={resetAllFontSizes}>Reset all text sizes</button>
+        </div>
         <div className="fontsize-settings-grid">
           {FONT_SIZE_PANELS.map((panel) => (
             <FontSizeSettingsCard panel={panel} key={panel.key} />
