@@ -282,13 +282,23 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 .wbadge { font-size: 10px; background: var(--warn-bg); color: var(--warn); padding: 1px 5px; border-radius: 3px; margin-left: 6px; }
 
 /* concurrency */
-.conc { display: grid; grid-template-rows: auto auto 1fr; gap: 12px; padding: 12px 16px; overflow: auto; }
-.sessions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.session-panel { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+/* Same minmax(0, …) reasoning as .app / .workspace above: the two session
+   panels hold SQL with long unbroken lines, so a bare 1fr would take its
+   min-content width as a floor and push the second panel out of view. */
+.conc { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 12px; padding: 12px 16px; overflow: auto; min-width: 0; }
+/* auto-fit rather than a breakpoint: two SQL editors side by side stop being
+   usable below ~260px each, and the available width here depends on the two
+   draggable columns as much as on the viewport, so let the track count fall to
+   one whenever 260px each no longer fits. min(260px, 100%) keeps the 260px
+   floor from itself overflowing a very narrow container. */
+.sessions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px; }
+.session-panel { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; min-width: 0; }
 .session-panel .head { padding: 6px 10px; background: var(--bg-3); font-weight: 600; }
-.timeline { border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
-.lane-head { display: grid; grid-template-columns: 60px 1fr; gap: 8px; }
-.evt { display: grid; grid-template-columns: 60px 40px 1fr; gap: 8px; padding: 4px 0; font-size: 13px; border-top: 1px solid var(--border); }
+.timeline { border: 1px solid var(--border); border-radius: 8px; padding: 12px; min-width: 0; }
+.lane-head { display: grid; grid-template-columns: 60px minmax(0, 1fr); gap: 8px; }
+.evt { display: grid; grid-template-columns: 60px 40px minmax(0, 1fr); gap: 8px; padding: 4px 0; font-size: 13px; border-top: 1px solid var(--border); }
+/* The event detail cell holds unbounded server text (lock names, error text). */
+.evt > div:last-child { min-width: 0; overflow-wrap: anywhere; }
 .evt .sess.A { color: var(--accent); }
 .evt .sess.B { color: var(--accent-2); }
 .evt.blocked { background: var(--warn-bg); }
@@ -342,7 +352,7 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
   .narrative { border-right: none; border-bottom: 1px solid var(--border); }
   /* A vertical drag handle makes no sense once the columns are stacked. */
   .workspace-resize-handle { display: none; }
-  .sessions { grid-template-columns: minmax(0, 1fr); }
+  /* .sessions needs no rule here — its auto-fit tracks already collapse. */
 }
 
 /* Very narrow / tablet portrait: the lesson list becomes a scrollable strip
