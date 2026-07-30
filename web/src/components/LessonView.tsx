@@ -14,6 +14,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
   const [sql, setSql] = useState(lesson.startingQuery);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
+  const [scratch, setScratch] = useState(false);
   const [prevStats, setPrevStats] = useState<RunStats | null>(null);
   const [hintCount, setHintCount] = useState(0);
   const [solution, setSolution] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
   useEffect(() => {
     setSql(lesson.startingQuery);
     setResult(null);
+    setScratch(false);
     setPrevStats(null);
     setHintCount(0);
     setSolution(null);
@@ -44,9 +46,27 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
       const r = await api.run(lesson.id, sql);
       setPrevStats(result?.stats ?? null);
       setResult(r);
+      setScratch(false);
       if (r.progress?.newlySolved) onSolved();
     } catch (e) {
       setResult({ success: false, error: String(e), resultSets: [], stats: null, plan: null, messages: [], evaluation: null, progress: null });
+      setScratch(false);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const runSelection = async (text: string) => {
+    setRunning(true);
+    try {
+      const r = await api.run(lesson.id, text, false);
+      // prevStats is intentionally not updated: comparing a fragment's reads
+      // against a previous full run would show a meaningless delta.
+      setResult(r);
+      setScratch(true);
+    } catch (e) {
+      setResult({ success: false, error: String(e), resultSets: [], stats: null, plan: null, messages: [], evaluation: null, progress: null });
+      setScratch(true);
     } finally {
       setRunning(false);
     }
@@ -58,6 +78,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
       await api.reset(lesson.id);
       setSql(lesson.startingQuery);
       setResult(null);
+      setScratch(false);
       setPrevStats(null);
     } finally {
       setBusy("");
@@ -78,6 +99,8 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
   resetRef.current = reset;
   const hintRef = useRef(() => setHintCount((c) => Math.min(c + 1, lesson.hints.length)));
   hintRef.current = () => setHintCount((c) => Math.min(c + 1, lesson.hints.length));
+  const runSelectionRef = useRef(runSelection);
+  runSelectionRef.current = runSelection;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -185,9 +208,36 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
               <FontSizeControl label="Editor" fontSize={editorFs} />
             </div>
             <div className="editor-wrap">
-              <Editor height="100%" theme={theme === "dark" ? "vs-dark" : "light"} defaultLanguage="sql" value={sql} onChange={(v) => setSql(v ?? "")} options={{ minimap: { enabled: false }, fontSize: editorFs.size, automaticLayout: true }} />
+              <Editor
+                height="100%"
+                theme={theme === "dark" ? "vs-dark" : "light"}
+                defaultLanguage="sql"
+                value={sql}
+                onChange={(v) => setSql(v ?? "")}
+                options={{ minimap: { enabled: false }, fontSize: editorFs.size, automaticLayout: true }}
+                onMount={(editor) => {
+                  editor.addAction({
+                    id: "sqlperf.runSelection",
+                    label: "Run Selection (not graded)",
+                    contextMenuGroupId: "navigation",
+                    contextMenuOrder: 0,
+                    // Monaco built-in context key: the item greys itself out with no selection,
+                    // so there is no enablement state to track or keep in sync.
+                    precondition: "editorHasSelection",
+                    run: (ed) => {
+                      const sel = ed.getSelection();
+                      const text = sel ? ed.getModel()?.getValueInRange(sel) : "";
+                      if (text && text.trim()) runSelectionRef.current(text);
+                    },
+                  });
+                }}
+              />
             </div>
-            <ResultsPanel result={result} prevStats={prevStats} />
+            {/* display:contents keeps this wrapper out of the editor-col grid layout;
+                data-scratch marks the last run as an ungraded selection run for Task 3's badge */}
+            <div style={{ display: "contents" }} data-scratch={scratch || undefined}>
+              <ResultsPanel result={result} prevStats={prevStats} />
+            </div>
           </div>
         )}
       </div>

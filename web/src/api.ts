@@ -25,11 +25,11 @@ export const api = {
   solution: (id: string) =>
     fetch(`${BASE}/api/lessons/${id}/solution`).then(json<{ solution: string }>),
 
-  run: (id: string, sql: string) =>
+  run: (id: string, sql: string, graded = true) =>
     fetch(`${BASE}/api/lessons/${id}/run`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sql }),
+      body: JSON.stringify({ sql, graded }),
     }).then(json<RunResult>),
 
   runConcurrency: (id: string, sessions: { A: InterleavingStep[]; B: InterleavingStep[] }) =>
