@@ -42,8 +42,12 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); font
 button { font-family: inherit; }
 a { color: var(--accent); }
 
-.app { display: grid; grid-template-columns: 300px 1fr; grid-template-rows: 1fr auto; height: 100vh; }
-.app > .sidebar, .app > .main { grid-row: 1; }
+/* minmax(0, 1fr) — not a bare 1fr. A bare 1fr resolves to minmax(auto, 1fr),
+   whose auto floor is the track's min-content width, so the Monaco editor and
+   results tables inside .main would refuse to shrink and overflow the viewport
+   instead. minmax(0, 1fr) lets the track shrink and the content scroll. */
+.app { display: grid; grid-template-columns: var(--sidebar-w, 300px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; height: 100vh; }
+.app > .sidebar, .app > .main { grid-row: 1; min-width: 0; }
 
 /* Footer */
 .site-footer {
@@ -182,15 +186,15 @@ a { color: var(--accent); }
 .badge-azure { font-size: 10px; background: var(--bg-3); color: var(--text-dim); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
 
 /* Main */
-.main { overflow: hidden; display: flex; flex-direction: column; }
+.main { overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
 .empty { display: grid; place-items: center; height: 100%; color: var(--text-dim); }
-.lesson { display: grid; grid-template-rows: auto 1fr; height: 100%; overflow: hidden; }
+.lesson { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%; overflow: hidden; min-width: 0; }
 .lesson-head { padding: 14px 20px; border-bottom: 1px solid var(--border); }
 .lesson-head h2 { margin: 0 0 4px; font-size: 18px; }
 .topic { font-size: 11px; background: var(--bg-3); color: var(--text-dim); padding: 2px 7px; border-radius: 10px; margin-right: 6px; }
 
-.workspace { display: grid; overflow: hidden; }
-.narrative { position: relative; padding: 16px 20px; overflow-y: auto; border-right: 1px solid var(--border); background: var(--bg-2); }
+.workspace { display: grid; grid-template-columns: var(--narrative-w, 380px) minmax(0, 1fr); overflow: hidden; min-width: 0; }
+.narrative { position: relative; padding: 16px 20px; overflow-y: auto; border-right: 1px solid var(--border); background: var(--bg-2); min-width: 0; }
 .workspace-resize-handle { position: absolute; top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 10; }
 .workspace-resize-handle:hover, .workspace-resize-handle:active { background: var(--accent); opacity: 0.5; }
 .narrative h2 { font-size: 15px; }
@@ -220,7 +224,7 @@ a { color: var(--accent); }
 
 .narrative-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
 
-.editor-col { display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }
+.editor-col { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; min-width: 0; }
 .toolbar { padding: 10px 16px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .btn { background: var(--bg-3); color: var(--text); border: 1px solid var(--border); padding: 7px 14px; border-radius: 6px; cursor: pointer; }
 .btn:hover { border-color: var(--accent); }
@@ -230,8 +234,8 @@ a { color: var(--accent); }
 .btn.ghost { background: transparent; }
 .spacer { flex: 1; }
 
-.editor-wrap { min-height: 0; }
-.results { border-top: 1px solid var(--border); min-height: 0; display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+.editor-wrap { min-height: 0; min-width: 0; overflow: hidden; }
+.results { border-top: 1px solid var(--border); min-height: 0; min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
 .tabs { display: flex; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--border); }
 .tab { padding: 8px 14px; cursor: pointer; color: var(--text-dim); border-bottom: 2px solid transparent; }
 .tab.active { color: var(--text); border-bottom-color: var(--accent); }
@@ -320,3 +324,41 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 @keyframes tutor-blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
 .err { color: var(--bad); font-family: var(--mono); font-size: 13px; white-space: pre-wrap; }
 .muted { color: var(--text-dim); }
+
+/* ---------- Responsive layout ----------
+   The two resizable columns are fixed px, so below a usable width we stop
+   trying to fit them side by side and stack instead. The widths live in CSS
+   custom properties (set inline by the resize hook) precisely so these rules
+   can override the layout — an inline grid-template-columns would always win
+   over a media query. */
+
+/* Narrow: the lesson narrative moves above the editor. */
+@media (max-width: 1000px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(120px, 40%) minmax(0, 1fr);
+    overflow-y: auto;
+  }
+  .narrative { border-right: none; border-bottom: 1px solid var(--border); }
+  /* A vertical drag handle makes no sense once the columns are stacked. */
+  .workspace-resize-handle { display: none; }
+  .sessions { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Very narrow / tablet portrait: the lesson list becomes a scrollable strip
+   above the workspace rather than a column beside it. */
+@media (max-width: 760px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: auto;
+    min-height: 100vh;
+  }
+  .app > .sidebar { grid-row: 2; max-height: 38vh; border-right: none; border-bottom: 1px solid var(--border); }
+  .app > .main { grid-row: 3; min-height: 70vh; }
+  .site-footer { grid-row: 4; }
+  .sidebar-resize-handle { display: none; }
+  .toolbar { padding: 8px 10px; }
+  .lesson-head { padding: 10px 12px; }
+  .narrative { padding: 12px 14px; }
+}

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { LessonDetail, LevelGroup, ProgressSummary } from "./types";
 import { api } from "./api";
+import { useColumnResize } from "./useColumnResize";
 import { LessonView } from "./components/LessonView";
 import { SettingsView } from "./components/SettingsView";
 import { PrivacyView } from "./components/PrivacyView";
@@ -32,42 +33,15 @@ export default function App() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const saved = Number(localStorage.getItem("sidebarWidth"));
-    return saved >= 220 && saved <= 720 ? saved : 300;
+  const appRef = useRef<HTMLDivElement>(null);
+  const { width: sidebarWidth, onResizeStart } = useColumnResize({
+    storageKey: "sidebarWidth",
+    defaultWidth: 300,
+    min: 220,
+    max: 720,
+    minRight: 520, // the workspace needs room for narrative + editor
+    containerRef: appRef,
   });
-  const resizing = useRef(false);
-
-  const onResizeStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    resizing.current = true;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  }, []);
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!resizing.current) return;
-      const w = Math.min(720, Math.max(220, e.clientX));
-      setSidebarWidth(w);
-    };
-    const onUp = () => {
-      if (!resizing.current) return;
-      resizing.current = false;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      setSidebarWidth((w) => {
-        localStorage.setItem("sidebarWidth", String(w));
-        return w;
-      });
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, []);
 
   const refresh = async () => {
     try {
@@ -102,7 +76,7 @@ export default function App() {
     .filter((g) => g.lessons.length > 0);
 
   return (
-    <div className="app" style={{ gridTemplateColumns: `${sidebarWidth}px 1fr` }}>
+    <div className="app" ref={appRef} style={{ "--sidebar-w": `${sidebarWidth}px` } as React.CSSProperties}>
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-row">

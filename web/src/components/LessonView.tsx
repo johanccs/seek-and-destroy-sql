@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import ReactMarkdown from "react-markdown";
 import type { LessonDetail, RunResult, RunStats } from "../types";
@@ -7,6 +7,7 @@ import { ResultsPanel } from "./ResultsPanel";
 import { ConcurrencyView } from "./ConcurrencyView";
 import { TutorPanel } from "./TutorPanel";
 import { FontSizeControl, useFontSize } from "./FontSizeControl";
+import { useColumnResize } from "../useColumnResize";
 import { difficultyLabel } from "../difficulty";
 
 export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; onSolved: () => void; theme: "dark" | "light" }) {
@@ -17,12 +18,15 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
   const [hintCount, setHintCount] = useState(0);
   const [solution, setSolution] = useState<string | null>(null);
   const [busy, setBusy] = useState("");
-  const [narrativeWidth, setNarrativeWidth] = useState(() => {
-    const saved = Number(localStorage.getItem("narrativeWidth"));
-    return saved >= 260 && saved <= 1100 ? saved : 380;
-  });
   const workspaceRef = useRef<HTMLDivElement>(null);
-  const resizing = useRef(false);
+  const { width: narrativeWidth, onResizeStart } = useColumnResize({
+    storageKey: "narrativeWidth",
+    defaultWidth: 380,
+    min: 260,
+    max: 1100,
+    minRight: 340, // the SQL editor + results need to stay usable
+    containerRef: workspaceRef,
+  });
   const narrativeFs = useFontSize("narrative", 14);
   const editorFs = useFontSize("editor", 13);
 
@@ -115,38 +119,6 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
     w.print();
   };
 
-  const onResizeStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    resizing.current = true;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  }, []);
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!resizing.current || !workspaceRef.current) return;
-      const left = workspaceRef.current.getBoundingClientRect().left;
-      const w = Math.min(1100, Math.max(260, e.clientX - left));
-      setNarrativeWidth(w);
-    };
-    const onUp = () => {
-      if (!resizing.current) return;
-      resizing.current = false;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      setNarrativeWidth((w) => {
-        localStorage.setItem("narrativeWidth", String(w));
-        return w;
-      });
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, []);
-
   return (
     <div className="lesson">
       <div className="lesson-head">
@@ -172,7 +144,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
         <TutorPanel lessonId={lesson.id} />
       </div>
 
-      <div className="workspace" ref={workspaceRef} style={{ gridTemplateColumns: `${narrativeWidth}px 1fr` }}>
+      <div className="workspace" ref={workspaceRef} style={{ "--narrative-w": `${narrativeWidth}px` } as React.CSSProperties}>
         <div className="narrative">
           <div className="narrative-header">
             <span className="muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".5px" }}>Lesson</span>
