@@ -17,6 +17,7 @@ Design spec: `docs/superpowers/specs/2026-07-30-run-selected-statement-design.md
 - **`sqlperf-web` serves a baked nginx production build.** Frontend changes are invisible at `http://localhost:5173` until `docker compose up -d --build web`. For iteration prefer `npm --prefix web run dev` on the host, which talks to the same API.
 - **Author-testing through the real API records solves in the user's real progress.** Every task that runs a graded query must clear the affected progress row afterwards (commands given inline).
 - **Use the PowerShell tool for `docker exec … sqlcmd` commands.** Git Bash mangles the `/opt/...` container path.
+- **The live progress table is `SqlPerfDb.dbo.LessonProgress`.** A stale `AppMeta.dbo.LessonProgress` from the pre-single-database migration ALSO still exists, so a `DELETE` against `AppMeta` succeeds and silently clears nothing. Always target `SqlPerfDb`.
 - Existing behaviour must not change: `Ctrl+Enter` and the `Run` button stay graded, and concurrency lessons (separate editor, `/run-concurrency` endpoint) are untouched.
 - Match the surrounding code's style: no semicolon-splitting of T-SQL anywhere in this feature.
 
@@ -130,7 +131,7 @@ curl -s -X POST -m 120 http://localhost:5080/api/lessons/b-01-table-scan-vs-seek
 Then, **using the PowerShell tool**:
 
 ```powershell
-docker exec -i sqlperf-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Sql_Perf_Pass123!' -C -b -Q "DELETE FROM AppMeta.dbo.LessonProgress WHERE LessonId='b-01-table-scan-vs-seek'"
+docker exec -i sqlperf-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Sql_Perf_Pass123!' -C -b -Q "DELETE FROM SqlPerfDb.dbo.LessonProgress WHERE LessonId='b-01-table-scan-vs-seek'"
 ```
 
 - [ ] **Step 6: Run the full graded solution — proves the graded path still works and creates the index**
@@ -154,7 +155,7 @@ This is what sets up the false-pass scenario: the index now exists, so the bare 
 **Using the PowerShell tool:**
 
 ```powershell
-docker exec -i sqlperf-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Sql_Perf_Pass123!' -C -b -Q "DELETE FROM AppMeta.dbo.LessonProgress WHERE LessonId='b-01-table-scan-vs-seek'"
+docker exec -i sqlperf-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Sql_Perf_Pass123!' -C -b -Q "DELETE FROM SqlPerfDb.dbo.LessonProgress WHERE LessonId='b-01-table-scan-vs-seek'"
 ```
 
 - [ ] **Step 8: Prove the fragment WOULD falsely pass when graded**
@@ -174,7 +175,7 @@ Expected: `passed: true`, `solved: true` — the SELECT alone passes purely beca
 **Using the PowerShell tool:**
 
 ```powershell
-docker exec -i sqlperf-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Sql_Perf_Pass123!' -C -b -Q "DELETE FROM AppMeta.dbo.LessonProgress WHERE LessonId='b-01-table-scan-vs-seek'"
+docker exec -i sqlperf-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Sql_Perf_Pass123!' -C -b -Q "DELETE FROM SqlPerfDb.dbo.LessonProgress WHERE LessonId='b-01-table-scan-vs-seek'"
 ```
 
 - [ ] **Step 10: The guard — same fragment with `graded: false` must not grade or record**
@@ -194,10 +195,10 @@ The three things that must all hold: `evaluation` is `null`, `solved` is `false`
 - [ ] **Step 11: Confirm progress really is untouched at the API level**
 
 ```bash
-curl -s -m 10 http://localhost:5080/api/progress | jq '.lessons[] | select(.lessonId=="b-01-table-scan-vs-seek")'
+curl -s -m 10 http://localhost:5080/api/progress | jq '{solvedLessons, totalLessons}'
 ```
 
-Expected: no output at all (no row), or a row with `solved: false`. If this shows `solved: true`, the flag is not working — stop and fix before continuing.
+Expected: `solvedLessons` is 0. (`/api/progress` returns only `byLevel`, `solvedLessons` and `totalLessons` — there is no per-lesson `lessons[]` array, so the aggregate count is the signal.) If this shows `solved: true`, the flag is not working — stop and fix before continuing.
 
 - [ ] **Step 12: Commit**
 
@@ -486,7 +487,7 @@ curl -s -X POST -m 120 http://localhost:5080/api/lessons/b-01-table-scan-vs-seek
 ```
 
 ```powershell
-docker exec -i sqlperf-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Sql_Perf_Pass123!' -C -b -Q "DELETE FROM AppMeta.dbo.LessonProgress WHERE LessonId='b-01-table-scan-vs-seek'"
+docker exec -i sqlperf-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Sql_Perf_Pass123!' -C -b -Q "DELETE FROM SqlPerfDb.dbo.LessonProgress WHERE LessonId='b-01-table-scan-vs-seek'"
 ```
 
 Then in the browser at `http://localhost:5173`, on **Table Scan vs. Index Seek**: click **Show Solution**, press `Ctrl+Enter`, and confirm the pass banner shows "Solved! Lesson complete." and the sidebar tick turns green. This proves the keyboard path and progress recording still work.
@@ -500,7 +501,7 @@ Search the sidebar for "blocking", open **Blocking: A Reader Stuck Behind an Unc
 The graded run in step 2 recorded a real solve. Clear it — **PowerShell tool**:
 
 ```powershell
-docker exec -i sqlperf-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Sql_Perf_Pass123!' -C -b -Q "DELETE FROM AppMeta.dbo.LessonProgress WHERE LessonId='b-01-table-scan-vs-seek'"
+docker exec -i sqlperf-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Sql_Perf_Pass123!' -C -b -Q "DELETE FROM SqlPerfDb.dbo.LessonProgress WHERE LessonId='b-01-table-scan-vs-seek'"
 ```
 
 Then confirm via `curl -s http://localhost:5080/api/progress` that b-01 is not solved.
