@@ -233,10 +233,37 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
                   // Monaco's own context-menu Paste is inert in the browser: pasting needs to
                   // READ the clipboard, and browsers only allow that via the async Clipboard
                   // API (or a real Ctrl+V keystroke), not the execCommand path Monaco uses.
-                  // This action does the read properly and edits the buffer itself.
+                  // Hide the dead built-in entry so only the working one below is offered.
+                  //
+                  // Monaco exposes no public API for removing a built-in context-menu item, so
+                  // this wraps the contextmenu contribution's internal action list. Every step
+                  // is guarded: if a future Monaco renames or restructures this, the filter is
+                  // silently skipped and the menu simply keeps its (harmless) built-in Paste.
+                  try {
+                    const menu = editor.getContribution("editor.contrib.contextmenu") as unknown as
+                      { _getMenuActions?: (...a: unknown[]) => { id?: string }[] } | null;
+                    const original = menu?._getMenuActions;
+                    if (menu && typeof original === "function") {
+                      menu._getMenuActions = (...args: unknown[]) => {
+                        // Defensive: this runs inside Monaco's menu handler, so anything
+                        // thrown here would break right-click entirely. Never let that
+                        // happen — on any surprise, hand back what Monaco produced.
+                        const actions = original.apply(menu, args);
+                        if (!Array.isArray(actions)) return actions;
+                        try {
+                          return actions.filter((a) => a?.id !== "editor.action.clipboardPasteAction");
+                        } catch {
+                          return actions;
+                        }
+                      };
+                    }
+                  } catch {
+                    /* internals changed — leave the default menu alone */
+                  }
+
                   editor.addAction({
                     id: "sqlperf.pasteFromClipboard",
-                    label: "Paste from clipboard",
+                    label: "Paste",
                     contextMenuGroupId: "9_cutcopypaste",
                     contextMenuOrder: 3,
                     run: async (ed) => {
