@@ -184,6 +184,17 @@ a { color: var(--accent); }
 .settings-fallback { margin-top: 16px; }
 .badge-conc { font-size: 10px; background: var(--warn-bg); color: var(--warn); padding: 1px 5px; border-radius: 3px; }
 .badge-azure { font-size: 10px; background: var(--bg-3); color: var(--text-dim); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+.badge-scratch {
+  font-size: 10px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  border: 1px solid var(--warn);
+  padding: 1px 6px;
+  border-radius: 3px;
+  align-self: center;
+  margin-right: 8px;
+  white-space: nowrap;
+}
 
 /* Main */
 .main { overflow: hidden; display: flex; flex-direction: column; min-width: 0; }

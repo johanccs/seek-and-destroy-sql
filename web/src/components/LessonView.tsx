@@ -233,11 +233,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
                 }}
               />
             </div>
-            {/* display:contents keeps this wrapper out of the editor-col grid layout;
-                data-scratch marks the last run as an ungraded selection run for Task 3's badge */}
-            <div style={{ display: "contents" }} data-scratch={scratch || undefined}>
-              <ResultsPanel result={result} prevStats={prevStats} />
-            </div>
+            <ResultsPanel result={result} prevStats={prevStats} scratch={scratch} />
           </div>
         )}
       </div>

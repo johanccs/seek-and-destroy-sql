@@ -7,7 +7,7 @@ import { FontSizeControl, useFontSize } from "./FontSizeControl";
 
 type Tab = "results" | "stats" | "plan" | "messages";
 
-export function ResultsPanel({ result, prevStats }: { result: RunResult | null; prevStats: RunStats | null }) {
+export function ResultsPanel({ result, prevStats, scratch = false }: { result: RunResult | null; prevStats: RunStats | null; scratch?: boolean }) {
   const [tab, setTab] = useState<Tab>("results");
   const resultsFs = useFontSize("results", 13);
   if (!result) return <div className="tab-body muted">Run a query to see results, statistics and the execution plan.</div>;
@@ -33,6 +33,11 @@ export function ResultsPanel({ result, prevStats }: { result: RunResult | null; 
             Messages
           </div>
           <div className="spacer" />
+          {scratch && (
+            <span className="badge-scratch" title="Only the selected statement ran. Scratch runs are never graded and cannot complete a lesson.">
+              Scratch run — not graded
+            </span>
+          )}
           <FontSizeControl label="Results" fontSize={resultsFs} />
         </div>
       </div>
