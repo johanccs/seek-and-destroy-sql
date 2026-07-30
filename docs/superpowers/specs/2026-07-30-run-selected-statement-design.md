@@ -122,8 +122,9 @@ editor.addAction({
 ```
 
 `precondition: "editorHasSelection"` is a Monaco built-in context key, so the item
-greys out on its own when nothing is selected — no manual state tracking, and no
-stale-closure risk from the enablement check.
+manages its own availability when nothing is selected — no manual state tracking, and
+no stale-closure risk from the enablement check. (Monaco removes the entry from the
+menu rather than greying it; see the testing note below.)
 
 The `run` callback closes over the state at mount time, so it must dispatch
 through a ref that is reassigned every render — the same pattern the existing
@@ -160,7 +161,7 @@ stands. Cheap to shorten to "Run Selection" later.
 Manual verification against the running stack, on a lesson whose solution is
 genuinely multi-statement (`CREATE INDEX …; SELECT …`):
 
-1. No selection → the context-menu item is present but greyed out.
+1. No selection → the context-menu item is absent. (Monaco filters an action out of the context menu when its `precondition` is false; it does not render a greyed-out entry. Verified by real right-click during the Task 4 regression pass.)
 2. Select only the `SELECT` → **Run Selection** returns rows, stats and a plan.
 3. That run shows the scratch marker and **no** pass/fail banner.
 4. Reset progress for the lesson, then repeat step 2 with SQL that *would* pass if

@@ -221,8 +221,11 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
                     label: "Run Selection (not graded)",
                     contextMenuGroupId: "navigation",
                     contextMenuOrder: 0,
-                    // Monaco built-in context key: the item greys itself out with no selection,
-                    // so there is no enablement state to track or keep in sync.
+                    // Monaco built-in context key, so there is no enablement state to track
+                    // or keep in sync. Note Monaco FILTERS the action out of the context menu
+                    // entirely when this is false rather than rendering it greyed out, so with
+                    // no selection the item is absent, not disabled. (Verified by real
+                    // right-click; the spec originally claimed "greyed out" and was wrong.)
                     precondition: "editorHasSelection",
                     run: (ed) => {
                       const sel = ed.getSelection();
