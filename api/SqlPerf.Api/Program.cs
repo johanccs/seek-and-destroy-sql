@@ -109,6 +109,13 @@ app.MapPost("/api/lessons/{id}/run", async (string id, RunRequest req, LessonCat
             art.Messages, null, null));
 
     var parsed = PlanParser.Parse(art.PlanXml);
+
+    // Scratch run: execute and report, but do not grade and do not touch progress.
+    // GetBaselineAsync is skipped too — it is only an input to grading.
+    if (!req.Graded)
+        return Results.Json(new RunResult(true, null, art.ResultSets, art.Stats, parsed?.Dto,
+            art.Messages, null, await progress.GetAsync(id)));
+
     var baseline = await exec.GetBaselineAsync(l);
     var eval = Evaluator.EvaluateQuery(l.Manifest.PassConditions, parsed?.Dto,
         parsed?.RootCost ?? 0, art.Stats, art.ResultSets, baseline);

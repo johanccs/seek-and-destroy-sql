@@ -100,7 +100,12 @@ public sealed record RecreateSqlContainerResultDto(
     bool Success, long ElapsedMs, List<Services.DockerStepResult> Steps,
     ResetAllDatabasesResultDto? Reseed);
 
-public sealed record RunRequest(string Sql);
+// Graded=false is a "scratch" run (e.g. running just an editor selection): it
+// executes and returns plan/stats, but must never be evaluated or recorded as a
+// solve. Grading a fragment is unsafe in both directions — per-table
+// maxLogicalReads assumes the graded SELECT runs last in the batch, and
+// resultUnchanged compares against a startingQuery baseline.
+public sealed record RunRequest(string Sql, bool Graded = true);
 public sealed record TutorChatRequest(string Message);
 
 public sealed record ResultSetDto(List<string> Columns, List<List<object?>> Rows, int RowCount, bool Truncated);
