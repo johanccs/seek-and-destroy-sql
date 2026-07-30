@@ -57,6 +57,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
   };
 
   const runSelection = async (text: string) => {
+    if (running) return;
     setRunning(true);
     try {
       const r = await api.run(lesson.id, text, false);

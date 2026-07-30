@@ -298,8 +298,9 @@ onMount={(editor) => {
     label: "Run Selection (not graded)",
     contextMenuGroupId: "navigation",
     contextMenuOrder: 0,
-    // Monaco built-in context key: the item greys itself out with no selection,
-    // so there is no enablement state to track or keep in sync.
+    // Monaco built-in context key: with no selection Monaco filters the item
+    // out of the context menu entirely (it is absent, not greyed out), so
+    // there is no enablement state to track or keep in sync.
     precondition: "editorHasSelection",
     run: (ed) => {
       const sel = ed.getSelection();
@@ -330,7 +331,7 @@ cd X:/Playground/sql-performance && npm --prefix web run dev
 
 Open the printed URL, pick lesson **Table Scan vs. Index Seek**, and check:
 
-1. With nothing selected, right-click in the editor → "Run Selection (not graded)" is present but **greyed out**.
+1. With nothing selected, right-click in the editor → "Run Selection (not graded)" is **absent** from the context menu (Monaco filters it out entirely when its precondition is false, rather than greying it out).
 2. Type a second statement so the buffer holds two, e.g.
    `SELECT COUNT(*) FROM Orders;` on line 1 and `SELECT * FROM Orders WHERE CustomerId = 42;` on line 2.
 3. Select line 2 only, right-click → **Run Selection (not graded)** → results appear for that statement only (a row set for `CustomerId = 42`, not a count).
@@ -428,7 +429,7 @@ Append to `web/src/styles.css`, next to the existing `.badge-conc` / `.badge-azu
 }
 ```
 
-`white-space: nowrap` keeps it on one line, and the tab strip is a flex row that already wraps, so it degrades sanely on a narrow editor column.
+`white-space: nowrap` keeps the badge text on one line. The tab strip itself did NOT wrap originally (`.tabs` had no `flex-wrap`, and `.tab` labels refused to shrink below their min-content width), which meant the badge could be pushed off the right edge and clipped by `.results`' `overflow: hidden` on a narrow editor column. This was fixed by adding `flex-wrap: wrap` to `.tabs` and `flex-shrink: 1; min-width: 0` to `.tab`, so the tab strip now wraps to a second line (or lets tab labels truncate) instead of clipping the badge.
 
 - [ ] **Step 5: Typecheck and build**
 
