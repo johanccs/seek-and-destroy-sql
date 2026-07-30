@@ -7,7 +7,7 @@ import { FontSizeControl, useFontSize } from "./FontSizeControl";
 
 type Tab = "results" | "stats" | "plan" | "messages";
 
-export function ResultsPanel({ result, prevStats, scratch = false }: { result: RunResult | null; prevStats: RunStats | null; scratch?: boolean }) {
+export function ResultsPanel({ result, prevStats, scratch = false, onResizeStart }: { result: RunResult | null; prevStats: RunStats | null; scratch?: boolean; onResizeStart?: (e: React.MouseEvent) => void }) {
   const [tab, setTab] = useState<Tab>("results");
   const resultsFs = useFontSize("results", 13);
   if (!result) return <div className="tab-body muted">Run a query to see results, statistics and the execution plan.</div>;
@@ -16,6 +16,7 @@ export function ResultsPanel({ result, prevStats, scratch = false }: { result: R
 
   return (
     <div className="results">
+      {onResizeStart && <div className="results-resize-handle" onMouseDown={onResizeStart} title="Drag to resize the results pane" />}
       <div>
         <PassBanner evaluation={result.evaluation} newlySolved={result.progress?.newlySolved} />
         {result.error && <div className="banner fail"><div className="err">{result.error}</div></div>}

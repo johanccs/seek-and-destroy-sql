@@ -28,6 +28,19 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
     minRight: 340, // the SQL editor + results need to stay usable
     containerRef: workspaceRef,
   });
+  // Vertical twin of the narrative resizer: the results pane is anchored to the
+  // bottom of .editor-col, so dragging its handle upward makes it taller. minRight
+  // here is the space the editor (plus toolbar) must keep.
+  const editorColRef = useRef<HTMLDivElement>(null);
+  const { width: resultsHeight, onResizeStart: onResultsResizeStart } = useColumnResize({
+    storageKey: "resultsHeight",
+    defaultWidth: 300,
+    min: 90,
+    max: 1400,
+    minRight: 190,
+    containerRef: editorColRef,
+    axis: "y",
+  });
   const narrativeFs = useFontSize("narrative", 14);
   const editorFs = useFontSize("editor", 13);
 
@@ -193,7 +206,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
         {lesson.isConcurrency && lesson.interleaving ? (
           <ConcurrencyView lessonId={lesson.id} interleaving={lesson.interleaving} />
         ) : (
-          <div className="editor-col">
+          <div className="editor-col" ref={editorColRef} style={{ "--results-h": `${resultsHeight}px` } as React.CSSProperties}>
             <div className="toolbar">
               <button className="btn primary" onClick={run} disabled={running} title="Ctrl+Enter">
                 {running ? "Running…" : "▶ Run"}
@@ -237,7 +250,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
                 }}
               />
             </div>
-            <ResultsPanel result={result} prevStats={prevStats} scratch={scratch} />
+            <ResultsPanel result={result} prevStats={prevStats} scratch={scratch} onResizeStart={onResultsResizeStart} />
           </div>
         )}
       </div>

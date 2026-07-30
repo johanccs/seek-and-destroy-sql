@@ -3,13 +3,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type Opts = {
   storageKey: string;
   defaultWidth: number;
-  /** Smallest useful width for the left column. */
+  /** Smallest useful size for the resized pane. */
   min: number;
-  /** Largest width the user may drag to, when there is room for it. */
+  /** Largest size the user may drag to, when there is room for it. */
   max: number;
-  /** Space the right column must always keep; the left column yields to it. */
+  /** Space the *other* pane must always keep; the resized one yields to it. */
   minRight: number;
   containerRef: React.RefObject<HTMLElement | null>;
+  /**
+   * "x" (default) sizes a left column, measured from the container's left edge.
+   * "y" sizes a BOTTOM pane, measured from the container's bottom edge — dragging
+   * the handle upward makes it taller.
+   */
+  axis?: "x" | "y";
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -23,7 +29,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
  * space from the left column instead of shoving the right one off-screen, and
  * widening it again restores the user's original choice.
  */
-export function useColumnResize({ storageKey, defaultWidth, min, max, minRight, containerRef }: Opts) {
+export function useColumnResize({ storageKey, defaultWidth, min, max, minRight, containerRef, axis = "x" }: Opts) {
   const desired = useRef<number>(
     (() => {
       const saved = Number(localStorage.getItem(storageKey));
@@ -36,11 +42,12 @@ export function useColumnResize({ storageKey, defaultWidth, min, max, minRight, 
   // Widest the left column may be while still leaving `minRight` on the right.
   const fit = useCallback(
     (w: number) => {
-      const box = containerRef.current?.clientWidth ?? 0;
+      const el = containerRef.current;
+      const box = (axis === "y" ? el?.clientHeight : el?.clientWidth) ?? 0;
       const cap = box > 0 ? Math.max(min, box - minRight) : max;
       return clamp(w, min, Math.min(max, cap));
     },
-    [containerRef, min, max, minRight],
+    [containerRef, min, max, minRight, axis],
   );
 
   const reflow = useCallback(() => setWidth(fit(desired.current)), [fit]);
@@ -61,15 +68,20 @@ export function useColumnResize({ storageKey, defaultWidth, min, max, minRight, 
   const onResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     dragging.current = true;
-    document.body.style.cursor = "col-resize";
+    document.body.style.cursor = axis === "y" ? "row-resize" : "col-resize";
     document.body.style.userSelect = "none";
-  }, []);
+  }, [axis]);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragging.current) return;
-      const left = containerRef.current?.getBoundingClientRect().left ?? 0;
-      desired.current = clamp(e.clientX - left, min, max);
+      const box = containerRef.current?.getBoundingClientRect();
+      // A "y" pane is anchored to the bottom, so its size grows as the pointer
+      // moves up: measure from the container's bottom edge, not its top.
+      const raw = axis === "y"
+        ? (box?.bottom ?? 0) - e.clientY
+        : e.clientX - (box?.left ?? 0);
+      desired.current = clamp(raw, min, max);
       setWidth(fit(desired.current));
     };
     const onUp = () => {
@@ -85,7 +97,7 @@ export function useColumnResize({ storageKey, defaultWidth, min, max, minRight, 
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [containerRef, fit, min, max, storageKey]);
+  }, [containerRef, fit, min, max, storageKey, axis]);
 
   return { width, onResizeStart };
 }
