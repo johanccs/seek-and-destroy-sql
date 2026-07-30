@@ -94,7 +94,10 @@ a { color: var(--accent); }
 .theme-toggle { background: none; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 14px; padding: 2px 7px; line-height: 1.6; }
 .theme-toggle:hover { background: var(--bg-3); }
 
-.difficulty { color: var(--warn); letter-spacing: 1px; }
+/* The element is `muted difficulty`, and `.muted` is defined later in this file.
+   Equal specificity means source order decides, so `.muted` was winning and the
+   stars rendered grey. `.muted.difficulty` outranks it. */
+.difficulty, .muted.difficulty { color: var(--warn); letter-spacing: 1px; }
 
 .lesson-head-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .lesson-head-top h2 { margin: 0; }

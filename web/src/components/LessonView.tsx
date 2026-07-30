@@ -230,6 +230,31 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
                 onChange={(v) => setSql(v ?? "")}
                 options={{ minimap: { enabled: false }, fontSize: editorFs.size, automaticLayout: true }}
                 onMount={(editor) => {
+                  // Monaco's own context-menu Paste is inert in the browser: pasting needs to
+                  // READ the clipboard, and browsers only allow that via the async Clipboard
+                  // API (or a real Ctrl+V keystroke), not the execCommand path Monaco uses.
+                  // This action does the read properly and edits the buffer itself.
+                  editor.addAction({
+                    id: "sqlperf.pasteFromClipboard",
+                    label: "Paste from clipboard",
+                    contextMenuGroupId: "9_cutcopypaste",
+                    contextMenuOrder: 3,
+                    run: async (ed) => {
+                      let text = "";
+                      try {
+                        text = await navigator.clipboard.readText();
+                      } catch {
+                        // Permission denied or unsupported (e.g. an insecure origin).
+                        // Ctrl+V still works, so leave the buffer untouched.
+                        return;
+                      }
+                      if (!text) return;
+                      const sel = ed.getSelection();
+                      if (!sel) return;
+                      ed.executeEdits("paste-from-clipboard", [{ range: sel, text, forceMoveMarkers: true }]);
+                      ed.focus();
+                    },
+                  });
                   editor.addAction({
                     id: "sqlperf.runSelection",
                     label: "Run Selection (not graded)",
