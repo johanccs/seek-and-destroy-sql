@@ -171,4 +171,4 @@ export type SchemaIndex = {
 export type SchemaTable = {
   name: string; rowCount: number; columns: SchemaColumn[]; indexes: SchemaIndex[];
 };
-export type SchemaInfo = { schema: string; tables: SchemaTable[] };
+export type SchemaInfo = { schema: string; seeded: boolean; tables: SchemaTable[] };

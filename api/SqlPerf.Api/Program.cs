@@ -104,7 +104,8 @@ app.MapGet("/api/lessons/{id}/schema", async (string id, LessonCatalog cat,
 {
     var l = cat.Get(id);
     if (l is null) return Results.NotFound();
-    await exec.EnsureSeededAsync(l);
+    if (!await exec.SchemaExistsAsync(l.Database))
+        return Results.Json(new SchemaDto(l.Database, false, new List<SchemaTableDto>()));
     return Results.Json(await schema.ReadAsync(l.Database));
 });
 

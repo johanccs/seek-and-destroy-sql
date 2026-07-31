@@ -82,9 +82,10 @@ export function ResultsPanel({ result, prevStats, scratch = false, onResizeStart
         {tab === "properties" && (
           schemaError ? <div className="err">Could not load table properties: {schemaError}</div>
           : !schema ? <div className="muted">Loading table properties…</div>
+          : !schema.seeded ? <div className="muted">This lesson's data hasn't been created yet. Run a query or click Reset Lesson, then these properties will appear.</div>
           : schema.tables.length === 0 ? <div className="muted">This lesson has no tables.</div>
           : (
-            <div className="props">
+            <>
               {schema.tables.map((t) => (
                 <div className="props-table" key={t.name}>
                   <h4>{t.name} <span className="muted">— {t.rowCount.toLocaleString()} rows</span></h4>
@@ -126,7 +127,7 @@ export function ResultsPanel({ result, prevStats, scratch = false, onResizeStart
                   )}
                 </div>
               ))}
-            </div>
+            </>
           )
         )}
       </div>

@@ -163,7 +163,7 @@ public sealed record SchemaTableDto(
     string Name, long RowCount,
     List<SchemaColumnDto> Columns, List<SchemaIndexDto> Indexes);
 
-public sealed record SchemaDto(string Schema, List<SchemaTableDto> Tables);
+public sealed record SchemaDto(string Schema, bool Seeded, List<SchemaTableDto> Tables);
 
 public static class Json
 {

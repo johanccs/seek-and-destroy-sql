@@ -47,11 +47,19 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
   const editorFs = useFontSize("editor", 13);
 
   // Metadata is advisory: a failure here must never block running SQL.
+  // schemaGen guards against out-of-order responses: switching lessons (or firing
+  // several run/reset calls in quick succession) can let an older fetch resolve
+  // after a newer one, which would silently overwrite fresh schema with stale data.
+  const schemaGen = useRef(0);
   const loadSchema = async () => {
+    const gen = ++schemaGen.current;
     try {
-      setSchema(await api.schema(lesson.id));
+      const s = await api.schema(lesson.id);
+      if (gen !== schemaGen.current) return; // superseded by a newer request
+      setSchema(s);
       setSchemaError(null);
     } catch (e) {
+      if (gen !== schemaGen.current) return;
       setSchemaError(String(e));
     }
   };

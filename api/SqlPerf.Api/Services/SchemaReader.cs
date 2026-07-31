@@ -44,7 +44,7 @@ ORDER BY t.name;";
             while (await r.ReadAsync())
                 tables[r.GetInt32(0)] = new SchemaTableRow(r.GetString(1), Convert.ToInt64(r.GetValue(2)));
         }
-        if (tables.Count == 0) return new SchemaDto(schema, new List<SchemaTableDto>());
+        if (tables.Count == 0) return new SchemaDto(schema, true, new List<SchemaTableDto>());
 
         // ---- columns ----
         const string colsSql = @"
@@ -112,7 +112,7 @@ ORDER BY i.object_id, i.is_primary_key DESC, i.name;";
             }
         }
 
-        return new SchemaDto(schema,
+        return new SchemaDto(schema, true,
             tables.Values.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                   .Select(t => new SchemaTableDto(t.Name, t.RowCount, t.Columns, t.Indexes))
                   .ToList());
@@ -128,6 +128,7 @@ ORDER BY i.object_id, i.is_primary_key DESC, i.name;";
             maxLen == -1 ? $"{type}(max)" : $"{type}({maxLen / 2})",
         "decimal" or "numeric" => $"{type}({precision},{scale})",
         "datetime2" or "time" or "datetimeoffset" => $"{type}({scale})",
+        "float" or "real" => $"{type}({precision})",
         _ => type,
     };
 
