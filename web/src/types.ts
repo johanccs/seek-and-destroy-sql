@@ -160,3 +160,15 @@ export interface ProgressSummary {
   solvedLessons: number;
   byLevel: { level: Level; total: number; solved: number }[];
 }
+
+export type SchemaColumn = {
+  name: string; dataType: string; nullable: boolean; isIdentity: boolean; inPrimaryKey: boolean;
+};
+export type SchemaIndex = {
+  name: string; type: string; isUnique: boolean; isPrimaryKey: boolean;
+  keyColumns: string; includedColumns: string; filter: string | null;
+};
+export type SchemaTable = {
+  name: string; rowCount: number; columns: SchemaColumn[]; indexes: SchemaIndex[];
+};
+export type SchemaInfo = { schema: string; tables: SchemaTable[] };

@@ -5,6 +5,7 @@ import type {
   LevelGroup,
   ProgressSummary,
   RunResult,
+  SchemaInfo,
   TutorMessage,
 } from "./types";
 
@@ -24,6 +25,9 @@ export const api = {
 
   solution: (id: string) =>
     fetch(`${BASE}/api/lessons/${id}/solution`).then(json<{ solution: string }>),
+
+  schema: (id: string) =>
+    fetch(`${BASE}/api/lessons/${id}/schema`).then(json<SchemaInfo>),
 
   run: (id: string, sql: string, graded = true) =>
     fetch(`${BASE}/api/lessons/${id}/run`, {

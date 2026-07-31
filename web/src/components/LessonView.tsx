@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import ReactMarkdown from "react-markdown";
-import type { LessonDetail, RunResult, RunStats } from "../types";
+import type { LessonDetail, RunResult, RunStats, SchemaInfo } from "../types";
 import { api } from "../api";
 import { ResultsPanel } from "./ResultsPanel";
 import { ConcurrencyView } from "./ConcurrencyView";
@@ -19,6 +19,8 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
   const [hintCount, setHintCount] = useState(0);
   const [solution, setSolution] = useState<string | null>(null);
   const [busy, setBusy] = useState("");
+  const [schema, setSchema] = useState<SchemaInfo | null>(null);
+  const [schemaError, setSchemaError] = useState<string | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const { width: narrativeWidth, onResizeStart } = useColumnResize({
     storageKey: "narrativeWidth",
@@ -44,6 +46,16 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
   const narrativeFs = useFontSize("narrative", 14);
   const editorFs = useFontSize("editor", 13);
 
+  // Metadata is advisory: a failure here must never block running SQL.
+  const loadSchema = async () => {
+    try {
+      setSchema(await api.schema(lesson.id));
+      setSchemaError(null);
+    } catch (e) {
+      setSchemaError(String(e));
+    }
+  };
+
   useEffect(() => {
     setSql(lesson.startingQuery);
     setResult(null);
@@ -51,6 +63,9 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
     setPrevStats(null);
     setHintCount(0);
     setSolution(null);
+    setSchema(null);
+    setSchemaError(null);
+    loadSchema();
   }, [lesson.id]);
 
   const run = async () => {
@@ -61,6 +76,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
       setResult(r);
       setScratch(false);
       if (r.progress?.newlySolved) onSolved();
+      loadSchema();
     } catch (e) {
       setResult({ success: false, error: String(e), resultSets: [], stats: null, plan: null, messages: [], evaluation: null, progress: null });
       setScratch(false);
@@ -78,6 +94,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
       // against a previous full run would show a meaningless delta.
       setResult(r);
       setScratch(true);
+      loadSchema();
     } catch (e) {
       setResult({ success: false, error: String(e), resultSets: [], stats: null, plan: null, messages: [], evaluation: null, progress: null });
       setScratch(true);
@@ -94,6 +111,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
       setResult(null);
       setScratch(false);
       setPrevStats(null);
+      loadSchema();
     } finally {
       setBusy("");
     }
@@ -302,7 +320,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
                 }}
               />
             </div>
-            <ResultsPanel result={result} prevStats={prevStats} scratch={scratch} onResizeStart={onResultsResizeStart} />
+            <ResultsPanel result={result} prevStats={prevStats} scratch={scratch} onResizeStart={onResultsResizeStart} schema={schema} schemaError={schemaError} />
           </div>
         )}
       </div>

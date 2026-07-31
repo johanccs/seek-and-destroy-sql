@@ -410,3 +410,9 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
   line-height: 1.55;
 }
 .startup-note strong { color: var(--text); }
+
+/* Properties tab */
+.props-table { margin-bottom: 22px; }
+.props-table h4 { margin: 0 0 8px; font-size: 14px; }
+.props-sub { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--text-dim); margin: 10px 0 4px; }
+.props-none { font-size: 13px; padding: 4px 0; }
