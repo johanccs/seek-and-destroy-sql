@@ -6,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<LessonCatalog>();
 builder.Services.AddSingleton<SqlExecutor>();
+builder.Services.AddSingleton<SchemaReader>();
 builder.Services.AddSingleton<ConcurrencyRunner>();
 builder.Services.AddSingleton<ProgressStore>();
 builder.Services.AddSingleton<DockerOps>();
@@ -94,6 +95,17 @@ app.MapGet("/api/lessons/{id}/solution", (string id, LessonCatalog cat) =>
 {
     var l = cat.Get(id);
     return l is null ? Results.NotFound() : Results.Json(new SolutionDto(l.SolutionSql));
+});
+
+// ---- Table/column/index metadata for the lesson's schema ----
+// Separate endpoint and separate connection from /run on purpose: see SchemaReader.
+app.MapGet("/api/lessons/{id}/schema", async (string id, LessonCatalog cat,
+    SqlExecutor exec, SchemaReader schema) =>
+{
+    var l = cat.Get(id);
+    if (l is null) return Results.NotFound();
+    await exec.EnsureSeededAsync(l);
+    return Results.Json(await schema.ReadAsync(l.Database));
 });
 
 // ---- Run a query ----

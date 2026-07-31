@@ -152,6 +152,19 @@ public sealed record ConcurrencyResult(
 public sealed record OverallProgressDto(int TotalLessons, int SolvedLessons, List<LevelProgressDto> ByLevel);
 public sealed record LevelProgressDto(string Level, int Total, int Solved);
 
+public sealed record SchemaColumnDto(
+    string Name, string DataType, bool Nullable, bool IsIdentity, bool InPrimaryKey);
+
+public sealed record SchemaIndexDto(
+    string Name, string Type, bool IsUnique, bool IsPrimaryKey,
+    string KeyColumns, string IncludedColumns, string? Filter);
+
+public sealed record SchemaTableDto(
+    string Name, long RowCount,
+    List<SchemaColumnDto> Columns, List<SchemaIndexDto> Indexes);
+
+public sealed record SchemaDto(string Schema, List<SchemaTableDto> Tables);
+
 public static class Json
 {
     public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
