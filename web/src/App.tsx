@@ -50,7 +50,9 @@ export default function App() {
       setProgress(pr);
       setError(null);
     } catch (e) {
-      setError(`Cannot reach API — is it running? (${e})`);
+      // On the hosted site this is usually a cold B1 App Service still waking up
+      // rather than a real outage, so say so before blaming the user's setup.
+      setError(`Cannot reach the API yet. On the hosted site it runs on an Azure B1 Basic plan and can take a few seconds to wake — give it a moment and refresh. Running locally? Check the API container is up. (${e})`);
     }
   };
 
@@ -167,6 +169,13 @@ export default function App() {
             <div>
               <h2>Select a lesson to begin</h2>
               <p className="muted">Work from Beginner to Expert. Each lesson runs real SQL and grades your fix automatically.</p>
+              <p className="muted startup-note">
+                ⏳ <strong>First load and first run can be slow.</strong> The hosted API runs on a
+                modest Azure App Service <strong>B1 Basic</strong> plan, so it takes a moment to wake
+                up and warm its connection pool, and some lessons seed large tables — up to 1.2 million
+                rows — the first time you open them. Later runs are much quicker. Running it locally
+                with Docker avoids the wait entirely.
+              </p>
             </div>
           </div>
         )}
