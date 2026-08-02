@@ -53,16 +53,38 @@ export function useColumnResize({ storageKey, defaultWidth, min, max, minRight, 
   const reflow = useCallback(() => setWidth(fit(desired.current)), [fit]);
 
   // Re-clamp whenever the container resizes (window resize, sidebar drag, zoom).
+  //
+  // The container may not exist yet: a consumer that renders a loading state
+  // first mounts this hook before the element. Waiting for it matters — without
+  // the observer the clamp never runs, so a persisted size can exceed what now
+  // fits and the pane overlaps its neighbour.
   useEffect(() => {
-    reflow();
-    const el = containerRef.current;
-    if (!el || typeof ResizeObserver === "undefined") {
-      window.addEventListener("resize", reflow);
-      return () => window.removeEventListener("resize", reflow);
-    }
-    const ro = new ResizeObserver(reflow);
-    ro.observe(el);
-    return () => ro.disconnect();
+    let ro: ResizeObserver | undefined;
+    let raf = 0;
+    let usingWindow = false;
+
+    const attach = () => {
+      const el = containerRef.current;
+      if (!el) {
+        raf = requestAnimationFrame(attach);
+        return;
+      }
+      reflow();
+      if (typeof ResizeObserver === "undefined") {
+        usingWindow = true;
+        window.addEventListener("resize", reflow);
+        return;
+      }
+      ro = new ResizeObserver(reflow);
+      ro.observe(el);
+    };
+    attach();
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro?.disconnect();
+      if (usingWindow) window.removeEventListener("resize", reflow);
+    };
   }, [reflow, containerRef]);
 
   const onResizeStart = useCallback((e: React.MouseEvent) => {

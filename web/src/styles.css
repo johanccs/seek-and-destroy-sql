@@ -470,13 +470,19 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
   overflow: hidden;
 }
 .module-body > .narrative { border-right: 1px solid var(--border); overflow-y: auto; padding: 16px 18px; }
-.erd-workspace { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
+.erd-workspace { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto var(--inspector-h, 300px); min-width: 0; min-height: 0; }
+/* Same 6px strip as the sidebar and results handles. */
+.erd-inspector-resize-handle { height: 6px; cursor: row-resize; background: var(--bg-2); border-top: 1px solid var(--border); }
+.erd-inspector-resize-handle:hover, .erd-inspector-resize-handle:active { background: var(--accent); opacity: .5; }
 .erd-output { border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; overflow-y: auto; }
 
 .erd-toolbar { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* React Flow needs an explicitly sized parent or it renders zero-height. */
-.erd-canvas { position: relative; width: 100%; height: 100%; min-height: 320px; }
+/* min-height: 0, not a fixed floor. The canvas shares a grid with the resizable
+   properties panel; a floor taller than its track makes it overflow and paint
+   over the panel. The panel's own clamp guarantees the canvas keeps room. */
+.erd-canvas { position: relative; width: 100%; height: 100%; min-height: 0; }
 .react-flow {
   --xy-background-color: var(--bg);
   --xy-background-pattern-dots-color: var(--border);
@@ -528,7 +534,7 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 .erd-port { width: 7px; height: 7px; background: var(--accent); border: none; }
 .erd-edge .react-flow__edge-text { fill: var(--text-dim); font-size: 10px; }
 
-.erd-inspector { border-top: 1px solid var(--border); background: var(--bg-2); padding: 10px 14px; max-height: 46%; overflow-y: auto; }
+.erd-inspector { background: var(--bg-2); padding: 10px 14px; overflow-y: auto; min-height: 0; }
 .erd-inspector .props-sub { margin-top: 8px; }
 .erd-input { background: var(--bg-3); border: 1px solid var(--border); color: var(--text); border-radius: 5px; padding: 4px 7px; font-size: 12px; font-family: inherit; min-width: 0; }
 .erd-input:focus { outline: none; border-color: var(--accent); }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useParams } from "react-router";
 import ReactMarkdown from "react-markdown";
 import { api } from "../api";
+import { useColumnResize } from "../useColumnResize";
 import { PassBanner } from "../components/PassBanner";
 import { ErdCanvas } from "../design/ErdCanvas";
 import { Inspector, type Selection } from "../design/Inspector";
@@ -32,6 +33,20 @@ export default function ModuleRoute() {
 
   const model = history.present;
   const dispatch = useCallback((action: ErdAction) => dispatchHistory({ kind: "do", action }), []);
+
+  // The properties panel is bottom-docked and draggable, like the results pane
+  // in the performance track. Editing a table with several columns needs real
+  // room, and a fixed share of the pane was never going to suit every model.
+  const workspaceRef = useRef<HTMLElement>(null);
+  const { width: inspectorHeight, onResizeStart: onInspectorResize } = useColumnResize({
+    storageKey: "erdInspectorHeight",
+    defaultWidth: 300,
+    min: 90,
+    max: 900,
+    minRight: 130, // leave at least this much canvas visible above
+    containerRef: workspaceRef as React.RefObject<HTMLElement>,
+    axis: "y",
+  });
 
   // Load the module and its saved diagram. The generation guard stops a slow
   // response for a previous module from overwriting the current one.
@@ -159,13 +174,18 @@ export default function ModuleRoute() {
           )}
         </section>
 
-        <section className="erd-workspace">
+        <section
+          className="erd-workspace"
+          ref={workspaceRef}
+          style={{ "--inspector-h": `${inspectorHeight}px` } as React.CSSProperties}
+        >
           <ErdCanvas
             model={model}
             dispatch={dispatch}
             onSelect={setSelection}
             selectedId={selection?.id ?? null}
           />
+          <div className="erd-inspector-resize-handle" onMouseDown={onInspectorResize} />
           <Inspector model={model} selection={selection} dispatch={dispatch} />
         </section>
 
