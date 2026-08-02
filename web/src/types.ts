@@ -168,7 +168,17 @@ export type SchemaIndex = {
   name: string; type: string; isUnique: boolean; isPrimaryKey: boolean;
   keyColumns: string; includedColumns: string; filter: string | null;
 };
+export type Cardinality = "oneToOne" | "manyToOne";
+export type SchemaForeignKey = {
+  name: string; table: string; columns: string;
+  referencedTable: string; referencedColumns: string;
+  onDelete: string; onUpdate: string; isDisabled: boolean; cardinality: Cardinality;
+};
 export type SchemaTable = {
   name: string; rowCount: number; columns: SchemaColumn[]; indexes: SchemaIndex[];
+  foreignKeys: SchemaForeignKey[];
+  // Exactly two foreign keys whose columns are the whole primary key: the table
+  // exists to resolve a many-to-many.
+  isJunction: boolean;
 };
 export type SchemaInfo = { schema: string; seeded: boolean; tables: SchemaTable[] };

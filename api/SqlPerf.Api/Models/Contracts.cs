@@ -171,9 +171,18 @@ public sealed record SchemaIndexDto(
     string Name, string Type, bool IsUnique, bool IsPrimaryKey,
     string KeyColumns, string IncludedColumns, string? Filter);
 
+// Cardinality is derived from metadata, not declared: a foreign key whose child
+// columns are covered by a unique index or primary key can only ever match one
+// parent row, which is what makes it one-to-one.
+public sealed record SchemaForeignKeyDto(
+    string Name, string Table, string Columns,
+    string ReferencedTable, string ReferencedColumns,
+    string OnDelete, string OnUpdate, bool IsDisabled, string Cardinality);
+
 public sealed record SchemaTableDto(
     string Name, long RowCount,
-    List<SchemaColumnDto> Columns, List<SchemaIndexDto> Indexes);
+    List<SchemaColumnDto> Columns, List<SchemaIndexDto> Indexes,
+    List<SchemaForeignKeyDto> ForeignKeys, bool IsJunction);
 
 public sealed record SchemaDto(string Schema, bool Seeded, List<SchemaTableDto> Tables);
 
