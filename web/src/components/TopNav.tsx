@@ -1,5 +1,6 @@
 import { NavLink } from "react-router";
 import { useTheme } from "../theme";
+import { Logo } from "./Logo";
 
 const cls = ({ isActive }: { isActive: boolean }) => `topnav-link ${isActive ? "active" : ""}`;
 
@@ -11,7 +12,10 @@ export function TopNav() {
 
   return (
     <header className="topnav">
-      <div className="topnav-brand">⚔️ Seek &amp; Destroy</div>
+      <div className="topnav-brand">
+        <Logo />
+        <span>Seek &amp; Destroy</span>
+      </div>
 
       <nav className="topnav-tracks">
         <NavLink to="/perf" className={cls}>
