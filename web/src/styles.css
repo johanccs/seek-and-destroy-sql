@@ -120,8 +120,31 @@ a { color: var(--accent); }
 /* right: 0, not -3px. The sidebar scrolls, and an absolutely-positioned child
    overhanging its right edge counts as scrollable overflow — which showed up as
    a phantom horizontal scrollbar under the lesson list. */
-.sidebar-resize-handle { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 10; }
-.sidebar-resize-handle:hover, .sidebar-resize-handle:active { background: var(--accent); opacity: 0.5; }
+
+/* ---------------------------------------------------------------------------
+   Resize handles
+   Always visible, never guessed at: a tinted strip with a centred grip so the
+   grab target reads as a control rather than a border. All resizable panes use
+   these two classes.
+   --------------------------------------------------------------------------- */
+.rz { background: var(--bg-3); z-index: 10; }
+.rz::after {
+  content: "";
+  position: absolute;
+  background: var(--text-dim);
+  border-radius: 2px;
+  opacity: .75;
+}
+.rz:hover, .rz:active { background: var(--accent); }
+.rz:hover::after, .rz:active::after { background: var(--bg); opacity: 1; }
+
+.rz-col { width: 9px; cursor: col-resize; }
+.rz-col::after { width: 3px; height: 30px; left: 3px; top: 50%; transform: translateY(-50%); }
+
+.rz-row { height: 9px; cursor: row-resize; }
+.rz-row::after { height: 3px; width: 30px; top: 3px; left: 50%; transform: translateX(-50%); }
+
+.sidebar-resize-handle { position: absolute; top: 0; right: 0; height: 100%; border-left: 1px solid var(--border); }
 .brand { padding: 16px 18px; border-bottom: 1px solid var(--border); }
 .brand-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .brand h1 { font-size: 15px; margin: 0; letter-spacing: .3px; }
@@ -245,8 +268,7 @@ a { color: var(--accent); }
 
 .workspace { display: grid; grid-template-columns: var(--narrative-w, 380px) minmax(0, 1fr); overflow: hidden; min-width: 0; }
 .narrative { position: relative; padding: 16px 20px; overflow-y: auto; border-right: 1px solid var(--border); background: var(--bg-2); min-width: 0; }
-.workspace-resize-handle { position: absolute; top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 10; }
-.workspace-resize-handle:hover, .workspace-resize-handle:active { background: var(--accent); opacity: 0.5; }
+.workspace-resize-handle { position: absolute; top: 0; right: 0; height: 100%; border-left: 1px solid var(--border); }
 .narrative h2 { font-size: 15px; }
 .narrative h3 { font-size: 13px; }
 .narrative code { background: var(--bg-3); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 12px; }
@@ -293,8 +315,7 @@ a { color: var(--accent); }
 /* Explicit height (drag-adjustable) rather than content-sized, so a 500-row
    result set cannot push the editor off the top. */
 .results { position: relative; height: var(--results-h, 300px); border-top: 1px solid var(--border); min-height: 0; min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
-.results-resize-handle { position: absolute; top: -3px; left: 0; width: 100%; height: 7px; cursor: row-resize; z-index: 10; }
-.results-resize-handle:hover, .results-resize-handle:active { background: var(--accent); opacity: 0.5; }
+.results-resize-handle { position: absolute; top: 0; left: 0; width: 100%; }
 .tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 0 12px; border-bottom: 1px solid var(--border); }
 .tab { padding: 8px 14px; cursor: pointer; color: var(--text-dim); border-bottom: 2px solid transparent; flex-shrink: 1; min-width: 0; }
 .tab.active { color: var(--text); border-bottom-color: var(--accent); }
@@ -465,15 +486,15 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 .module { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%; overflow: hidden; min-width: 0; }
 .module-body {
   display: grid;
-  grid-template-columns: minmax(260px, 22%) minmax(0, 1fr) minmax(280px, 26%);
+  grid-template-columns:
+    var(--module-narrative-w, 340px) auto minmax(0, 1fr) auto var(--module-output-w, 380px);
   min-height: 0;
   overflow: hidden;
 }
+.module-body > .rz { position: relative; }
 .module-body > .narrative { border-right: 1px solid var(--border); overflow-y: auto; padding: 16px 18px; }
 .erd-workspace { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto var(--inspector-h, 300px); min-width: 0; min-height: 0; }
-/* Same 6px strip as the sidebar and results handles. */
-.erd-inspector-resize-handle { height: 6px; cursor: row-resize; background: var(--bg-2); border-top: 1px solid var(--border); }
-.erd-inspector-resize-handle:hover, .erd-inspector-resize-handle:active { background: var(--accent); opacity: .5; }
+.erd-inspector-resize-handle { position: relative; border-top: 1px solid var(--border); }
 .erd-output { border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; overflow-y: auto; }
 
 .erd-toolbar { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -512,12 +533,15 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
-  overflow: hidden;
+  /* Not hidden: the connection ports sit on the card's edges and were being
+     clipped in half. The header carries its own rounding instead. */
+  overflow: visible;
   font-size: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
 }
 .erd-node.selected { border-color: var(--accent); }
 .erd-node-head {
+  border-radius: 7px 7px 0 0;
   height: 30px;
   padding: 6px 10px;
   background: var(--bg-3);
@@ -564,6 +588,7 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 
 @media (max-width: 1200px) {
   .module-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(320px, 1fr) auto; overflow-y: auto; }
+  .module-body > .rz-col { display: none; }
   .module-body > .narrative { border-right: none; border-bottom: 1px solid var(--border); }
   .erd-output { border-left: none; border-top: 1px solid var(--border); }
 }

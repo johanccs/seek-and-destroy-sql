@@ -12,10 +12,11 @@ type Opts = {
   containerRef: React.RefObject<HTMLElement | null>;
   /**
    * "x" (default) sizes a left column, measured from the container's left edge.
+   * "x-right" sizes a RIGHT column, measured from the container's right edge.
    * "y" sizes a BOTTOM pane, measured from the container's bottom edge — dragging
    * the handle upward makes it taller.
    */
-  axis?: "x" | "y";
+  axis?: "x" | "x-right" | "y";
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -100,8 +101,11 @@ export function useColumnResize({ storageKey, defaultWidth, min, max, minRight, 
       const box = containerRef.current?.getBoundingClientRect();
       // A "y" pane is anchored to the bottom, so its size grows as the pointer
       // moves up: measure from the container's bottom edge, not its top.
-      const raw = axis === "y"
-        ? (box?.bottom ?? 0) - e.clientY
+      const raw =
+        axis === "y" ? (box?.bottom ?? 0) - e.clientY
+        // "x-right" is anchored to the right edge, so it grows as the pointer
+        // moves left — the mirror of the default left-anchored column.
+        : axis === "x-right" ? (box?.right ?? 0) - e.clientX
         : e.clientX - (box?.left ?? 0);
       desired.current = clamp(raw, min, max);
       setWidth(fit(desired.current));
