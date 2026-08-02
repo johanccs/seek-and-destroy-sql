@@ -213,3 +213,7 @@ npx @azure/static-web-apps-cli deploy ./dist_deploy --deployment-token <token> -
 - **Region matters for latency**, not just cost — if you're geographically far from a
   region, cumulative round-trip latency across many sequential DB calls (seeding, resets)
   adds up fast. Deploy close to where you'll actually use it.
+
+## Attribution
+
+Built and maintained by **CCS**. © 2026 CCS.

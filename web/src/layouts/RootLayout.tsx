@@ -12,7 +12,7 @@ export default function RootLayout() {
         <TopNav />
         <Outlet />
         <footer className="site-footer">
-          <span className="footer-copyright">© 2026 Johan Potgieter</span>
+          <span className="footer-copyright">© 2026 CCS</span>
           <nav className="footer-links">
             <NavLink to="/privacy" className={({ isActive }) => `footer-link ${isActive ? "active" : ""}`}>
               Privacy
