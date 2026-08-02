@@ -135,12 +135,42 @@ public sealed partial class SqlExecutor
     // the schema itself. Safe to call when nothing exists yet (first run).
     private static async Task DropSchemaObjectsAsync(SqlConnection c, string schema, string user)
     {
+        // Foreign keys go first, before any table drop is attempted. Dropping a
+        // referenced parent table fails while a child still points at it, and
+        // clearing every constraint up front is more robust than topologically
+        // ordering the table drops: it also handles self-references and cycles,
+        // which no ordering can. Design modules create FKs, so this is required.
+        var fkDrops = new List<(string table, string name)>();
+        await using (var cmd = new SqlCommand("""
+            SELECT t.name, fk.name
+            FROM sys.foreign_keys fk
+            JOIN sys.tables t ON t.object_id = fk.parent_object_id
+            WHERE t.schema_id = SCHEMA_ID(@schema)
+            """, c))
+        {
+            cmd.Parameters.AddWithValue("@schema", schema);
+            await using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+                fkDrops.Add((r.GetString(0), r.GetString(1)));
+        }
+        foreach (var (table, name) in fkDrops)
+            await TryExecAsync(c, $"ALTER TABLE [{schema}].[{table}] DROP CONSTRAINT [{name}];");
+
         var drops = new List<(string kind, string name)>();
         await using (var cmd = new SqlCommand("""
             SELECT o.type, o.name
             FROM sys.objects o
             JOIN sys.schemas s ON s.schema_id = o.schema_id
-            WHERE s.name = @schema AND o.type IN ('U','V','P','FN','IF','TF')
+            WHERE s.name = @schema AND o.type IN ('U','V','P','FN','IF','TF','TR')
+            ORDER BY CASE LTRIM(RTRIM(o.type))
+                         WHEN 'TR' THEN 0   -- triggers before their tables
+                         WHEN 'P'  THEN 1
+                         WHEN 'V'  THEN 2   -- a SCHEMABINDING view blocks its base table
+                         WHEN 'FN' THEN 3
+                         WHEN 'IF' THEN 3
+                         WHEN 'TF' THEN 3
+                         ELSE 9             -- tables last
+                     END
             """, c))
         {
             cmd.Parameters.AddWithValue("@schema", schema);
@@ -149,19 +179,15 @@ public sealed partial class SqlExecutor
                 drops.Add((r.GetString(0).Trim(), r.GetString(1)));
         }
 
-        foreach (var (kind, name) in drops)
-        {
-            var keyword = kind switch
-            {
-                "U" => "TABLE",
-                "V" => "VIEW",
-                "P" => "PROCEDURE",
-                "FN" or "IF" or "TF" => "FUNCTION",
-                _ => null
-            };
-            if (keyword is null) continue;
-            await ExecNonQuery(c, $"DROP {keyword} [{schema}].[{name}];", 60);
-        }
+        // One object refusing to drop must not strand the whole schema, so
+        // failures are collected and retried once after everything else is gone
+        // (which is usually enough — the blocker is normally a dependency).
+        var failed = new List<(string kind, string name)>();
+        foreach (var d in drops)
+            if (!await TryDropAsync(c, schema, d.kind, d.name))
+                failed.Add(d);
+        foreach (var d in failed)
+            await TryDropAsync(c, schema, d.kind, d.name);
 
         await using (var cmd = new SqlCommand(
             "IF EXISTS (SELECT 1 FROM sys.database_principals WHERE name = @u) DROP USER [" + user + "];", c))
@@ -175,6 +201,27 @@ public sealed partial class SqlExecutor
             cmd.Parameters.AddWithValue("@s", schema);
             await cmd.ExecuteNonQueryAsync();
         }
+    }
+
+    private static async Task<bool> TryDropAsync(SqlConnection c, string schema, string kind, string name)
+    {
+        var keyword = kind switch
+        {
+            "U" => "TABLE",
+            "V" => "VIEW",
+            "P" => "PROCEDURE",
+            "TR" => "TRIGGER",
+            "FN" or "IF" or "TF" => "FUNCTION",
+            _ => null
+        };
+        if (keyword is null) return true;
+        return await TryExecAsync(c, $"DROP {keyword} [{schema}].[{name}];");
+    }
+
+    private static async Task<bool> TryExecAsync(SqlConnection c, string sql)
+    {
+        try { await ExecNonQuery(c, sql, 60); return true; }
+        catch (SqlException) { return false; }
     }
 
     private async Task RunSeedAsync(Lesson lesson)

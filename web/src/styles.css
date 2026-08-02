@@ -42,17 +42,49 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); font
 button { font-family: inherit; }
 a { color: var(--accent); }
 
+/* Page shell: top nav / active track / footer. The track's own layout (.app)
+   keeps its two-column grid untouched — see the minmax note below. */
+.shell { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100vh; }
+.shell > .app, .shell > .settings-view, .shell > .legal-view { min-height: 0; }
+
+/* Top navigation — the app's only global nav. It switches curriculum tracks. */
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 16px;
+  height: var(--topnav-h, 46px);
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+}
+.topnav-brand { font-size: 14px; font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
+.topnav-tracks { display: flex; gap: 4px; flex: 1; min-width: 0; }
+.topnav-actions { display: flex; align-items: center; gap: 8px; }
+.topnav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.topnav-link:hover { background: var(--bg-3); color: var(--text); }
+.topnav-link.active { background: var(--bg-3); border-color: var(--border); color: var(--text); }
+.topnav-icon { font-size: 13px; }
+
 /* minmax(0, 1fr) — not a bare 1fr. A bare 1fr resolves to minmax(auto, 1fr),
    whose auto floor is the track's min-content width, so the Monaco editor and
    results tables inside .main would refuse to shrink and overflow the viewport
    instead. minmax(0, 1fr) lets the track shrink and the content scroll. */
-.app { display: grid; grid-template-columns: var(--sidebar-w, 300px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; height: 100vh; }
+.app { display: grid; grid-template-columns: var(--sidebar-w, 300px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 100%; }
 .app > .sidebar, .app > .main { grid-row: 1; min-width: 0; }
 
-/* Footer */
+/* Footer — a shell row, so it shows on every track. */
 .site-footer {
-  grid-column: 1 / -1;
-  grid-row: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -85,7 +117,10 @@ a { color: var(--accent); }
 
 /* Sidebar */
 .sidebar { position: relative; background: var(--bg-2); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
-.sidebar-resize-handle { position: absolute; top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 10; }
+/* right: 0, not -3px. The sidebar scrolls, and an absolutely-positioned child
+   overhanging its right edge counts as scrollable overflow — which showed up as
+   a phantom horizontal scrollbar under the lesson list. */
+.sidebar-resize-handle { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 10; }
 .sidebar-resize-handle:hover, .sidebar-resize-handle:active { background: var(--accent); opacity: 0.5; }
 .brand { padding: 16px 18px; border-bottom: 1px solid var(--border); }
 .brand-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -116,7 +151,8 @@ a { color: var(--accent); }
 
 .level-group { padding: 8px 0; }
 .level-title { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--text-dim); padding: 8px 18px 4px; display: flex; justify-content: space-between; }
-.lesson-row { padding: 8px 18px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-left: 3px solid transparent; }
+/* An anchor since routing — reset the link styling, keep the row appearance. */
+.lesson-row { padding: 8px 18px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-left: 3px solid transparent; color: inherit; text-decoration: none; }
 .lesson-row:hover { background: var(--bg-3); }
 .lesson-row.active { background: var(--bg-3); border-left-color: var(--accent); }
 .lesson-row .tick { width: 16px; flex: none; text-align: center; }
@@ -381,16 +417,20 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 /* Very narrow / tablet portrait: the lesson list becomes a scrollable strip
    above the workspace rather than a column beside it. */
 @media (max-width: 760px) {
+  .shell { height: auto; min-height: 100vh; }
   .app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
     height: auto;
-    min-height: 100vh;
   }
-  .app > .sidebar { grid-row: 2; max-height: 38vh; border-right: none; border-bottom: 1px solid var(--border); }
-  .app > .main { grid-row: 3; min-height: 70vh; }
-  .site-footer { grid-row: 4; }
+  .app > .sidebar { grid-row: 1; max-height: 38vh; border-right: none; border-bottom: 1px solid var(--border); }
+  .app > .main { grid-row: 2; min-height: 70vh; }
   .sidebar-resize-handle { display: none; }
+  /* Nav collapses to icons — the track labels are the first thing to go. */
+  .topnav { gap: 10px; padding: 0 10px; }
+  .topnav-brand { font-size: 13px; }
+  .topnav-label { display: none; }
+  .topnav-icon { font-size: 15px; }
   .toolbar { padding: 8px 10px; }
   .lesson-head { padding: 10px 12px; }
   .narrative { padding: 12px 14px; }
@@ -416,3 +456,119 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 .props-table h4 { margin: 0 0 8px; font-size: 14px; }
 .props-sub { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--text-dim); margin: 10px 0 4px; }
 .props-none { font-size: 13px; padding: 4px 0; }
+
+/* ---------------------------------------------------------------------------
+   Database Design track — ERD canvas
+   React Flow ships its own --xy-* variables; mapping them onto the app's tokens
+   is what makes the canvas follow the light/dark toggle without any JS.
+   --------------------------------------------------------------------------- */
+.module { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%; overflow: hidden; min-width: 0; }
+.module-body {
+  display: grid;
+  grid-template-columns: minmax(260px, 22%) minmax(0, 1fr) minmax(280px, 26%);
+  min-height: 0;
+  overflow: hidden;
+}
+.module-body > .narrative { border-right: 1px solid var(--border); overflow-y: auto; padding: 16px 18px; }
+.erd-workspace { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
+.erd-output { border-left: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; overflow-y: auto; }
+
+.erd-toolbar { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* React Flow needs an explicitly sized parent or it renders zero-height. */
+.erd-canvas { position: relative; width: 100%; height: 100%; min-height: 320px; }
+.react-flow {
+  --xy-background-color: var(--bg);
+  --xy-background-pattern-dots-color: var(--border);
+  --xy-edge-stroke: var(--text-dim);
+  --xy-edge-stroke-selected: var(--accent);
+  --xy-controls-button-background-color: var(--panel);
+  --xy-controls-button-background-color-hover: var(--bg-3);
+  --xy-controls-button-color: var(--text);
+  --xy-controls-button-border-color: var(--border);
+  --xy-minimap-background-color: var(--bg-2);
+  --xy-minimap-mask-background-color: rgba(0, 0, 0, .35);
+  --xy-attribution-background-color: transparent;
+  background: var(--bg);
+}
+.erd-minimap { border: 1px solid var(--border); border-radius: 6px; }
+
+.erd-node {
+  min-width: 190px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+.erd-node.selected { border-color: var(--accent); }
+.erd-node-head {
+  padding: 6px 10px;
+  background: var(--bg-3);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.erd-node-body { padding: 2px 0; }
+.erd-attr { position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 3px 10px; }
+.erd-attr-empty { display: block; color: var(--text-dim); font-style: italic; }
+.erd-attr-key { font-size: 9.5px; letter-spacing: .5px; color: var(--accent-2); font-weight: 700; }
+.erd-attr-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.erd-attr-type { color: var(--text-dim); font-family: var(--mono); font-size: 10.5px; }
+.erd-port { width: 7px; height: 7px; background: var(--accent); border: none; }
+.erd-edge .react-flow__edge-text { fill: var(--text-dim); font-size: 10px; }
+
+.erd-inspector { border-top: 1px solid var(--border); background: var(--bg-2); padding: 10px 14px; max-height: 46%; overflow-y: auto; }
+.erd-inspector .props-sub { margin-top: 8px; }
+.erd-input { background: var(--bg-3); border: 1px solid var(--border); color: var(--text); border-radius: 5px; padding: 4px 7px; font-size: 12px; font-family: inherit; min-width: 0; }
+.erd-input:focus { outline: none; border-color: var(--accent); }
+.erd-attr-edit { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) auto auto auto auto; gap: 5px; align-items: center; margin-bottom: 5px; }
+.erd-flag { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--text-dim); white-space: nowrap; }
+.erd-field { display: block; margin: 8px 0; }
+.erd-field > span { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 3px; }
+.erd-field .erd-input { width: 100%; }
+.erd-inspector-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.erd-rel-summary { margin: 4px 0; font-size: 12.5px; }
+.erd-rel-note { font-size: 11.5px; margin: 0 0 8px; }
+
+.erd-ddl {
+  flex: 1;
+  min-height: 200px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  resize: vertical;
+}
+.erd-ddl:focus { outline: none; border-color: var(--accent); }
+
+@media (max-width: 1200px) {
+  .module-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(320px, 1fr) auto; overflow-y: auto; }
+  .module-body > .narrative { border-right: none; border-bottom: 1px solid var(--border); }
+  .erd-output { border-left: none; border-top: 1px solid var(--border); }
+}
+
+/* Design-track roadmap */
+.roadmap { padding: 20px 26px; overflow-y: auto; max-width: 860px; }
+.roadmap h2 { margin: 0 0 6px; }
+.roadmap-intro { max-width: 68ch; line-height: 1.6; }
+.roadmap-status { margin: 14px 0 22px; max-width: 68ch; }
+.roadmap-level { margin-bottom: 22px; }
+.roadmap-level .level-title { padding: 8px 0 6px; border-bottom: 1px solid var(--border); }
+.roadmap-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.roadmap-item { display: block; border-radius: 6px; }
+.roadmap-item > a, .roadmap-item { color: inherit; text-decoration: none; }
+.roadmap-item > a, .roadmap-item[aria-disabled] { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 7px 8px; }
+.roadmap-item.built > a:hover { background: var(--bg-3); }
+.roadmap-item[aria-disabled] { color: var(--text-dim); }
+.roadmap-n { font-family: var(--mono); font-size: 11px; color: var(--text-dim); text-align: right; }
+.roadmap-title { display: block; font-size: 13.5px; }
+.roadmap-item.built .roadmap-title { color: var(--accent); }
+.roadmap-tick { color: var(--good); }
+.roadmap-blurb { display: block; font-size: 12px; line-height: 1.45; color: var(--text-dim); margin-top: 1px; }
+.roadmap-soon { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--text-dim); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; }

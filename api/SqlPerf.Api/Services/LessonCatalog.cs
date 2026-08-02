@@ -76,4 +76,8 @@ public sealed class LessonCatalog
     public int Count => _byId.Count;
     public IReadOnlyCollection<Lesson> All => _byId.Values;
     public Lesson? Get(string id) => _byId.TryGetValue(id, out var l) ? l : null;
+
+    // Ids stay globally unique across tracks, so Get() remains track-agnostic.
+    public IEnumerable<Lesson> ForTrack(string track) =>
+        _byId.Values.Where(l => string.Equals(l.Manifest.Track, track, StringComparison.OrdinalIgnoreCase));
 }

@@ -1,0 +1,63 @@
+{
+  "id": "d-b-05-one-to-many",
+  "track": "design",
+  "kind": "design",
+  "level": "beginner",
+  "order": 5,
+  "title": "One-to-Many Relationships",
+  "description": "One customer places many orders. Model that as two tables joined by a foreign key instead of one flat table that repeats the customer's details on every row. Why it matters: the repeated-details table is where update anomalies come from — change an email address and you have to find every copy of it, and miss one.",
+  "topics": ["relationships", "foreign keys", "cardinality"],
+  "estimatedMinutes": 20,
+  "narrative": "## What This Lesson Is About\n\nAlmost every real database is mostly *one-to-many* relationships. One customer, many orders. One invoice, many lines. One patient, many appointments. Getting this one shape right is most of what beginner data modelling is.\n\nThink of a paper filing cabinet. You do **not** write the customer's full name, email and address at the top of every single order form — you give each customer a folder with a number on it, write the number on each order, and file the orders behind the folder. That number is a **foreign key**. The whole idea is that shared facts are written down *once*, in *one* place, and everything else points at them.\n\n## Scenario\n\nYour schema contains a single table, `LegacyOrders`, exactly as it came out of a spreadsheet export. Run this to see it:\n\n```sql\nSELECT * FROM LegacyOrders ORDER BY CustomerEmail, OrderedOn;\n```\n\nTen order rows — but only four customers. Thandi's name, email and city are written out three times; Ayanda's, three times.\n\nThat repetition is not just untidy, it is a correctness problem:\n\n- **Update anomaly.** Thandi changes her email. You must update three rows. Miss one and the database now holds two different truths about the same person, and nothing in the schema stops that.\n- **Insert anomaly.** A customer signs up but has not ordered yet. There is nowhere to put them — a row in this table *requires* an order.\n- **Delete anomaly.** Delete Nadia's only two orders and you have silently deleted Nadia. Her city, her email: gone.\n\nNone of these are fixed by being careful. They are fixed by changing the shape.\n\n## Your task\n\nModel this properly on the canvas: a `Customers` table for the facts that belong to a person, and an `Orders` table for the facts that belong to an order, joined by a one-to-many relationship.\n\n`Customers` is already on the canvas. Add `Orders`, then draw the relationship from `Orders` to `Customers`.\n\n## What to look for\n\n**The foreign key goes on the \"many\" side.** This is the single most common beginner mistake. `Orders` carries `CustomerId`; `Customers` does *not* carry `OrderId`. Ask \"which side can there be many of?\" — that side holds the key. A customer can have many orders, so the key lives on `Orders`.\n\n**`NOT NULL` is what makes the relationship mandatory.** `Orders.CustomerId NOT NULL` says every order must belong to a customer. Allow `NULL` and you have said orders *may* be orphaned — sometimes correct, usually not, but always a deliberate choice rather than an accident.\n\n**SQL Server will not index the foreign key for you.** This surprises nearly everyone. Microsoft's documentation is explicit: *\"Unlike primary key constraints, creating a foreign key constraint doesn't automatically create a corresponding index\"*, and elsewhere, *\"Each PRIMARY KEY and UNIQUE constraint generates an index... Foreign key constraints do not automatically generate an index.\"* A primary key gets a unique index automatically; a foreign key gets nothing.\n\nThat matters because the foreign key column is exactly the column you will keep joining and filtering on (\"show me this customer's orders\"), and because the engine must check child rows when a parent row is deleted or its key updated. This module's generated DDL therefore creates `IX_Orders_CustomerId` deliberately — it is not decoration. The full cost of *omitting* it, measured against a real execution plan, is the subject of a later module; here the point is simply that it is your job, not the engine's.\n\n## The concept\n\nA one-to-many relationship is three decisions, and the diagram records all three:\n\n1. **Which side holds the key** — the \"many\" side, always.\n2. **Whether it is optional** — `NULL` or `NOT NULL` on the foreign key column.\n3. **What happens when the parent goes away** — `NO ACTION` (the default: refuse the delete while children exist), `CASCADE` (delete the children too), or `SET NULL`. The default is the safe one; cascading deletes are convenient right up to the day they are not.\n\nOne more thing worth knowing: a foreign key can only reference a column that is a primary key, a unique constraint, or a unique index on the other table. The engine has to be able to find *exactly one* parent row — which is also why, when the child's own columns happen to be unique, the same construct expresses a one-to-*one* relationship instead.\n\n## How this is graded\n\nThe check runs your model's DDL against a real SQL Server, then reads the resulting schema back out of the engine's catalog views and grades **that** — not the picture. Two consequences worth knowing: a diagram that would not actually build cannot pass, and if you would rather ignore the canvas and write the `CREATE TABLE` statements yourself, that passes identically. The model is a way to write SQL, not a substitute for it.",
+  "steps": [
+    { "kind": "read", "anchor": "scenario" },
+    { "kind": "canvas", "prompt": "Add an Orders table and connect it to Customers with a one-to-many relationship. Remember which side carries the key." },
+    { "kind": "sql", "prompt": "Generate the DDL, read it, and run it. Then move the LegacyOrders data across and check that no customer detail is written down twice." }
+  ],
+  "hints": [
+    "Which side can there be many of? A customer has many orders, so the key column belongs on Orders — not the other way round.",
+    "Orders needs its own primary key (OrderId) as well as the CustomerId that points at Customers. They are different things: one identifies the order, the other identifies its owner.",
+    "Make Orders.CustomerId NOT NULL so every order must belong to a customer, and remember the foreign key does not bring an index with it — SQL Server never creates one for you."
+  ],
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-customers",
+        "name": "Customers",
+        "x": 80,
+        "y": 120,
+        "attributes": [
+          { "name": "CustomerId", "dataType": "int", "isPrimaryKey": true, "isIdentity": true, "nullable": false },
+          { "name": "Name", "dataType": "nvarchar(100)", "nullable": false },
+          { "name": "Email", "dataType": "nvarchar(200)", "nullable": false },
+          { "name": "City", "dataType": "nvarchar(100)", "nullable": false }
+        ]
+      }
+    ],
+    "relationships": []
+  },
+  "designConditions": [
+    { "type": "entityExists", "table": "Customers" },
+    { "type": "primaryKey", "table": "Customers", "columns": ["CustomerId"] },
+    { "type": "entityExists", "table": "Orders" },
+    { "type": "foreignKey", "table": "Orders", "columns": ["CustomerId"], "references": "Customers", "cardinality": "manyToOne" },
+    { "type": "indexOnFk", "table": "Orders", "column": "CustomerId" }
+  ],
+  "references": [
+    {
+      "title": "Primary and foreign key constraints — Indexes on foreign key constraints",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/primary-and-foreign-key-constraints#indexes-on-foreign-key-constraints"
+    },
+    {
+      "title": "ALTER TABLE column_constraint (Transact-SQL) — Remarks",
+      "url": "https://learn.microsoft.com/sql/t-sql/statements/alter-table-column-constraint-transact-sql#remarks"
+    },
+    {
+      "title": "Create foreign key relationships — Limitations (a foreign key may reference only a primary key, unique constraint, or unique index)",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/create-foreign-key-relationships#limitations"
+    }
+  ],
+  "startingQuery": "SELECT * FROM LegacyOrders ORDER BY CustomerEmail, OrderedOn;",
+  "passConditions": [],
+  "azureUnsupported": false
+}

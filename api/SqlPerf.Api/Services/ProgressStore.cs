@@ -61,8 +61,49 @@ public sealed class ProgressStore
                     BestDurationMs int NULL,
                     SolvedAtUtc datetime2 NULL);
                 """);
+            // Saved ERD diagrams. A table in the same database, never a second
+            // database: Azure SQL's free tier is one database per tenant.
+            // SchemaVersion lets the JSON shape change later without a wipe.
+            await Exec(c, """
+                IF OBJECT_ID('dbo.DesignCanvas') IS NULL
+                CREATE TABLE dbo.DesignCanvas(
+                    ModuleId nvarchar(200) NOT NULL PRIMARY KEY,
+                    ModelJson nvarchar(max) NOT NULL,
+                    SchemaVersion int NOT NULL CONSTRAINT DF_DesignCanvas_Ver DEFAULT (1),
+                    UpdatedAtUtc datetime2 NOT NULL);
+                """);
         }
         _ready = true;
+    }
+
+    public async Task<(string? Json, DateTime? UpdatedAtUtc)> GetCanvasAsync(string moduleId)
+    {
+        await EnsureReadyAsync();
+        await using var c = new SqlConnection(_appCs);
+        await c.OpenAsync();
+        await using var cmd = new SqlCommand(
+            "SELECT ModelJson, UpdatedAtUtc FROM dbo.DesignCanvas WHERE ModuleId = @id;", c);
+        cmd.Parameters.AddWithValue("@id", moduleId);
+        await using var r = await cmd.ExecuteReaderAsync();
+        if (!await r.ReadAsync()) return (null, null);
+        return (r.GetString(0), r.GetDateTime(1));
+    }
+
+    public async Task SaveCanvasAsync(string moduleId, string modelJson)
+    {
+        await EnsureReadyAsync();
+        await using var c = new SqlConnection(_appCs);
+        await c.OpenAsync();
+        await using var cmd = new SqlCommand("""
+            MERGE dbo.DesignCanvas AS t
+            USING (SELECT @id AS ModuleId) AS s ON t.ModuleId = s.ModuleId
+            WHEN MATCHED THEN UPDATE SET ModelJson = @json, UpdatedAtUtc = SYSUTCDATETIME()
+            WHEN NOT MATCHED THEN INSERT (ModuleId, ModelJson, UpdatedAtUtc)
+                 VALUES (@id, @json, SYSUTCDATETIME());
+            """, c);
+        cmd.Parameters.AddWithValue("@id", moduleId);
+        cmd.Parameters.AddWithValue("@json", modelJson);
+        await cmd.ExecuteNonQueryAsync();
     }
 
     private static async Task Exec(SqlConnection c, string sql)

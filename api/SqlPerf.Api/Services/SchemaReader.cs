@@ -112,10 +112,97 @@ ORDER BY i.object_id, i.is_primary_key DESC, i.name;";
             }
         }
 
+        // ---- foreign keys ----
+        // Both sides are constrained to this schema so a lesson can never learn
+        // about another lesson's tables through a relationship.
+        const string fkSql = @"
+SELECT fk.parent_object_id, fk.name, pt.name AS parent_table, rt.name AS ref_table,
+       fk.delete_referential_action_desc, fk.update_referential_action_desc, fk.is_disabled,
+       STUFF((SELECT ', ' + pc.name
+              FROM sys.foreign_key_columns fkc
+              JOIN sys.columns pc ON pc.object_id = fkc.parent_object_id AND pc.column_id = fkc.parent_column_id
+              WHERE fkc.constraint_object_id = fk.object_id
+              ORDER BY fkc.constraint_column_id
+              FOR XML PATH(''), TYPE).value('.', 'nvarchar(max)'), 1, 2, '') AS parent_cols,
+       STUFF((SELECT ', ' + rc.name
+              FROM sys.foreign_key_columns fkc
+              JOIN sys.columns rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+              WHERE fkc.constraint_object_id = fk.object_id
+              ORDER BY fkc.constraint_column_id
+              FOR XML PATH(''), TYPE).value('.', 'nvarchar(max)'), 1, 2, '') AS ref_cols
+FROM sys.foreign_keys fk
+JOIN sys.tables pt ON pt.object_id = fk.parent_object_id
+JOIN sys.tables rt ON rt.object_id = fk.referenced_object_id
+WHERE pt.schema_id = SCHEMA_ID(@schema) AND rt.schema_id = SCHEMA_ID(@schema)
+ORDER BY pt.name, fk.name;";
+        await using (var cmd = new SqlCommand(fkSql, c))
+        {
+            cmd.Parameters.AddWithValue("@schema", schema);
+            await using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                var id = r.GetInt32(0);
+                if (!tables.TryGetValue(id, out var t)) continue;
+                var cols = r.IsDBNull(7) ? "" : r.GetString(7);
+                t.ForeignKeys.Add(new SchemaForeignKeyDto(
+                    r.GetString(1), t.Name, cols,
+                    r.GetString(3), r.IsDBNull(8) ? "" : r.GetString(8),
+                    Humanize(r.GetString(4)), Humanize(r.GetString(5)), r.GetBoolean(6),
+                    Cardinality(t, cols)));
+            }
+        }
+
         return new SchemaDto(schema, true,
             tables.Values.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
-                  .Select(t => new SchemaTableDto(t.Name, t.RowCount, t.Columns, t.Indexes))
+                  .Select(t => new SchemaTableDto(t.Name, t.RowCount, t.Columns, t.Indexes,
+                                                  t.ForeignKeys, IsJunction(t)))
                   .ToList());
+    }
+
+    private static string Humanize(string actionDesc) =>
+        actionDesc.Replace('_', ' ').ToUpperInvariant();
+
+    private static IEnumerable<string> SplitCols(string cols) =>
+        cols.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    // One-to-one when the child's own columns can only appear once: a unique
+    // index or primary key covering exactly the foreign key's columns. Otherwise
+    // many rows may point at the same parent, which is many-to-one.
+    private static string Cardinality(SchemaTableRow child, string fkColumns)
+    {
+        var fkCols = SplitCols(fkColumns).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (fkCols.Count == 0) return "manyToOne";
+
+        bool coveredByUnique = child.Indexes.Any(i =>
+            (i.IsUnique || i.IsPrimaryKey) &&
+            SplitCols(i.KeyColumns).Select(StripDirection).ToHashSet(StringComparer.OrdinalIgnoreCase)
+                .SetEquals(fkCols));
+
+        return coveredByUnique ? "oneToOne" : "manyToOne";
+    }
+
+    // Index key columns arrive as "CustomerId ASC" — the direction is not part
+    // of the column name.
+    private static string StripDirection(string keyCol)
+    {
+        var s = keyCol.Trim();
+        if (s.EndsWith(" ASC", StringComparison.OrdinalIgnoreCase)) return s[..^4].Trim();
+        if (s.EndsWith(" DESC", StringComparison.OrdinalIgnoreCase)) return s[..^5].Trim();
+        return s;
+    }
+
+    // A junction table resolves a many-to-many: exactly two foreign keys, whose
+    // columns together are the whole primary key. The ERD renderer collapses one
+    // of these into a single many-to-many edge.
+    private static bool IsJunction(SchemaTableRow t)
+    {
+        if (t.ForeignKeys.Count != 2) return false;
+        var pk = t.Indexes.FirstOrDefault(i => i.IsPrimaryKey);
+        if (pk is null) return false;
+
+        var pkCols = SplitCols(pk.KeyColumns).Select(StripDirection).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var fkCols = t.ForeignKeys.SelectMany(fk => SplitCols(fk.Columns)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return pkCols.Count > 0 && pkCols.SetEquals(fkCols);
     }
 
     // SSMS-style type rendering. NOTE max_length is in BYTES: n-types must be halved,
@@ -138,5 +225,6 @@ ORDER BY i.object_id, i.is_primary_key DESC, i.name;";
         public long RowCount { get; } = rowCount;
         public List<SchemaColumnDto> Columns { get; } = new();
         public List<SchemaIndexDto> Indexes { get; } = new();
+        public List<SchemaForeignKeyDto> ForeignKeys { get; } = new();
     }
 }
