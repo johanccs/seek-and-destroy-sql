@@ -640,10 +640,19 @@ The app is a learning tool first; the interactive machinery is scaffolding. Ever
 - Query timeout: **30s** (concurrency timeout: **15s** per session wait).
 - The API captures the **actual** execution plan (`SET STATISTICS XML ON`), plus
   `SET STATISTICS IO ON` and `SET STATISTICS TIME ON`, and reads the messages.
+- **The SET options run in their own batch, ahead of the learner's SQL, not concatenated
+  in front of it.** They are connection-scoped and persist for everything that follows.
+  This is what allows `CREATE TRIGGER`, `CREATE PROCEDURE`, `CREATE VIEW` and
+  `CREATE FUNCTION`, each of which SQL Server requires to be the first statement in its
+  batch.
+- **Learner SQL is split on `GO`** and the batches run in order on the same connection, so
+  a single run can create several objects. Result sets from every batch are returned; the
+  **last** plan captured wins, which by convention is the graded statement's.
 - `resultUnchanged` baseline: the seed script may create a `__baseline` table/view or the
   API captures the starting query's result on first load; the lesson author decides via a
   `baselineQuery` field if the learner's query differs from the starting one. For the POC,
   `resultUnchanged` compares against the `startingQuery` result captured at reset time.
-- Lesson databases are named `Lesson_<id>` with hyphens converted to underscores.
-- The API user is `sa` (dev only) so it can create databases and read DMVs.
+- Lesson SQL **schemas** are named after the id with hyphens converted to underscores; the
+  contained user is `u_<schema>`.
+- Locally the API connects as `sa` (dev only) so it can create the app database and read DMVs.
 ```
