@@ -49,7 +49,7 @@ ORDER BY t.name;";
         // ---- columns ----
         const string colsSql = @"
 SELECT c.object_id, c.name, ty.name AS type_name, c.max_length, c.precision, c.scale,
-       c.is_nullable, c.is_identity,
+       c.is_nullable, c.is_identity, dc.definition AS default_definition,
        CAST(CASE WHEN EXISTS (
             SELECT 1 FROM sys.indexes i
             JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
@@ -58,6 +58,7 @@ SELECT c.object_id, c.name, ty.name AS type_name, c.max_length, c.precision, c.s
 FROM sys.columns c
 JOIN sys.tables t ON t.object_id = c.object_id
 JOIN sys.types ty ON ty.user_type_id = c.user_type_id
+LEFT JOIN sys.default_constraints dc ON dc.object_id = c.default_object_id
 WHERE t.schema_id = SCHEMA_ID(@schema)
 ORDER BY c.object_id, c.column_id;";
         await using (var cmd = new SqlCommand(colsSql, c))
@@ -71,7 +72,8 @@ ORDER BY c.object_id, c.column_id;";
                 t.Columns.Add(new SchemaColumnDto(
                     r.GetString(1),
                     FormatType(r.GetString(2), r.GetInt16(3), r.GetByte(4), r.GetByte(5)),
-                    r.GetBoolean(6), r.GetBoolean(7), r.GetBoolean(8)));
+                    r.GetBoolean(6), r.GetBoolean(7), r.GetBoolean(9),
+                    r.IsDBNull(8) ? null : r.GetString(8)));
             }
         }
 
@@ -109,6 +111,29 @@ ORDER BY i.object_id, i.is_primary_key DESC, i.name;";
                     r.IsDBNull(6) ? "" : r.GetString(6),
                     r.IsDBNull(7) ? "" : r.GetString(7),
                     r.IsDBNull(5) ? null : r.GetString(5)));
+            }
+        }
+
+        // ---- check constraints ----
+        // parent_column_id is 0 for a table-level check spanning several columns.
+        const string checkSql = @"
+SELECT cc.parent_object_id, cc.name, col.name AS column_name, cc.definition
+FROM sys.check_constraints cc
+JOIN sys.tables t ON t.object_id = cc.parent_object_id
+LEFT JOIN sys.columns col ON col.object_id = cc.parent_object_id
+                         AND col.column_id = cc.parent_column_id
+WHERE t.schema_id = SCHEMA_ID(@schema)
+ORDER BY t.name, cc.name;";
+        await using (var cmd = new SqlCommand(checkSql, c))
+        {
+            cmd.Parameters.AddWithValue("@schema", schema);
+            await using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                var id = r.GetInt32(0);
+                if (!tables.TryGetValue(id, out var t)) continue;
+                t.Checks.Add(new SchemaCheckDto(
+                    r.GetString(1), r.IsDBNull(2) ? null : r.GetString(2), r.GetString(3)));
             }
         }
 
@@ -155,7 +180,7 @@ ORDER BY pt.name, fk.name;";
         return new SchemaDto(schema, true,
             tables.Values.OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                   .Select(t => new SchemaTableDto(t.Name, t.RowCount, t.Columns, t.Indexes,
-                                                  t.ForeignKeys, IsJunction(t)))
+                                                  t.ForeignKeys, IsJunction(t), t.Checks))
                   .ToList());
     }
 
@@ -226,5 +251,6 @@ ORDER BY pt.name, fk.name;";
         public List<SchemaColumnDto> Columns { get; } = new();
         public List<SchemaIndexDto> Indexes { get; } = new();
         public List<SchemaForeignKeyDto> ForeignKeys { get; } = new();
+        public List<SchemaCheckDto> Checks { get; } = new();
     }
 }

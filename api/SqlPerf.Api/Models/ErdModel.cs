@@ -16,6 +16,7 @@ public sealed class ErdEntity
     public double X { get; set; }
     public double Y { get; set; }
     public List<ErdAttribute> Attributes { get; set; } = new();
+    public List<ErdCheck> Checks { get; set; } = new();
 }
 
 public sealed class ErdAttribute
@@ -29,6 +30,25 @@ public sealed class ErdAttribute
     // constraint, which is how you say "no two rows may share this value"
     // without making it the primary key.
     public bool IsUnique { get; set; }
+    // A DEFAULT expression. Validated against an allowlist rather than passed
+    // through — see DdlGenerator.DefaultExpression.
+    public string? DefaultValue { get; set; }
+}
+
+/// <summary>
+/// A CHECK constraint, expressed as three constrained parts rather than free
+/// text. A CHECK is arbitrary SQL that reaches EXEC, and the identifier
+/// validator cannot vet an expression — so the canvas offers a builder
+/// (column, operator, value) that can be validated, and the module narrative
+/// teaches the fuller syntax the learner can still write by hand.
+/// </summary>
+public sealed class ErdCheck
+{
+    public string Column { get; set; } = "";
+    /// One of: = &lt;&gt; &gt; &gt;= &lt; &lt;= IN BETWEEN LIKE
+    public string Operator { get; set; } = ">";
+    /// A literal, or a comma-separated list for IN, or two values for BETWEEN.
+    public string Value { get; set; } = "";
 }
 
 public sealed class ErdRelationship

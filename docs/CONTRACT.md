@@ -223,9 +223,17 @@ so adding them never breaks an existing manifest.
 }
 ```
 
-**`ErdAttribute`** — `name`, `dataType`, plus optional `nullable`, `isPrimaryKey`, `isIdentity`
-and `isUnique`. `isUnique` emits a `UNIQUE` constraint, which is how a natural key is expressed
-on a table keyed by a surrogate.
+**`ErdAttribute`** — `name`, `dataType`, plus optional `nullable`, `isPrimaryKey`, `isIdentity`,
+`isUnique` and `defaultValue`. `isUnique` emits a `UNIQUE` constraint, which is how a natural key
+is expressed on a table keyed by a surrogate.
+
+**`ErdCheck`** — `{ column, operator, value }` on an entity's `checks`. A CHECK is arbitrary SQL
+reaching the engine and an expression cannot be validated the way an identifier can, so the canvas
+offers a builder instead of free text: the operator comes from a fixed list
+(`= <> > >= < <= IN BETWEEN LIKE`) and the value must be a number or a single-quoted string —
+a comma-separated list for `IN`, exactly two values for `BETWEEN`. `defaultValue` is validated the
+same way, plus a short allowlist of functions (`SYSUTCDATETIME()`, `GETUTCDATE()`, `NEWID()`, …).
+Anything else is **rejected, not escaped**.
 
 **`ErdRelationship`** — `fromEntityId` is the **child** (the side that carries the foreign
 key); `toEntityId` is the parent. `cardinality` is `manyToOne` | `oneToOne` | `manyToMany`;
@@ -600,6 +608,8 @@ itself — authors write machine-readable intent only.
 | `notNullable`      | `table`, `column`                                 | the column exists and is `NOT NULL` |
 | `surrogateKey`     | `table`                                           | the primary key is a single `IDENTITY` column |
 | `naturalKeyUnique` | `table`, `columns`                                | a unique constraint or index covers exactly those columns |
+| `hasDefault`       | `table`, `column`                                 | the column has a DEFAULT constraint |
+| `checkConstraintExists` | `table`, `column` (optional)                 | a CHECK exists on that column, or anywhere on the table |
 | `foreignKey`       | `table`, `references`, `columns` (optional), `cardinality` (optional) | a foreign key points at `references`, on those columns, with that derived cardinality |
 | `indexOnFk`        | `table`, `column` or `columns`                    | an index **leads** with those columns (so a composite index counts) |
 | `namingConvention` | `pattern` (`PascalCase`\|`camelCase`\|`snake_case`\|regex), `scope` (`tables`\|`columns`\|`all`) | every name in scope matches |

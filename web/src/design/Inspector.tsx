@@ -1,5 +1,5 @@
 import type { ErdModel, Cardinality, ReferentialAction } from "./types";
-import { DATA_TYPES } from "./types";
+import { CHECK_OPERATORS, DATA_TYPES, DEFAULT_FUNCTIONS } from "./types";
 import type { ErdAction } from "./model";
 
 export type Selection = { kind: "entity" | "relationship"; id: string } | null;
@@ -115,6 +115,16 @@ export function Inspector({
               />
               null
             </label>
+            <input
+              className="erd-input erd-default"
+              value={a.defaultValue ?? ""}
+              placeholder="default"
+              title="DEFAULT — a number, text in single quotes, or SYSUTCDATETIME()"
+              list="erd-default-suggestions"
+              onChange={(ev) =>
+                dispatch({ t: "updateAttribute", entityId: e.id, index: i, patch: { defaultValue: ev.target.value } })
+              }
+            />
             <button
               className="btn ghost small"
               onClick={() => dispatch({ t: "deleteAttribute", entityId: e.id, index: i })}
@@ -125,9 +135,66 @@ export function Inspector({
           </div>
         ))}
 
+        <datalist id="erd-default-suggestions">
+          {DEFAULT_FUNCTIONS.map((f) => (
+            <option key={f} value={f} />
+          ))}
+        </datalist>
+
+        <div className="props-sub">Checks</div>
+        {(e.checks ?? []).length === 0 && (
+          <p className="muted erd-rel-note">
+            No CHECK constraints. A check is a rule the database enforces on every write.
+          </p>
+        )}
+        {(e.checks ?? []).map((c, i) => (
+          <div className="erd-check-edit" key={i}>
+            <select
+              className="erd-input"
+              value={c.column}
+              onChange={(ev) => dispatch({ t: "updateCheck", entityId: e.id, index: i, patch: { column: ev.target.value } })}
+              aria-label="Check column"
+            >
+              {e.attributes.map((a) => (
+                <option key={a.name} value={a.name}>{a.name}</option>
+              ))}
+            </select>
+            <select
+              className="erd-input"
+              value={c.operator}
+              onChange={(ev) =>
+                dispatch({ t: "updateCheck", entityId: e.id, index: i, patch: { operator: ev.target.value as typeof c.operator } })
+              }
+              aria-label="Comparison"
+            >
+              {CHECK_OPERATORS.map((op) => (
+                <option key={op} value={op}>{op}</option>
+              ))}
+            </select>
+            <input
+              className="erd-input"
+              value={c.value}
+              placeholder={c.operator === "IN" ? "'a', 'b'" : c.operator === "BETWEEN" ? "0, 100" : "0"}
+              title="A number, or text in single quotes. IN takes a comma-separated list; BETWEEN takes two values."
+              onChange={(ev) => dispatch({ t: "updateCheck", entityId: e.id, index: i, patch: { value: ev.target.value } })}
+              aria-label="Value"
+            />
+            <button
+              className="btn ghost small"
+              onClick={() => dispatch({ t: "deleteCheck", entityId: e.id, index: i })}
+              aria-label="Remove check"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+
         <div className="erd-inspector-actions">
           <button className="btn small" onClick={() => dispatch({ t: "addAttribute", entityId: e.id })}>
             + Column
+          </button>
+          <button className="btn small" onClick={() => dispatch({ t: "addCheck", entityId: e.id })}>
+            + Check
           </button>
           <button className="btn ghost small" onClick={() => dispatch({ t: "deleteEntity", id: e.id })}>
             Delete table

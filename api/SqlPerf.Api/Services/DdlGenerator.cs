@@ -55,6 +55,64 @@ public static partial class DdlGenerator
         return t;
     }
 
+    // A DEFAULT reaches EXEC like everything else here, so it is matched against
+    // an allowlist rather than passed through: a number, a quoted string, or one
+    // of a handful of functions a beginner module actually needs.
+    [GeneratedRegex(@"^-?\d+(\.\d+)?$")]
+    private static partial Regex NumericLiteral();
+
+    [GeneratedRegex(@"^'[^']*'$")]
+    private static partial Regex StringLiteral();
+
+    private static readonly HashSet<string> DefaultFunctions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "SYSUTCDATETIME()", "GETUTCDATE()", "SYSDATETIME()", "GETDATE()", "NEWID()",
+    };
+
+    private static string Literal(string? raw)
+    {
+        var v = (raw ?? "").Trim();
+        if (NumericLiteral().IsMatch(v) || StringLiteral().IsMatch(v)) return v;
+        throw new InvalidModelException(
+            $"'{raw}' is not a valid value. Use a number, or text in single quotes like 'active'.");
+    }
+
+    public static string DefaultExpression(string? raw)
+    {
+        var v = (raw ?? "").Trim();
+        if (DefaultFunctions.Contains(v)) return v;
+        return Literal(v);
+    }
+
+    private static readonly HashSet<string> CheckOperators = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "=", "<>", ">", ">=", "<", "<=", "IN", "BETWEEN", "LIKE",
+    };
+
+    public static string CheckExpression(ErdCheck c)
+    {
+        var col = Ident(c.Column);
+        var op = (c.Operator ?? "").Trim().ToUpperInvariant();
+        if (!CheckOperators.Contains(op))
+            throw new InvalidModelException($"'{c.Operator}' is not a supported comparison.");
+
+        if (op == "IN")
+        {
+            var parts = (c.Value ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                       .Select(Literal).ToList();
+            if (parts.Count == 0) throw new InvalidModelException("An IN check needs at least one value.");
+            return $"{col} IN ({string.Join(", ", parts)})";
+        }
+        if (op == "BETWEEN")
+        {
+            var parts = (c.Value ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                       .Select(Literal).ToList();
+            if (parts.Count != 2) throw new InvalidModelException("A BETWEEN check needs exactly two values.");
+            return $"{col} BETWEEN {parts[0]} AND {parts[1]}";
+        }
+        return $"{col} {op} {Literal(c.Value)}";
+    }
+
     public static DdlResponse Generate(ErdModel model)
     {
         var warnings = new List<string>();
@@ -78,7 +136,10 @@ public static partial class DdlGenerator
             {
                 var identity = a.IsIdentity ? " IDENTITY(1,1)" : "";
                 var nullability = a.Nullable && !a.IsPrimaryKey ? "NULL" : "NOT NULL";
-                lines.Add($"    {Ident(a.Name)} {DataType(a.DataType)}{identity} {nullability}");
+                var def = string.IsNullOrWhiteSpace(a.DefaultValue)
+                    ? ""
+                    : $" CONSTRAINT {Ident($"DF_{e.Name}_{a.Name}")} DEFAULT ({DefaultExpression(a.DefaultValue)})";
+                lines.Add($"    {Ident(a.Name)} {DataType(a.DataType)}{identity} {nullability}{def}");
             }
 
             var pk = e.Attributes.Where(a => a.IsPrimaryKey).ToList();
@@ -91,6 +152,9 @@ public static partial class DdlGenerator
             // is expressed when the table is keyed on a surrogate instead.
             foreach (var u in e.Attributes.Where(a => a.IsUnique && !a.IsPrimaryKey))
                 lines.Add($"    CONSTRAINT {Ident($"UQ_{e.Name}_{u.Name}")} UNIQUE ({Ident(u.Name)})");
+
+            foreach (var chk in e.Checks)
+                lines.Add($"    CONSTRAINT {Ident($"CK_{e.Name}_{chk.Column}")} CHECK ({CheckExpression(chk)})");
 
             sb.AppendLine(string.Join(",\n", lines)).AppendLine(");").AppendLine();
         }
