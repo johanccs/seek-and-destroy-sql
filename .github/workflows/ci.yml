@@ -35,7 +35,9 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Matches web/Dockerfile. Vite 8 requires ^20.19 || >=22.12, and
+          # pinning "20" would have relied on it resolving past 20.19 by luck.
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: web/package-lock.json
 

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet } from "react-router";
 import type { LevelGroup } from "../types";
 import { useCurriculum } from "../hooks/useCurriculum";
 import { useColumnResize } from "../useColumnResize";

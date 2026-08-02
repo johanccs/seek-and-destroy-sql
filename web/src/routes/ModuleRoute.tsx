@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import ReactMarkdown from "react-markdown";
 import { api } from "../api";
 import { PassBanner } from "../components/PassBanner";
