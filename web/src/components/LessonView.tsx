@@ -226,7 +226,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
               </div>
             )}
           </div>
-          <div className="workspace-resize-handle" onMouseDown={onResizeStart} />
+          <div className="workspace-resize-handle rz rz-col" onMouseDown={onResizeStart} />
         </div>
 
         {lesson.isConcurrency && lesson.interleaving ? (

@@ -111,7 +111,7 @@ export default function PerfLayout() {
             ))}
           </div>
         ))}
-        <div className="sidebar-resize-handle" onMouseDown={onResizeStart} />
+        <div className="sidebar-resize-handle rz rz-col" onMouseDown={onResizeStart} />
       </aside>
 
       <main className="main">

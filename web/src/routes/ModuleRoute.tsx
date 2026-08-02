@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useParams } from "react-router";
 import ReactMarkdown from "react-markdown";
 import { api } from "../api";
+import { useColumnResize } from "../useColumnResize";
 import { PassBanner } from "../components/PassBanner";
 import { ErdCanvas } from "../design/ErdCanvas";
 import { Inspector, type Selection } from "../design/Inspector";
@@ -32,6 +33,40 @@ export default function ModuleRoute() {
 
   const model = history.present;
   const dispatch = useCallback((action: ErdAction) => dispatchHistory({ kind: "do", action }), []);
+
+  // The properties panel is bottom-docked and draggable, like the results pane
+  // in the performance track. Editing a table with several columns needs real
+  // room, and a fixed share of the pane was never going to suit every model.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const { width: narrativeWidth, onResizeStart: onNarrativeResize } = useColumnResize({
+    storageKey: "moduleNarrativeWidth",
+    defaultWidth: 340,
+    min: 200,
+    max: 900,
+    minRight: 560, // canvas + output still need room
+    containerRef: bodyRef,
+    axis: "x",
+  });
+  const { width: outputWidth, onResizeStart: onOutputResize } = useColumnResize({
+    storageKey: "moduleOutputWidth",
+    defaultWidth: 380,
+    min: 220,
+    max: 900,
+    minRight: 520,
+    containerRef: bodyRef,
+    axis: "x-right",
+  });
+
+  const workspaceRef = useRef<HTMLElement>(null);
+  const { width: inspectorHeight, onResizeStart: onInspectorResize } = useColumnResize({
+    storageKey: "erdInspectorHeight",
+    defaultWidth: 300,
+    min: 90,
+    max: 900,
+    minRight: 130, // leave at least this much canvas visible above
+    containerRef: workspaceRef as React.RefObject<HTMLElement>,
+    axis: "y",
+  });
 
   // Load the module and its saved diagram. The generation guard stops a slow
   // response for a previous module from overwriting the current one.
@@ -140,7 +175,14 @@ export default function ModuleRoute() {
         <div>{module.topics.map((t) => <span className="topic" key={t}>{t}</span>)}</div>
       </div>
 
-      <div className="module-body">
+      <div
+        className="module-body"
+        ref={bodyRef}
+        style={{
+          "--module-narrative-w": `${narrativeWidth}px`,
+          "--module-output-w": `${outputWidth}px`,
+        } as React.CSSProperties}
+      >
         <section className="narrative">
           <div className="markdown-body">
             <ReactMarkdown>{module.narrative}</ReactMarkdown>
@@ -159,15 +201,24 @@ export default function ModuleRoute() {
           )}
         </section>
 
-        <section className="erd-workspace">
+        <div className="rz rz-col" onMouseDown={onNarrativeResize} title="Drag to resize the lesson text" />
+
+        <section
+          className="erd-workspace"
+          ref={workspaceRef}
+          style={{ "--inspector-h": `${inspectorHeight}px` } as React.CSSProperties}
+        >
           <ErdCanvas
             model={model}
             dispatch={dispatch}
             onSelect={setSelection}
             selectedId={selection?.id ?? null}
           />
+          <div className="erd-inspector-resize-handle rz rz-row" onMouseDown={onInspectorResize} />
           <Inspector model={model} selection={selection} dispatch={dispatch} />
         </section>
+
+        <div className="rz rz-col" onMouseDown={onOutputResize} title="Drag to resize the DDL pane" />
 
         <section className="erd-output">
           {evaluation && <PassBanner evaluation={evaluation} newlySolved={!!check?.progress?.newlySolved} />}

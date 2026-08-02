@@ -15,7 +15,7 @@ export function ResultsPanel({ result, prevStats, scratch = false, onResizeStart
 
   return (
     <div className="results">
-      {onResizeStart && <div className="results-resize-handle" onMouseDown={onResizeStart} title="Drag to resize the results pane" />}
+      {onResizeStart && <div className="results-resize-handle rz rz-row" onMouseDown={onResizeStart} title="Drag to resize the results pane" />}
       <div>
         {result && <PassBanner evaluation={result.evaluation} newlySolved={result.progress?.newlySolved} />}
         {result?.error && <div className="banner fail"><div className="err">{result.error}</div></div>}
