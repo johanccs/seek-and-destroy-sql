@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 import { useTheme } from "../theme";
 
 const cls = ({ isActive }: { isActive: boolean }) => `topnav-link ${isActive ? "active" : ""}`;

@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet } from "react-router";
 import { useCurriculum } from "../hooks/useCurriculum";
 import { difficultyLabel } from "../difficulty";
 

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router";
 import RootLayout from "./layouts/RootLayout";
 import PerfLayout from "./layouts/PerfLayout";
 import DesignLayout from "./layouts/DesignLayout";
@@ -49,9 +49,4 @@ export const router = createBrowserRouter([
       { path: "*", element: <Navigate to="/perf" replace /> },
     ],
   },
-], {
-  // Opt in early to the v7 behaviours so the console stays clean and the
-  // eventual upgrade is a version bump rather than a behaviour change.
-  // v7_startTransition is a RouterProvider flag, not a router one — see main.tsx.
-  future: { v7_relativeSplatPath: true },
-});
+]);

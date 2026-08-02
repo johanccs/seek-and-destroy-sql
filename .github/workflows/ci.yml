@@ -35,7 +35,9 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Matches web/Dockerfile. Vite 8 requires ^20.19 || >=22.12, and
+          # pinning "20" would have relied on it resolving past 20.19 by luck.
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: web/package-lock.json
 
@@ -78,6 +80,14 @@ jobs:
 
       - name: Publish
         run: dotnet publish api/SqlPerf.Api/SqlPerf.Api.csproj --configuration Release --output ${{ github.workspace }}/publish
+
+      # Lessons and design modules are plain data with no content items in the
+      # csproj, so dotnet publish does not include them. Without this the app
+      # deploys with whatever content happened to be left in wwwroot from an
+      # earlier manual deploy, and newly authored content never goes live.
+      # The Lessons__Path app setting points at /home/site/wwwroot/lessons.
+      - name: Copy lesson and module content
+        run: cp -r lessons ${{ github.workspace }}/publish/lessons
 
       # SCM basic-auth publishing is disabled on this App Service, so a
       # publish-profile deploy is rejected outright — use OIDC federated
