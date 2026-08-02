@@ -81,6 +81,14 @@ jobs:
       - name: Publish
         run: dotnet publish api/SqlPerf.Api/SqlPerf.Api.csproj --configuration Release --output ${{ github.workspace }}/publish
 
+      # Lessons and design modules are plain data with no content items in the
+      # csproj, so dotnet publish does not include them. Without this the app
+      # deploys with whatever content happened to be left in wwwroot from an
+      # earlier manual deploy, and newly authored content never goes live.
+      # The Lessons__Path app setting points at /home/site/wwwroot/lessons.
+      - name: Copy lesson and module content
+        run: cp -r lessons ${{ github.workspace }}/publish/lessons
+
       # SCM basic-auth publishing is disabled on this App Service, so a
       # publish-profile deploy is rejected outright — use OIDC federated
       # login instead (app registration gh-actions-seek-and-destroy,
