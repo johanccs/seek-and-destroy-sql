@@ -1,8 +1,21 @@
 # SQL Performance Playground — Shared Contract
 
-This document is the **single source of truth** shared by every workstream (API, web SPA,
-lesson authoring). Do not change a shape here without updating this file. All three
-workstreams are built to match exactly what is written below.
+This document is the shared reference for every workstream (API, web SPA, lesson and module
+authoring). Do not change a shape here without updating this file.
+
+> **On conflict, `api/SqlPerf.Api/Models/Contracts.cs` wins.** That file is compiled and
+> tested; this one is prose and has drifted before. If the two disagree, the code is right
+> and this document is a bug — fix it.
+
+The app has **two curriculum tracks**, both built from the same machinery:
+
+| Track | Key | What it teaches |
+|---|---|---|
+| SQL Performance | `perf` | Tuning real T-SQL: indexes, plan reading, concurrency, engine internals |
+| Database Design | `design` | Modelling schemas on an ERD canvas, then building them for real |
+
+A design module *is* a lesson with `kind: "design"`. Seeding, schema isolation, running SQL,
+resetting and progress are all the same code; only the canvas and its grading are new.
 
 ---
 
@@ -15,15 +28,21 @@ sql-performance/
 ├── README.md
 ├── docs/
 │   └── CONTRACT.md            (this file)
-├── lessons/                   lesson content, one folder per lesson
-│   ├── beginner/
+├── lessons/                   content, one folder per lesson or module
+│   ├── beginner/              perf track
 │   │   └── <lesson-id>/
 │   │       ├── manifest.json
 │   │       ├── seed.sql
 │   │       └── solution.sql
 │   ├── intermediate/
 │   ├── advanced/
-│   └── expert/
+│   ├── expert/
+│   └── design/                design track
+│       ├── beginner/
+│       │   └── <module-id>/   same three files
+│       ├── intermediate/
+│       ├── advanced/
+│       └── expert/
 ├── api/                       ASP.NET Core Web API (C#)
 │   └── SqlPerf.Api/
 └── web/                       React SPA (Vite + TypeScript)
@@ -31,13 +50,38 @@ sql-performance/
 
 Lesson folders are mounted read-only into the API container at `/lessons`.
 
+**Folder layout is convention, not configuration.** `LessonCatalog` discovers content with a
+recursive glob for `manifest.json`; the `level` and `track` come from the manifest, not the
+path. Adding content is still a no-code operation.
+
+### Storage model
+
+All lessons and modules share **one physical database** (`Sql:AppDatabase`, default
+`SqlPerfDb`), isolated by a **SQL schema per lesson** plus a contained `EXECUTE AS` user
+(`u_<schema>`) with `db_owner` and that schema as its `DEFAULT_SCHEMA`. The schema name is
+always derived from the id (`-` → `_`); a manifest's `database` field is ignored.
+
+This replaced an earlier one-database-per-lesson model, and the reason matters: Azure SQL's
+free tier is one database per tenant, not a pool. **Never add a second database** — including
+for progress or saved diagrams. Add schemas and tables inside the app database.
+
+Two `dbo` tables live alongside the lesson schemas:
+
+| Table | Holds |
+|---|---|
+| `dbo.LessonProgress` | Completion, best logical reads, best duration, first solved timestamp |
+| `dbo.DesignCanvas` | Saved ERD diagrams (`ModuleId`, `ModelJson`, `SchemaVersion`, `UpdatedAtUtc`) |
+
 ---
 
 ## 2. Lesson manifest schema (`manifest.json`)
 
 ```jsonc
 {
-  "id": "b-01-table-scan-vs-seek",   // globally unique, kebab-case; folder name must match
+  "id": "b-01-table-scan-vs-seek",   // globally unique across BOTH tracks, kebab-case;
+                                      // folder name must match
+  "track": "perf",                    // OPTIONAL, default "perf". perf | design
+  "kind": "query",                    // OPTIONAL, default "query". query | design
   "level": "beginner",               // beginner | intermediate | advanced | expert
   "order": 1,                         // sort order within the level
   "title": "Table Scan vs. Index Seek",
@@ -51,9 +95,15 @@ Lesson folders are mounted read-only into the API container at `/lessons`.
   // The query shown in the editor when the lesson first loads (the "bad" query).
   "startingQuery": "SELECT * FROM Orders WHERE CustomerId = 42;",
 
-  // Database this lesson's SQL runs against. Created/reset from seed.sql.
-  // Convention: "Lesson_<id-with-underscores>". The API derives it if omitted.
-  "database": "Lesson_b_01_table_scan_vs_seek",
+  // IGNORED. A leftover from the one-database-per-lesson model. The SQL schema
+  // is always derived from the id, and any value here is discarded.
+  "database": "ignored",
+
+  // OPTIONAL. Where the module's technical claims were verified. Required in
+  // practice for new content — see "Content quality" below.
+  "references": [
+    { "title": "Primary and foreign key constraints", "url": "https://learn.microsoft.com/..." }
+  ],
 
   // Progressive hints, revealed one at a time in the UI.
   "hints": [
@@ -100,25 +150,87 @@ Lesson folders are mounted read-only into the API container at `/lessons`.
 `solution.sql` — reference solution query (or corrected scripts for concurrency lessons).
 Served only after the lesson is solved or on explicit "Show solution" request.
 
-`seed.sql` — idempotent script that (re)creates the lesson database and its objects/data.
-It MUST begin by dropping and recreating the database so reset is deterministic:
+`seed.sql` — idempotent script that creates the lesson's objects and data. It does **not**
+create a database, and it does **not** `USE` one. The API drops every object in the lesson's
+schema, recreates the schema and its contained user, and then runs these batches while
+impersonating that user, whose `DEFAULT_SCHEMA` is the lesson's schema. Unqualified names
+therefore land in the right place automatically:
 
 ```sql
 -- seed.sql skeleton
-IF DB_ID('Lesson_b_01_table_scan_vs_seek') IS NOT NULL
-BEGIN
-    ALTER DATABASE Lesson_b_01_table_scan_vs_seek SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-    DROP DATABASE Lesson_b_01_table_scan_vs_seek;
-END
+IF OBJECT_ID('Orders') IS NOT NULL DROP TABLE Orders;
+
+CREATE TABLE Orders (
+    OrderId    int NOT NULL IDENTITY(1,1) PRIMARY KEY,
+    CustomerId int NOT NULL
+);
 GO
-CREATE DATABASE Lesson_b_01_table_scan_vs_seek;
+
+INSERT INTO Orders (CustomerId) VALUES (42);
 GO
-USE Lesson_b_01_table_scan_vs_seek;
-GO
--- tables, data, indexes (the deliberately "bad" starting state) ...
 ```
 
+On Azure SQL, `CREATE SCHEMA` must be alone in its batch and `DB_ID(name)` resolves only the
+currently-connected database — both are already handled by the API, but any new provisioning
+SQL must follow the same discipline.
+
 Seed scripts are split on `GO` batch separators by the API before execution.
+
+---
+
+## 2b. Design module manifest (`kind: "design"`)
+
+A design module uses everything above, plus the fields below. All are optional and defaulted,
+so adding them never breaks an existing manifest.
+
+```jsonc
+{
+  "id": "d-b-05-one-to-many",
+  "track": "design",
+  "kind": "design",
+  "level": "beginner",
+  "order": 5,
+
+  // The module's staged flow, shown as a rail alongside the narrative.
+  "steps": [
+    { "kind": "read",   "anchor": "scenario" },
+    { "kind": "canvas", "prompt": "Add an Orders table and connect it to Customers." },
+    { "kind": "sql",    "prompt": "Generate the DDL, read it, and run it." }
+  ],
+
+  // The canvas the module opens on, before the learner has saved anything.
+  "startingModel": {
+    "entities": [
+      { "id": "e-customers", "name": "Customers", "x": 80, "y": 120,
+        "attributes": [
+          { "name": "CustomerId", "dataType": "int", "isPrimaryKey": true, "isIdentity": true },
+          { "name": "Email", "dataType": "nvarchar(200)", "nullable": false }
+        ] }
+    ],
+    "relationships": []
+  },
+
+  // OPTIONAL reference solution, in the same shape as startingModel.
+  "targetModel": { "entities": [], "relationships": [] },
+
+  // Graded against the schema the learner's DDL actually created.
+  // See section 4b. A module may also carry passConditions; results concatenate.
+  "designConditions": [
+    { "type": "entityExists", "table": "Orders" },
+    { "type": "foreignKey", "table": "Orders", "columns": ["CustomerId"],
+      "references": "Customers", "cardinality": "manyToOne" }
+  ]
+}
+```
+
+**`ErdRelationship`** — `fromEntityId` is the **child** (the side that carries the foreign
+key); `toEntityId` is the parent. `cardinality` is `manyToOne` | `oneToOne` | `manyToMany`;
+`onDelete` is `NO ACTION` | `CASCADE` | `SET NULL`. A `manyToMany` relationship has no direct
+DDL form and is emitted as a junction table.
+
+`seed.sql` is still required. Keep design seeds **tiny** — tens of rows, not the perf track's
+1.2 million. These modules teach structure, not volume, and 35 more schemas share one
+free-tier database.
 
 ---
 
@@ -155,6 +267,45 @@ Returns the curriculum grouped by level, with per-lesson progress merged in.
   }
 ]
 ```
+
+### `GET /api/lessons/{id}/schema`
+Table/column/index/foreign-key metadata for the lesson's schema, read on a **separate
+connection** from `/run` so metadata reads cannot pollute the `STATISTICS IO` counts that
+`maxLogicalReads` grades on. Every query is scoped by `SCHEMA_ID`, so a lesson cannot
+enumerate another lesson's objects. Returns `seeded: false` rather than 404 when the schema
+does not exist yet.
+
+```json
+{
+  "schema": "b_01_table_scan_vs_seek",
+  "seeded": true,
+  "tables": [
+    {
+      "name": "Orders", "rowCount": 200000, "isJunction": false,
+      "columns": [
+        { "name": "OrderId", "dataType": "int", "nullable": false,
+          "isIdentity": true, "inPrimaryKey": true }
+      ],
+      "indexes": [
+        { "name": "PK_Orders", "type": "CLUSTERED", "isUnique": true, "isPrimaryKey": true,
+          "keyColumns": "OrderId ASC", "includedColumns": "", "filter": null }
+      ],
+      "foreignKeys": [
+        { "name": "FK_Orders_Customers", "table": "Orders", "columns": "CustomerId",
+          "referencedTable": "Customers", "referencedColumns": "CustomerId",
+          "onDelete": "NO ACTION", "onUpdate": "NO ACTION", "isDisabled": false,
+          "cardinality": "manyToOne" }
+      ]
+    }
+  ]
+}
+```
+
+`cardinality` is **derived, not declared**: a foreign key whose child columns are covered by
+a unique index or primary key can match only one parent row, so it is `oneToOne`; otherwise
+`manyToOne`. Many-to-many is not a property of a key, so it is detected per table —
+`isJunction` is true when a table has exactly two foreign keys whose columns together form
+its whole primary key.
 
 ### `GET /api/lessons/{id}`
 Full lesson detail (does NOT include solution).
@@ -288,9 +439,16 @@ Response (`ConcurrencyResult`):
 ```
 
 ### `POST /api/lessons/{id}/reset`
-Drops and re-seeds the lesson database from `seed.sql`.
+Drops every object in the lesson's schema and re-seeds it from `seed.sql`. `database` in the
+response is the SQL **schema** name, kept for backwards compatibility with the SPA.
+
+Drop order matters and is handled here: foreign keys are cleared first (a referenced parent
+table cannot be dropped while a child still points at it), then triggers, procedures, views,
+functions and finally tables — so a `SCHEMABINDING` view or function cannot block its own
+base table.
+
 ```json
-{ "status": "reset", "database": "Lesson_b_01_table_scan_vs_seek", "elapsedMs": 850 }
+{ "status": "reset", "database": "b_01_table_scan_vs_seek", "elapsedMs": 850 }
 ```
 
 ### `GET /api/progress`
@@ -317,7 +475,8 @@ Re-runs every lesson's `seed.sql`, recreating all lesson databases from scratch.
 ```
 
 ### `POST /api/settings/reset-progress`
-Clears all recorded lesson-completion progress (`AppMeta.dbo.LessonProgress`).
+Clears all recorded lesson-completion progress (`dbo.LessonProgress`, in the shared app
+database — there is no separate `AppMeta` database).
 ```json
 { "rowsCleared": 80 }
 ```
@@ -342,6 +501,54 @@ Request: `{ "keepData": false }`
   "reseed": { "lessonsReset": 80, "failed": 0, "elapsedMs": 41230, "failures": [] }
 }
 ```
+
+### Track-aware curriculum routes
+
+`GET /api/tracks` — both tracks with their counts:
+```json
+[ { "key": "perf", "title": "SQL Performance", "description": "...",
+    "totalLessons": 80, "solvedLessons": 12 },
+  { "key": "design", "title": "Database Design", "description": "...",
+    "totalLessons": 1, "solvedLessons": 0 } ]
+```
+
+`GET /api/levels?track=design` — as `GET /api/levels`, scoped to one track. **Omitting
+`track` resolves to `perf`**, because that route predates tracks and its existing callers
+must keep working.
+
+`GET /api/progress?track=perf` — as `GET /api/progress`, scoped to one track. Here, omitting
+`track` means **every** track; that is what the Settings page wants.
+
+### Design module routes
+
+All require `kind: "design"`; anything else returns 404.
+
+| Route | Does |
+|---|---|
+| `GET /api/modules/{id}` | Module detail: narrative, hints, steps, `startingModel`, progress |
+| `GET /api/modules/{id}/model` | The saved diagram, falling back to `startingModel` on a first visit |
+| `PUT /api/modules/{id}/model` | Save the diagram. Body `{ "model": ErdModel }` |
+| `POST /api/modules/{id}/ddl` | Generate T-SQL from a model. Body `{ "model": ErdModel }` → `{ "ddl", "warnings" }` |
+| `POST /api/modules/{id}/check` | Run and grade. Body `{ "model": ErdModel }` **or** `{ "sql": "..." }` |
+| `POST /api/modules/{id}/reset` | Reseed the schema **and** restore the diagram to `startingModel` |
+| `GET /api/modules/{id}/schema` | As `GET /api/lessons/{id}/schema` |
+
+`POST /api/modules/{id}/check` returns:
+```json
+{ "success": true, "error": null, "ddl": "CREATE TABLE ...", "warnings": [],
+  "schema": { /* SchemaDto */ },
+  "evaluation": { "passed": true, "conditions": [ /* as passConditions */ ] },
+  "progress": { "solved": true, "newlySolved": true } }
+```
+
+**`sql` wins over `model` when both are present.** That is deliberate: the canvas is an input
+method for DDL, not the graded artefact, so a learner who writes the DDL by hand must be able
+to reach exactly the same grading path.
+
+**Identifier safety.** Every name in a model is validated against
+`^[A-Za-z_][A-Za-z0-9_]{0,127}$` and data types against a fixed allowlist, then
+bracket-quoted. Invalid names are **rejected, not escaped** — model content reaches `EXEC`,
+so this is a security control and not a formatting nicety.
 
 ---
 
@@ -372,6 +579,58 @@ Concurrency rules (evaluated against a `ConcurrencyResult`):
 | `noDeadlock`  | (none) | outcome != "deadlock" |
 | `bothCommit`  | (none) | outcome == "completed" |
 | `maxBlockMs`  | `value`| no blocked event lasted longer than value |
+
+---
+
+## 4b. Design-condition rule vocabulary
+
+Design modules are graded by `DesignEvaluator`, which reads the `SchemaDto` produced **after**
+the learner's DDL has run. Like the query evaluator, it generates the human-readable label
+itself — authors write machine-readable intent only.
+
+| type               | fields                                            | passes when |
+|--------------------|---------------------------------------------------|-------------|
+| `entityExists`     | `table`                                           | a table of that name exists in the schema |
+| `columnExists`     | `table`, `column`, `pattern` (optional type prefix) | the column exists, and its type starts with `pattern` if given |
+| `primaryKey`       | `table`, `columns` (optional)                     | the table has a primary key; with `columns`, exactly those |
+| `foreignKey`       | `table`, `references`, `columns` (optional), `cardinality` (optional) | a foreign key points at `references`, on those columns, with that derived cardinality |
+| `indexOnFk`        | `table`, `column` or `columns`                    | an index **leads** with those columns (so a composite index counts) |
+| `namingConvention` | `pattern` (`PascalCase`\|`camelCase`\|`snake_case`\|regex), `scope` (`tables`\|`columns`\|`all`) | every name in scope matches |
+
+### Grading reads the database, not the canvas
+
+This is the central design decision of the design track and should not be quietly reversed.
+The learner's model is turned into DDL, executed in their isolated schema, and the resulting
+schema is read back from the engine's catalog views and graded. Two consequences:
+
+- A diagram that would not actually build cannot pass.
+- Grading is implementation-agnostic: ignoring the canvas and hand-writing equivalent DDL
+  passes identically.
+
+### Normal forms are graded structurally
+
+2NF, 3NF and BCNF are statements about **functional dependencies**, which live in the problem
+domain and not in `sys.columns`. They cannot be verified from schema metadata. Normalization
+modules therefore assert the *structural fingerprint* of the correct decomposition — this
+table exists, this column is gone from that one, this key connects them — using
+`entityExists`, `columnAbsent`, `primaryKey` and `foreignKey` together.
+
+**Never write a module narrative that claims more than the grader checked.** Where a rule is
+a proxy, the narrative must say so.
+
+---
+
+## 4c. Content quality
+
+The app is a learning tool first; the interactive machinery is scaffolding. Every module:
+
+1. **Is verified against primary sources before it is written** — Microsoft Learn for anything
+   SQL Server-specific, Codd/Date/Fagin for normal forms, Kimball for dimensional modelling.
+   Sources go in the manifest's `references` array so claims stay auditable.
+2. **Only claims what the app can demonstrate.** If a plan or a statistic can't be shown,
+   the claim is cut or explicitly flagged as context rather than asserted.
+3. **Teaches trade-offs, not rules** — each module states when its own advice is wrong.
+4. **Gets a second fact-check pass before shipping**, with corrections applied.
 
 ---
 
