@@ -57,7 +57,8 @@ a { color: var(--accent); }
   background: var(--bg-2);
   border-bottom: 1px solid var(--border);
 }
-.topnav-brand { font-size: 14px; font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
+.topnav-brand { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
+.topnav-brand svg { color: var(--accent); flex: none; }
 .topnav-tracks { display: flex; gap: 4px; flex: 1; min-width: 0; }
 .topnav-actions { display: flex; align-items: center; gap: 8px; }
 .topnav-link {
