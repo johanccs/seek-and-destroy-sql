@@ -5,6 +5,7 @@ using SqlPerf.Api.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSingleton<LessonCatalog>();
+builder.Services.AddSingleton<TrackRegistry>();
 builder.Services.AddSingleton<SqlExecutor>();
 builder.Services.AddSingleton<SchemaReader>();
 builder.Services.AddSingleton<ConcurrencyRunner>();
@@ -25,11 +26,12 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 var app = builder.Build();
 app.UseCors();
 
-// Warm up AppMeta in the background so the first request isn't slow (non-fatal if DB down).
+// Warm up the progress store in the background so the first request isn't slow
+// (non-fatal if the DB is still cold).
 _ = Task.Run(async () =>
 {
     try { await app.Services.GetRequiredService<ProgressStore>().EnsureReadyAsync(); }
-    catch (Exception ex) { app.Logger.LogWarning(ex, "AppMeta warmup failed (SQL not ready yet?)"); }
+    catch (Exception ex) { app.Logger.LogWarning(ex, "Progress-store warmup failed (SQL not ready yet?)"); }
 });
 
 // ---- Health ----
@@ -41,25 +43,18 @@ app.MapGet("/api/health", async (LessonCatalog cat, ProgressStore progress) =>
 });
 
 // ---- Curriculum ----
-var levelTitles = new (string key, string title, string description)[]
-{
-    ("beginner", "Beginner",
-        "The fundamentals of making SQL Server fast: how indexes turn scans into seeks, why wrapping a column in a function or the wrong data type quietly disables an index, and how to cover, order, and range-search your data. Master these and you'll fix the majority of everyday slow queries."),
-    ("intermediate", "Intermediate",
-        "Sharper indexing and query-shape skills: covering and composite indexes, filtered indexes, key ordering, keyset pagination, sargable rewrites, implicit-conversion traps on joins, and turning accidental Cartesian products and EXISTS/aggregate patterns into efficient plans."),
-    ("advanced", "Advanced",
-        "Where the optimizer and the engine get subtle: parameter sniffing, stale statistics, tipping points, heaps and RID lookups, anti-joins, catch-all queries, and a full arc of concurrency — blocking, deadlocks, lock escalation, isolation levels, and snapshot conflicts — validated against a real two-session engine."),
-    ("expert", "Expert",
-        "Deep engine internals and analytics: scalar-UDF and window-function costs, columnstore and batch mode, partitioning, compression, tempdb spills and memory grants, worktable spools, RANGE-vs-ROWS frames, top-N-per-group, and reading the plan's own warnings and missing-index hints."),
-};
 
-app.MapGet("/api/levels", async (LessonCatalog cat, ProgressStore progress) =>
+// track is optional and defaults to the performance track: /api/levels predates
+// tracks, so an un-parameterised call must keep returning what it always did.
+app.MapGet("/api/levels", async (string? track, LessonCatalog cat, ProgressStore progress,
+    TrackRegistry tracks) =>
 {
+    var t = tracks.Resolve(track);
     var prog = await progress.GetAllAsync();
-    var levels = levelTitles.Select(lt =>
+    var levels = t.Levels.Select(lt =>
     {
-        var lessons = cat.All
-            .Where(l => string.Equals(l.Manifest.Level, lt.key, StringComparison.OrdinalIgnoreCase))
+        var lessons = cat.ForTrack(t.Key)
+            .Where(l => string.Equals(l.Manifest.Level, lt.Key, StringComparison.OrdinalIgnoreCase))
             .OrderBy(l => l.Manifest.Order)
             .Select(l =>
             {
@@ -67,11 +62,23 @@ app.MapGet("/api/levels", async (LessonCatalog cat, ProgressStore progress) =>
                 return new LessonSummaryDto(l.Manifest.Id, l.Manifest.Order, l.Manifest.Title,
                     l.Manifest.Topics, l.Manifest.EstimatedMinutes, l.IsConcurrency,
                     p.Solved, p.BestLogicalReads, p.BestDurationMs, l.Manifest.Description,
-                    l.Manifest.AzureUnsupported);
+                    l.Manifest.AzureUnsupported, l.Manifest.Track, l.Manifest.Kind);
             }).ToList();
-        return new LevelDto(lt.key, lt.title, lt.description, lessons);
+        return new LevelDto(lt.Key, lt.Title, lt.Description, lessons);
     }).ToList();
     return Results.Json(levels);
+});
+
+app.MapGet("/api/tracks", async (LessonCatalog cat, ProgressStore progress, TrackRegistry tracks) =>
+{
+    var prog = await progress.GetAllAsync();
+    var dtos = tracks.All.Select(t =>
+    {
+        var lessons = cat.ForTrack(t.Key).ToList();
+        int solved = lessons.Count(l => prog.GetValueOrDefault(l.Manifest.Id)?.Solved == true);
+        return new TrackDto(t.Key, t.Title, t.Description, lessons.Count, solved);
+    }).ToList();
+    return Results.Json(dtos);
 });
 
 app.MapGet("/api/lessons/{id}", async (string id, LessonCatalog cat, ProgressStore progress) =>
@@ -88,7 +95,7 @@ app.MapGet("/api/lessons/{id}", async (string id, LessonCatalog cat, ProgressSto
     return Results.Json(new LessonDetailDto(l.Manifest.Id, l.Manifest.Level, l.Manifest.Title,
         l.Manifest.Topics, l.Manifest.EstimatedMinutes, l.Manifest.Narrative, l.Manifest.StartingQuery,
         l.Manifest.Hints, l.IsConcurrency, interleaving, p, l.Manifest.Description,
-        l.Manifest.AzureUnsupported));
+        l.Manifest.AzureUnsupported, l.Manifest.Track, l.Manifest.Kind));
 });
 
 app.MapGet("/api/lessons/{id}/solution", (string id, LessonCatalog cat) =>
@@ -173,29 +180,38 @@ app.MapPost("/api/lessons/{id}/reset", async (string id, LessonCatalog cat, SqlE
 });
 
 // ---- Overall progress ----
-async Task<OverallProgressDto> BuildOverallProgressAsync(LessonCatalog cat, ProgressStore progress)
+// A null track means "every track" — that is what the Settings page wants. The
+// SPA's track sidebars pass their own key so one track's count can't move
+// because of progress in the other.
+async Task<OverallProgressDto> BuildOverallProgressAsync(
+    LessonCatalog cat, ProgressStore progress, TrackRegistry tracks, string? track)
 {
     var prog = await progress.GetAllAsync();
-    var byLevel = levelTitles.Select(lt =>
+    var scoped = track is null ? cat.All.ToList() : cat.ForTrack(tracks.Resolve(track).Key).ToList();
+    var levelKeys = tracks.Resolve(track).Levels.Select(l => l.Key);
+
+    var byLevel = levelKeys.Select(key =>
     {
-        var lessons = cat.All.Where(l => string.Equals(l.Manifest.Level, lt.key, StringComparison.OrdinalIgnoreCase)).ToList();
+        var lessons = scoped.Where(l => string.Equals(l.Manifest.Level, key, StringComparison.OrdinalIgnoreCase)).ToList();
         int solved = lessons.Count(l => prog.GetValueOrDefault(l.Manifest.Id)?.Solved == true);
-        return new LevelProgressDto(lt.key, lessons.Count, solved);
+        return new LevelProgressDto(key, lessons.Count, solved);
     }).ToList();
-    int total = cat.Count;
-    int solvedTotal = cat.All.Count(l => prog.GetValueOrDefault(l.Manifest.Id)?.Solved == true);
-    return new OverallProgressDto(total, solvedTotal, byLevel);
+
+    int solvedTotal = scoped.Count(l => prog.GetValueOrDefault(l.Manifest.Id)?.Solved == true);
+    return new OverallProgressDto(scoped.Count, solvedTotal, byLevel);
 }
 
-app.MapGet("/api/progress", async (LessonCatalog cat, ProgressStore progress) =>
-    Results.Json(await BuildOverallProgressAsync(cat, progress)));
+app.MapGet("/api/progress", async (string? track, LessonCatalog cat, ProgressStore progress,
+        TrackRegistry tracks) =>
+    Results.Json(await BuildOverallProgressAsync(cat, progress, tracks, track)));
 
 // ---- Settings ----
-app.MapGet("/api/settings/info", async (LessonCatalog cat, ProgressStore progress, IConfiguration cfg) =>
+app.MapGet("/api/settings/info", async (LessonCatalog cat, ProgressStore progress,
+    TrackRegistry tracks, IConfiguration cfg) =>
 {
     var cs = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(
         cfg.GetConnectionString("Sql") ?? "");
-    var prog = await BuildOverallProgressAsync(cat, progress);
+    var prog = await BuildOverallProgressAsync(cat, progress, tracks, null);
     return Results.Json(new SettingsInfoDto(cs.DataSource, cat.Count, prog));
 });
 
@@ -219,7 +235,8 @@ async Task<ResetAllDatabasesResultDto> ResetAllDatabasesAsync(LessonCatalog cat,
 app.MapPost("/api/settings/reset-all-databases", async (LessonCatalog cat, SqlExecutor exec) =>
     Results.Json(await ResetAllDatabasesAsync(cat, exec)));
 
-// Clears all recorded lesson-completion progress (AppMeta.dbo.LessonProgress).
+// Clears all recorded lesson-completion progress (dbo.LessonProgress, in the
+// shared app database — there is no separate AppMeta database).
 app.MapPost("/api/settings/reset-progress", async (ProgressStore progress) =>
 {
     var rows = await progress.ResetAllAsync();

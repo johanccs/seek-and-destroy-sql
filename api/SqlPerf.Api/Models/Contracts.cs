@@ -8,6 +8,13 @@ namespace SqlPerf.Api.Models;
 public sealed class Manifest
 {
     public string Id { get; set; } = "";
+    // Which curriculum this belongs to. Defaults to the performance track so the
+    // 80 manifests written before tracks existed keep loading unchanged.
+    public string Track { get; set; } = "perf";
+    // What kind of exercise this is, which decides the widget the SPA renders:
+    // "query" (Monaco + plan/stats), "design" (ERD canvas + generated DDL).
+    // Concurrency lessons are still detected from the Interleaving block.
+    public string Kind { get; set; } = "query";
     public string Level { get; set; } = "";
     public int Order { get; set; }
     public string Title { get; set; } = "";
@@ -58,6 +65,7 @@ public sealed class Lesson
     public required string SolutionSql { get; init; }
     public required string Database { get; init; }
     public bool IsConcurrency => Manifest.Interleaving is not null;
+    public bool IsDesign => string.Equals(Manifest.Kind, "design", StringComparison.OrdinalIgnoreCase);
 }
 
 // ---------- API response DTOs (CONTRACT section 3) ----------
@@ -66,15 +74,19 @@ public sealed record HealthDto(string Status, string SqlServer, int LessonsLoade
 
 public sealed record LevelDto(string Level, string Title, string Description, List<LessonSummaryDto> Lessons);
 
+public sealed record TrackDto(
+    string Key, string Title, string Description, int TotalLessons, int SolvedLessons);
+
 public sealed record LessonSummaryDto(
     string Id, int Order, string Title, List<string> Topics, int EstimatedMinutes,
     bool IsConcurrency, bool Solved, int? BestLogicalReads, int? BestDurationMs, string Description,
-    bool AzureUnsupported);
+    bool AzureUnsupported, string Track, string Kind);
 
 public sealed record LessonDetailDto(
     string Id, string Level, string Title, List<string> Topics, int EstimatedMinutes,
     string Narrative, string StartingQuery, List<string> Hints, bool IsConcurrency,
-    object? Interleaving, ProgressDto Progress, string Description, bool AzureUnsupported);
+    object? Interleaving, ProgressDto Progress, string Description, bool AzureUnsupported,
+    string Track, string Kind);
 
 public sealed record ProgressDto(bool Solved, int? BestLogicalReads, int? BestDurationMs, bool NewlySolved = false);
 
