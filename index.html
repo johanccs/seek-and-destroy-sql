@@ -45,6 +45,12 @@
   .levels span { background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 0.4rem 0.9rem; font-size: 0.85rem; color: var(--text-dim); }
   footer { color: var(--text-dim); font-size: 0.85rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
   footer a { color: var(--text-dim); }
+  .wip {
+    background: #3a2f10; border: 1px solid #8a6d1f; border-left: 4px solid #ffcb47;
+    border-radius: 8px; padding: 1rem 1.25rem; margin: 0 0 2rem;
+  }
+  .wip strong { color: #ffcb47; }
+  .wip ul { margin: 0.6rem 0 0; padding-left: 1.2rem; color: var(--text-dim); font-size: 0.95rem; }
 </style>
 </head>
 <body>
@@ -56,6 +62,16 @@
     skills — from beginner to expert. Write real T-SQL against a real SQL Server 2022 engine, see
     genuine execution plans, logical reads, locking and deadlocks, and get graded automatically.
   </p>
+  <div class="wip">
+    <strong>🚧 Work in progress.</strong> This app is still being built and is not finished.
+    Some features may not work yet, and others will change.
+    <ul>
+      <li>The <strong>SQL Performance</strong> track is complete — all 80 lessons work end to end.</li>
+      <li>The <strong>Database Design</strong> track is new: 5 of 35 modules so far, all Beginner level.</li>
+      <li>The design track's diagram canvas is mouse-only — no touch support yet.</li>
+      <li>The hosted API sleeps when idle, so the first request after a quiet spell can take several seconds.</li>
+    </ul>
+  </div>
   <div class="cta">
     <a class="btn primary" href="https://salmon-field-04fa1fd10.7.azurestaticapps.net/">Try it live — free, no sign-up</a>
     <a class="btn secondary" href="https://github.com/johanccs/seek-and-destroy-sql">View source on GitHub</a>
