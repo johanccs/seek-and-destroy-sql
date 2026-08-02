@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -7,6 +7,7 @@ import {
   MiniMap,
   Position,
   ReactFlow,
+  applyNodeChanges,
   type Edge,
   type Node,
   type NodeProps,
@@ -53,6 +54,11 @@ function EntityNode({ data, selected }: NodeProps<Node<EntityData>>) {
 
 const nodeTypes = { entity: EntityNode };
 
+// Kept in step with .erd-node in styles.css.
+const NODE_W = 210;
+const HEAD_H = 30;
+const ROW_H = 21;
+
 export function ErdCanvas({
   model,
   dispatch,
@@ -64,21 +70,47 @@ export function ErdCanvas({
   onSelect: (sel: { kind: "entity" | "relationship"; id: string } | null) => void;
   selectedId: string | null;
 }) {
-  const nodes: Node<EntityData>[] = useMemo(() => {
+  const derived: Node<EntityData>[] = useMemo(() => {
     const fkByEntity = new Map<string, Set<string>>();
     for (const r of model.relationships) {
       const set = fkByEntity.get(r.fromEntityId) ?? new Set<string>();
       r.fromColumns.forEach((c) => set.add(c.toLowerCase()));
       fkByEntity.set(r.fromEntityId, set);
     }
-    return model.entities.map((e) => ({
-      id: e.id,
-      type: "entity",
-      position: { x: e.x, y: e.y },
-      selected: e.id === selectedId,
-      data: { name: e.name, attributes: e.attributes, fkColumns: fkByEntity.get(e.id) ?? new Set() },
-    }));
+    return model.entities.map((e) => {
+      // Declared rather than measured. The MiniMap only draws nodes whose
+      // dimensions React Flow knows, and rebuilding the node array from the
+      // model discards what it measured — so the card is given a fixed size in
+      // CSS and the same size is declared here. NODE_W/ROW_H must stay in step
+      // with .erd-node in styles.css.
+      const rows = Math.max(e.attributes.length, 1);
+      return {
+        id: e.id,
+        type: "entity",
+        position: { x: e.x, y: e.y },
+        selected: e.id === selectedId,
+        width: NODE_W,
+        height: HEAD_H + rows * ROW_H,
+        data: { name: e.name, attributes: e.attributes, fkColumns: fkByEntity.get(e.id) ?? new Set() },
+      };
+    });
   }, [model, selectedId]);
+
+  // React Flow is running controlled, so every change it emits has to be applied
+  // back — not just the ones we care about. Applying only position changes left
+  // its store without the measured dimensions the MiniMap needs, so the minimap
+  // rendered its viewport mask over an empty box. Model stays the source of
+  // truth for structure; React Flow owns the measurements.
+  const [nodes, setNodes] = useState<Node<EntityData>[]>(derived);
+  useEffect(() => {
+    setNodes((prev) => {
+      const byId = new Map(prev.map((n) => [n.id, n]));
+      return derived.map((d) => {
+        const old = byId.get(d.id);
+        return old ? { ...old, ...d, measured: old.measured } : d;
+      });
+    });
+  }, [derived]);
 
   const edges: Edge[] = useMemo(
     () =>
@@ -100,6 +132,7 @@ export function ErdCanvas({
 
   const onNodesChange = useCallback(
     (changes: NodeChange<Node<EntityData>>[]) => {
+      setNodes((ns) => applyNodeChanges(changes, ns));
       for (const c of changes) {
         if (c.type === "position" && c.position) {
           dispatch({ t: "moveEntity", id: c.id, x: c.position.x, y: c.position.y });
@@ -151,7 +184,18 @@ export function ErdCanvas({
         proOptions={{ hideAttribution: true }}
       >
         <Background variant={BackgroundVariant.Dots} gap={18} size={1} />
-        <MiniMap pannable zoomable className="erd-minimap" />
+        {/* Explicit colours: the default minimap node fill is a light grey that
+            all but disappears on the dark canvas. */}
+        <MiniMap
+          pannable
+          zoomable
+          className="erd-minimap"
+          style={{ width: 150, height: 104 }}
+          nodeColor={(n) => (n.selected ? "var(--accent)" : "var(--bg-3)")}
+          nodeStrokeColor="var(--border)"
+          nodeStrokeWidth={2}
+          nodeBorderRadius={3}
+        />
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>
