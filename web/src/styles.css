@@ -42,17 +42,49 @@ body { background: var(--bg); color: var(--text); font-family: var(--sans); font
 button { font-family: inherit; }
 a { color: var(--accent); }
 
+/* Page shell: top nav / active track / footer. The track's own layout (.app)
+   keeps its two-column grid untouched — see the minmax note below. */
+.shell { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100vh; }
+.shell > .app, .shell > .settings-view, .shell > .legal-view { min-height: 0; }
+
+/* Top navigation — the app's only global nav. It switches curriculum tracks. */
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 16px;
+  height: var(--topnav-h, 46px);
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+}
+.topnav-brand { font-size: 14px; font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
+.topnav-tracks { display: flex; gap: 4px; flex: 1; min-width: 0; }
+.topnav-actions { display: flex; align-items: center; gap: 8px; }
+.topnav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.topnav-link:hover { background: var(--bg-3); color: var(--text); }
+.topnav-link.active { background: var(--bg-3); border-color: var(--border); color: var(--text); }
+.topnav-icon { font-size: 13px; }
+
 /* minmax(0, 1fr) — not a bare 1fr. A bare 1fr resolves to minmax(auto, 1fr),
    whose auto floor is the track's min-content width, so the Monaco editor and
    results tables inside .main would refuse to shrink and overflow the viewport
    instead. minmax(0, 1fr) lets the track shrink and the content scroll. */
-.app { display: grid; grid-template-columns: var(--sidebar-w, 300px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; height: 100vh; }
+.app { display: grid; grid-template-columns: var(--sidebar-w, 300px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 100%; }
 .app > .sidebar, .app > .main { grid-row: 1; min-width: 0; }
 
-/* Footer */
+/* Footer — a shell row, so it shows on every track. */
 .site-footer {
-  grid-column: 1 / -1;
-  grid-row: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -85,7 +117,10 @@ a { color: var(--accent); }
 
 /* Sidebar */
 .sidebar { position: relative; background: var(--bg-2); border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; }
-.sidebar-resize-handle { position: absolute; top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 10; }
+/* right: 0, not -3px. The sidebar scrolls, and an absolutely-positioned child
+   overhanging its right edge counts as scrollable overflow — which showed up as
+   a phantom horizontal scrollbar under the lesson list. */
+.sidebar-resize-handle { position: absolute; top: 0; right: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 10; }
 .sidebar-resize-handle:hover, .sidebar-resize-handle:active { background: var(--accent); opacity: 0.5; }
 .brand { padding: 16px 18px; border-bottom: 1px solid var(--border); }
 .brand-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -116,7 +151,8 @@ a { color: var(--accent); }
 
 .level-group { padding: 8px 0; }
 .level-title { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--text-dim); padding: 8px 18px 4px; display: flex; justify-content: space-between; }
-.lesson-row { padding: 8px 18px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-left: 3px solid transparent; }
+/* An anchor since routing — reset the link styling, keep the row appearance. */
+.lesson-row { padding: 8px 18px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-left: 3px solid transparent; color: inherit; text-decoration: none; }
 .lesson-row:hover { background: var(--bg-3); }
 .lesson-row.active { background: var(--bg-3); border-left-color: var(--accent); }
 .lesson-row .tick { width: 16px; flex: none; text-align: center; }
@@ -381,16 +417,20 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 /* Very narrow / tablet portrait: the lesson list becomes a scrollable strip
    above the workspace rather than a column beside it. */
 @media (max-width: 760px) {
+  .shell { height: auto; min-height: 100vh; }
   .app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
     height: auto;
-    min-height: 100vh;
   }
-  .app > .sidebar { grid-row: 2; max-height: 38vh; border-right: none; border-bottom: 1px solid var(--border); }
-  .app > .main { grid-row: 3; min-height: 70vh; }
-  .site-footer { grid-row: 4; }
+  .app > .sidebar { grid-row: 1; max-height: 38vh; border-right: none; border-bottom: 1px solid var(--border); }
+  .app > .main { grid-row: 2; min-height: 70vh; }
   .sidebar-resize-handle { display: none; }
+  /* Nav collapses to icons — the track labels are the first thing to go. */
+  .topnav { gap: 10px; padding: 0 10px; }
+  .topnav-brand { font-size: 13px; }
+  .topnav-label { display: none; }
+  .topnav-icon { font-size: 15px; }
   .toolbar { padding: 8px 10px; }
   .lesson-head { padding: 10px 12px; }
   .narrative { padding: 12px 14px; }

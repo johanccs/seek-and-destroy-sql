@@ -11,15 +11,27 @@ import type {
 
 const BASE = (import.meta.env.VITE_API_BASE as string) || "http://localhost:5080";
 
+// A failed response usually carries the useful part — a SQL error, a validation
+// message — so read the body before throwing rather than discarding it.
 async function json<T>(res: Response): Promise<T> {
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = (await res.text()).trim();
+    } catch {
+      /* body already consumed or unreadable — fall back to the status line */
+    }
+    throw new Error(detail ? `${res.status} ${res.statusText}: ${detail}` : `${res.status} ${res.statusText}`);
+  }
   return (await res.json()) as T;
 }
+
+const trackQuery = (track?: string) => (track ? `?track=${encodeURIComponent(track)}` : "");
 
 export const api = {
   health: () => fetch(`${BASE}/api/health`).then(json<{ status: string; sqlServer: string; lessonsLoaded: number }>),
 
-  levels: () => fetch(`${BASE}/api/levels`).then(json<LevelGroup[]>),
+  levels: (track?: string) => fetch(`${BASE}/api/levels${trackQuery(track)}`).then(json<LevelGroup[]>),
 
   lesson: (id: string) => fetch(`${BASE}/api/lessons/${id}`).then(json<LessonDetail>),
 
@@ -48,7 +60,8 @@ export const api = {
       json<{ status: string; database: string; elapsedMs: number }>,
     ),
 
-  progress: () => fetch(`${BASE}/api/progress`).then(json<ProgressSummary>),
+  progress: (track?: string) =>
+    fetch(`${BASE}/api/progress${trackQuery(track)}`).then(json<ProgressSummary>),
 
   settingsInfo: () =>
     fetch(`${BASE}/api/settings/info`).then(

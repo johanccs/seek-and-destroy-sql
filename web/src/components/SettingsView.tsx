@@ -49,7 +49,9 @@ interface Info {
 
 type Busy = "" | "reseed" | "resetProgress" | "recreate";
 
-export function SettingsView({ onChanged }: { onChanged: () => void }) {
+// onChanged is optional now that Settings is its own route: the curriculum
+// refetches when you navigate back to a track, so there is nothing to notify.
+export function SettingsView({ onChanged = () => {} }: { onChanged?: () => void }) {
   const [info, setInfo] = useState<Info | null>(null);
   const [busy, setBusy] = useState<Busy>("");
   const [message, setMessage] = useState<string | null>(null);
