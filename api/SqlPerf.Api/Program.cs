@@ -179,6 +179,126 @@ app.MapPost("/api/lessons/{id}/reset", async (string id, LessonCatalog cat, SqlE
     return Results.Json(new ResetDto("reset", l.Database, ms));
 });
 
+// ---- Design modules ----
+// Modules are lessons with kind="design", so seeding, isolation, running and
+// reset are all the existing machinery. Only the canvas and its grading are new.
+
+app.MapGet("/api/modules/{id}", async (string id, LessonCatalog cat, ProgressStore progress) =>
+{
+    var l = cat.Get(id);
+    if (l is null || !l.IsDesign) return Results.NotFound();
+    var m = l.Manifest;
+    return Results.Json(new ModuleDetailDto(m.Id, m.Track, m.Kind, m.Level, m.Title, m.Description,
+        m.Topics, m.EstimatedMinutes, m.Narrative, m.Hints, m.Steps, m.StartingModel,
+        await progress.GetAsync(id), m.AzureUnsupported));
+});
+
+// The saved diagram. Falls back to the module's startingModel so a first visit
+// opens on the intended canvas rather than an empty one.
+app.MapGet("/api/modules/{id}/model", async (string id, LessonCatalog cat, ProgressStore progress) =>
+{
+    var l = cat.Get(id);
+    if (l is null || !l.IsDesign) return Results.NotFound();
+    var (jsonText, updated) = await progress.GetCanvasAsync(id);
+    var model = jsonText is null
+        ? l.Manifest.StartingModel
+        : JsonSerializer.Deserialize<ErdModel>(jsonText, Json.Options);
+    return Results.Json(new ModelDto(model, updated));
+});
+
+app.MapPut("/api/modules/{id}/model", async (string id, ModelSaveRequest req, LessonCatalog cat,
+    ProgressStore progress) =>
+{
+    var l = cat.Get(id);
+    if (l is null || !l.IsDesign) return Results.NotFound();
+    await progress.SaveCanvasAsync(id, JsonSerializer.Serialize(req.Model ?? new ErdModel(), Json.Options));
+    return Results.Json(new { saved = true });
+});
+
+app.MapPost("/api/modules/{id}/ddl", (string id, DdlRequest req, LessonCatalog cat) =>
+{
+    var l = cat.Get(id);
+    if (l is null || !l.IsDesign) return Results.NotFound();
+    try
+    {
+        var res = DdlGenerator.Generate(req.Model ?? new ErdModel());
+        return Results.Json(res);
+    }
+    catch (DdlGenerator.InvalidModelException ex)
+    {
+        return Results.BadRequest(new { error = ex.Message });
+    }
+});
+
+// Check: generate the DDL (or take the learner's own), run it in the module's
+// isolated schema, read the resulting schema back, and grade THAT. The canvas is
+// an input method for DDL, never the graded artefact — so hand-written DDL that
+// produces the same schema passes identically.
+app.MapPost("/api/modules/{id}/check", async (string id, CheckRequest req, LessonCatalog cat,
+    SqlExecutor exec, SchemaReader schema, ProgressStore progress) =>
+{
+    var l = cat.Get(id);
+    if (l is null || !l.IsDesign) return Results.NotFound();
+
+    string ddl;
+    var warnings = new List<string>();
+    if (!string.IsNullOrWhiteSpace(req.Sql))
+    {
+        ddl = req.Sql!;
+    }
+    else
+    {
+        try
+        {
+            var gen = DdlGenerator.Generate(req.Model ?? new ErdModel());
+            ddl = gen.Ddl;
+            warnings = gen.Warnings;
+        }
+        catch (DdlGenerator.InvalidModelException ex)
+        {
+            return Results.Json(new CheckResult(false, ex.Message, "", warnings, null, null, null));
+        }
+    }
+
+    var art = await exec.RunAsync(l, ddl);
+    if (!art.Success)
+        return Results.Json(new CheckResult(false, art.Error, ddl, warnings, null, null, null));
+
+    var schemaDto = await exec.SchemaExistsAsync(l.Database)
+        ? await schema.ReadAsync(l.Database)
+        : new SchemaDto(l.Database, false, new List<SchemaTableDto>());
+
+    var eval = DesignEvaluator.Evaluate(l.Manifest.DesignConditions, schemaDto);
+    var prog = eval.Passed
+        ? await progress.RecordSolveAsync(id, null, null)
+        : await progress.GetAsync(id);
+
+    return Results.Json(new CheckResult(true, null, ddl, warnings, schemaDto, eval, prog));
+});
+
+app.MapPost("/api/modules/{id}/reset", async (string id, LessonCatalog cat, SqlExecutor exec,
+    ProgressStore progress) =>
+{
+    var l = cat.Get(id);
+    if (l is null || !l.IsDesign) return Results.NotFound();
+    var ms = await exec.ResetAsync(l);
+    // Reset means "start this module over", so the saved diagram goes back to
+    // the module's starting point too.
+    await progress.SaveCanvasAsync(id,
+        JsonSerializer.Serialize(l.Manifest.StartingModel ?? new ErdModel(), Json.Options));
+    return Results.Json(new ResetDto("reset", l.Database, ms));
+});
+
+app.MapGet("/api/modules/{id}/schema", async (string id, LessonCatalog cat,
+    SqlExecutor exec, SchemaReader schema) =>
+{
+    var l = cat.Get(id);
+    if (l is null || !l.IsDesign) return Results.NotFound();
+    if (!await exec.SchemaExistsAsync(l.Database))
+        return Results.Json(new SchemaDto(l.Database, false, new List<SchemaTableDto>()));
+    return Results.Json(await schema.ReadAsync(l.Database));
+});
+
 // ---- Overall progress ----
 // A null track means "every track" — that is what the Settings page wants. The
 // SPA's track sidebars pass their own key so one track's count can't move

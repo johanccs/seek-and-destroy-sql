@@ -26,6 +26,16 @@ public sealed class Manifest
     public string? Database { get; set; }
     public List<string> Hints { get; set; } = new();
     public List<RuleSpec> PassConditions { get; set; } = new();
+    // Design modules: graded against the schema the learner's DDL actually
+    // created. A module may carry both these and PassConditions, in which case
+    // the results concatenate into one evaluation.
+    public List<RuleSpec> DesignConditions { get; set; } = new();
+    public List<ModuleStep> Steps { get; set; } = new();
+    // Where the module's technical claims were verified. Kept in the manifest so
+    // the content stays auditable rather than resting on the author's memory.
+    public List<ManifestReference> References { get; set; } = new();
+    public ErdModel? StartingModel { get; set; }
+    public ErdModel? TargetModel { get; set; }
     public Interleaving? Interleaving { get; set; }
     // True for lessons that can't fully run on Azure SQL Database's free tier
     // (e.g. columnstore indexes require Standard S3+/Premium). Surfaced so the SPA
@@ -33,6 +43,8 @@ public sealed class Manifest
     public bool AzureUnsupported { get; set; }
 }
 
+// Deliberately a flat bag of optionals rather than a polymorphic hierarchy:
+// adding a rule type stays additive and never breaks an existing manifest.
 public sealed class RuleSpec
 {
     public string Type { get; set; } = "";
@@ -41,6 +53,28 @@ public sealed class RuleSpec
     public string? Table { get; set; }
     public string? Warning { get; set; }
     public double? Value { get; set; }
+    // Design rules
+    public string? Column { get; set; }
+    public List<string>? Columns { get; set; }
+    public string? References { get; set; }
+    public string? Cardinality { get; set; }
+    public string? Pattern { get; set; }
+    public string? Scope { get; set; }
+}
+
+public sealed class ManifestReference
+{
+    public string Title { get; set; } = "";
+    public string Url { get; set; } = "";
+}
+
+// A module's staged flow: read the concept, model it on the canvas, then run
+// the SQL. Kinds are "read" | "canvas" | "sql".
+public sealed class ModuleStep
+{
+    public string Kind { get; set; } = "read";
+    public string? Prompt { get; set; }
+    public string? Anchor { get; set; }
 }
 
 public sealed class Interleaving
@@ -91,6 +125,22 @@ public sealed record LessonDetailDto(
 public sealed record ProgressDto(bool Solved, int? BestLogicalReads, int? BestDurationMs, bool NewlySolved = false);
 
 public sealed record SolutionDto(string Solution);
+
+// A design module: everything LessonDetailDto carries, plus the canvas pieces.
+public sealed record ModuleDetailDto(
+    string Id, string Track, string Kind, string Level, string Title, string Description,
+    List<string> Topics, int EstimatedMinutes, string Narrative, List<string> Hints,
+    List<ModuleStep> Steps, ErdModel? StartingModel, ProgressDto Progress, bool AzureUnsupported);
+
+public sealed record ModelSaveRequest(ErdModel Model);
+public sealed record ModelDto(ErdModel? Model, DateTime? UpdatedAtUtc);
+
+// The Check action: generate DDL from the model, run it, read the schema back,
+// then grade. Ddl is echoed so the SPA can show exactly what ran.
+public sealed record CheckRequest(ErdModel? Model, string? Sql);
+public sealed record CheckResult(
+    bool Success, string? Error, string Ddl, List<string> Warnings,
+    SchemaDto? Schema, EvaluationDto? Evaluation, ProgressDto? Progress);
 
 public sealed record ResetDto(string Status, string Database, long ElapsedMs);
 
