@@ -1,4 +1,4 @@
-import type { ErdAttribute, ErdEntity, ErdModel, ErdRelationship } from "./types";
+import type { ErdAttribute, ErdCheck, ErdEntity, ErdModel, ErdRelationship } from "./types";
 
 // ---------------------------------------------------------------------------
 // Edits
@@ -13,6 +13,9 @@ export type ErdAction =
   | { t: "addAttribute"; entityId: string }
   | { t: "updateAttribute"; entityId: string; index: number; patch: Partial<ErdAttribute> }
   | { t: "deleteAttribute"; entityId: string; index: number }
+  | { t: "addCheck"; entityId: string }
+  | { t: "updateCheck"; entityId: string; index: number; patch: Partial<ErdCheck> }
+  | { t: "deleteCheck"; entityId: string; index: number }
   | { t: "connect"; fromEntityId: string; toEntityId: string; column?: string }
   | { t: "updateRelationship"; id: string; patch: Partial<ErdRelationship> }
   | { t: "deleteRelationship"; id: string };
@@ -99,6 +102,40 @@ export function reduce(model: ErdModel, a: ErdAction): ErdModel {
         ...model,
         entities: model.entities.map((e) =>
           e.id === a.entityId ? { ...e, attributes: e.attributes.filter((_, i) => i !== a.index) } : e,
+        ),
+      };
+
+    case "addCheck":
+      return {
+        ...model,
+        entities: model.entities.map((e) =>
+          e.id === a.entityId
+            ? {
+                ...e,
+                checks: [
+                  ...(e.checks ?? []),
+                  { column: e.attributes[0]?.name ?? "", operator: ">" as const, value: "0" },
+                ],
+              }
+            : e,
+        ),
+      };
+
+    case "updateCheck":
+      return {
+        ...model,
+        entities: model.entities.map((e) =>
+          e.id === a.entityId
+            ? { ...e, checks: (e.checks ?? []).map((c, i) => (i === a.index ? { ...c, ...a.patch } : c)) }
+            : e,
+        ),
+      };
+
+    case "deleteCheck":
+      return {
+        ...model,
+        entities: model.entities.map((e) =>
+          e.id === a.entityId ? { ...e, checks: (e.checks ?? []).filter((_, i) => i !== a.index) } : e,
         ),
       };
 

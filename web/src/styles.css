@@ -591,7 +591,9 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 .erd-inspector .props-sub { margin-top: 8px; }
 .erd-input { background: var(--bg-3); border: 1px solid var(--border); color: var(--text); border-radius: 5px; padding: 4px 7px; font-size: 12px; font-family: inherit; min-width: 0; }
 .erd-input:focus { outline: none; border-color: var(--accent); }
-.erd-attr-edit { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.1fr) auto auto auto auto auto; gap: 5px; align-items: center; margin-bottom: 5px; }
+.erd-attr-edit { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto auto auto auto minmax(0, .8fr) auto; gap: 5px; align-items: center; margin-bottom: 5px; }
+.erd-default { font-family: var(--mono); font-size: 11px; }
+.erd-check-edit { display: grid; grid-template-columns: minmax(0, 1.1fr) auto minmax(0, 1.4fr) auto; gap: 5px; align-items: center; margin-bottom: 5px; }
 .erd-flag { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--text-dim); white-space: nowrap; }
 .erd-field { display: block; margin: 8px 0; }
 .erd-field > span { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 3px; }

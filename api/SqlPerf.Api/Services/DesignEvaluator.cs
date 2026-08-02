@@ -31,6 +31,8 @@ public static class DesignEvaluator
                 "columnExists" => ColumnExists(rule, schema),
                 "primaryKey" => PrimaryKey(rule, schema),
                 "notNullable" => NotNullable(rule, schema),
+                "hasDefault" => HasDefault(rule, schema),
+                "checkConstraintExists" => CheckConstraintExists(rule, schema),
                 "surrogateKey" => SurrogateKey(rule, schema),
                 "naturalKeyUnique" => NaturalKeyUnique(rule, schema),
                 "foreignKey" => ForeignKey(rule, schema),
@@ -74,6 +76,35 @@ public static class DesignEvaluator
         if (t is null) return (label, false, $"no table {r.Table}");
         if (c is null) return (label, false, "column not found");
         return (label, !c.Nullable, c.Nullable ? "is nullable" : "required");
+    }
+
+    // "This column fills itself in." A default is how NOT NULL stops being a
+    // burden on every INSERT.
+    private static (string, bool, string) HasDefault(RuleSpec r, SchemaDto s)
+    {
+        var t = Table(s, r.Table);
+        var c = t?.Columns.FirstOrDefault(x => Eq(x.Name, r.Column));
+        var label = $"{r.Table}.{r.Column} has a default";
+        if (t is null) return (label, false, $"no table {r.Table}");
+        if (c is null) return (label, false, "column not found");
+        var has = !string.IsNullOrWhiteSpace(c.DefaultDefinition);
+        return (label, has, has ? c.DefaultDefinition! : "no default");
+    }
+
+    // A CHECK on a named column, or anywhere on the table when no column is given.
+    private static (string, bool, string) CheckConstraintExists(RuleSpec r, SchemaDto s)
+    {
+        var t = Table(s, r.Table);
+        var label = r.Column is null
+            ? $"{r.Table} has a CHECK constraint"
+            : $"{r.Table}.{r.Column} has a CHECK constraint";
+        if (t is null) return (label, false, $"no table {r.Table}");
+
+        var hits = r.Column is null
+            ? t.Checks
+            : t.Checks.Where(c => Eq(c.Column, r.Column) ||
+                                  c.Definition.Contains($"[{r.Column}]", StringComparison.OrdinalIgnoreCase)).ToList();
+        return (label, hits.Count > 0, hits.Count > 0 ? hits[0].Definition : "none found");
     }
 
     private static (string, bool, string) PrimaryKey(RuleSpec r, SchemaDto s)

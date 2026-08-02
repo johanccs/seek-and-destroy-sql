@@ -1,0 +1,61 @@
+{
+  "id": "d-b-08-nulls-and-defaults",
+  "track": "design",
+  "kind": "design",
+  "level": "beginner",
+  "order": 8,
+  "title": "NULLs, Defaults and Optionality",
+  "description": "NULL means \"unknown\", not zero and not empty string. Deciding which columns may be unknown — and giving the rest a default so they fill themselves in — is the difference between a schema that states its own rules and one that hopes. Why it matters: NULL does not compare equal to anything, including itself, so every nullable column you add quietly changes the answers your queries give.",
+  "topics": ["nullability", "defaults", "three-valued logic", "constraints"],
+  "estimatedMinutes": 20,
+  "narrative": "## What This Lesson Is About\n\nEvery column carries a second decision beyond its type: **may this be unknown?** Answer it deliberately and the schema states its own rules. Leave everything nullable \"just in case\" and you have written down nothing at all.\n\nThink of a paper form. A blank box means the question was not answered. It does not mean *zero*, and it does not mean *the empty string* — those are answers. Conflating the three is how a customer with no orders and a customer whose order count nobody recorded end up looking identical.\n\n## Scenario\n\nRun this:\n\n```sql\nSELECT * FROM SignupImport;\n```\n\nFive signups, and \"we don't know\" is spelled four different ways: `NULL`, `''`, `0`, and the literal string `'Unknown'`. One row has no email at all.\n\nNow try to count the people who have not used a referral code:\n\n```sql\nSELECT COUNT(*) FROM SignupImport WHERE ReferralCode = NULL;\n```\n\n**Zero.** Not because nobody qualifies — because the comparison is wrong, and SQL Server will not tell you.\n\n## What to look for\n\n**`= NULL` never matches anything.** SQL uses three-valued logic: true, false, and *unknown*. A comparison against `NULL` yields unknown, and `WHERE` keeps only rows that are true. `IS NULL` is the operator that works. This is the single most common source of quietly wrong results in a nullable schema, and no error is ever raised.\n\n**`NULL` is not equal to `NULL`.** Two unknowns are not the same unknown. This affects joins, `GROUP BY`, `DISTINCT` and unique constraints in ways that surprise people for years.\n\n**`NOT NULL` plus a `DEFAULT` is the pairing you want.** People leave columns nullable because making them required feels like a burden on every `INSERT`. A default removes the burden while keeping the guarantee: `CreatedOn datetime2 NOT NULL DEFAULT (SYSUTCDATETIME())` can never be unknown and never has to be supplied. Microsoft's documentation makes the connection explicit in the other direction too — adding a `NOT NULL` column to an existing table *requires* a default.\n\n**A `UNIQUE` constraint permits exactly one `NULL`.** Unlike a primary key, `UNIQUE` allows the value — but only once, because for indexing purposes nulls compare as equal to each other. Which is the opposite of how they behave in a `WHERE` clause. Both rules are true at the same time.\n\n## Your task\n\nModel a `Signups` table that says what it means:\n\n- `Email` is required and unique — it is how a person is identified.\n- `LoginCount` is required and defaults to `0`. Zero logins is a fact, not an unknown.\n- `CreatedOn` is required and defaults to the current UTC time.\n- `IsActive` is required and defaults to `1`.\n- `ReferralCode` stays nullable — genuinely optional, and *this* is what NULL is for.\n\n## The concept\n\nThree questions per column, in order:\n\n1. **Can this genuinely be unknown?** Not \"might it be missing in the import\" — can the fact itself fail to exist? A referral code can. A creation time cannot.\n2. **If it is required, what should it be when nobody says?** That is the default. A required column without a sensible default is a column you will be tempted to make nullable later.\n3. **Am I using NULL to mean something else?** `NULL` for \"zero\", `''` for \"not applicable\", `0` for \"none\" — each of those is a different fact wearing NULL's clothes, and each will be counted wrongly by somebody.\n\nThe test for a good nullable column: you can say out loud what its `NULL` *means*, and it is genuinely \"we do not know\" or \"does not apply\". If you cannot, it should not be nullable.\n\n## How this is graded\n\nThe check reads back the nullability and default constraints your DDL created, from the engine's catalog views.",
+  "steps": [
+    { "kind": "read", "anchor": "scenario" },
+    { "kind": "canvas", "prompt": "Model Signups. Mark Email unique, untick 'null' on everything except ReferralCode, and give LoginCount, CreatedOn and IsActive defaults." },
+    { "kind": "sql", "prompt": "Run the DDL, move the import across, then count the rows with no referral code — with IS NULL this time." }
+  ],
+  "hints": [
+    "Ask of each column whether the fact itself can fail to exist. A referral code genuinely can. A creation time cannot — every row was created at some moment.",
+    "A default is what lets a column be NOT NULL without burdening every INSERT. CreatedOn defaults to SYSUTCDATETIME(), LoginCount to 0, IsActive to 1.",
+    "Zero logins is a fact, not an unknown. Storing that as NULL means COUNT and AVG will quietly skip the row instead of counting it as zero."
+  ],
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-signups",
+        "name": "Signups",
+        "x": 120,
+        "y": 110,
+        "attributes": [
+          { "name": "SignupId", "dataType": "int", "isPrimaryKey": true, "isIdentity": true, "nullable": false }
+        ]
+      }
+    ],
+    "relationships": []
+  },
+  "designConditions": [
+    { "type": "entityExists", "table": "Signups" },
+    { "type": "notNullable", "table": "Signups", "column": "Email" },
+    { "type": "naturalKeyUnique", "table": "Signups", "columns": ["Email"] },
+    { "type": "hasDefault", "table": "Signups", "column": "CreatedOn" },
+    { "type": "hasDefault", "table": "Signups", "column": "LoginCount" },
+    { "type": "notNullable", "table": "Signups", "column": "IsActive" }
+  ],
+  "references": [
+    {
+      "title": "Handling null values — three-valued logic, and why = NULL never matches",
+      "url": "https://learn.microsoft.com/sql/connect/ado-net/sql/handle-null-values#nulls-and-three-valued-logic"
+    },
+    {
+      "title": "Unique constraints and check constraints — UNIQUE allows one NULL per column",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/unique-constraints-and-check-constraints#unique-constraints"
+    },
+    {
+      "title": "ALTER TABLE column_constraint — a new NOT NULL column requires a DEFAULT",
+      "url": "https://learn.microsoft.com/sql/t-sql/statements/alter-table-column-constraint-transact-sql#arguments"
+    }
+  ],
+  "startingQuery": "SELECT * FROM SignupImport;",
+  "passConditions": [],
+  "azureUnsupported": false
+}

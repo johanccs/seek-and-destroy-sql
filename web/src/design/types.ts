@@ -16,6 +16,19 @@ export type ErdAttribute = {
   isIdentity?: boolean;
   /** Unique, but not the identifier — emitted as a UNIQUE constraint. */
   isUnique?: boolean;
+  /** A DEFAULT expression: a literal, or one of a few allowed functions. */
+  defaultValue?: string;
+};
+
+/**
+ * A CHECK, expressed as three constrained parts rather than free text — a CHECK
+ * is arbitrary SQL reaching the engine, and an expression cannot be validated
+ * the way an identifier can.
+ */
+export type ErdCheck = {
+  column: string;
+  operator: "=" | "<>" | ">" | ">=" | "<" | "<=" | "IN" | "BETWEEN" | "LIKE";
+  value: string;
 };
 
 export type ErdEntity = {
@@ -24,6 +37,7 @@ export type ErdEntity = {
   x: number;
   y: number;
   attributes: ErdAttribute[];
+  checks?: ErdCheck[];
 };
 
 export type ErdRelationship = {
@@ -78,6 +92,10 @@ export const emptyModel = (): ErdModel => ({ entities: [], relationships: [] });
 
 // Types offered in the inspector. Kept in step with DdlGenerator's allowlist —
 // anything outside it is rejected server-side rather than escaped.
+// Kept in step with DdlGenerator.DefaultFunctions.
+export const DEFAULT_FUNCTIONS = ["SYSUTCDATETIME()", "GETUTCDATE()", "SYSDATETIME()", "GETDATE()", "NEWID()"];
+export const CHECK_OPERATORS = ["=", "<>", ">", ">=", "<", "<=", "IN", "BETWEEN", "LIKE"] as const;
+
 export const DATA_TYPES = [
   "int", "bigint", "smallint", "tinyint", "bit",
   "decimal(10,2)", "money", "float",

@@ -1,0 +1,66 @@
+{
+  "id": "d-b-09-constraints-as-documentation",
+  "track": "design",
+  "kind": "design",
+  "level": "beginner",
+  "order": 9,
+  "title": "Constraints as Executable Documentation",
+  "description": "A rule that lives in application code is a rule the database does not know. Write it as a CHECK or a UNIQUE constraint and it is enforced for every writer, forever, including the console you were about to fix the data from. Why it matters: every schema has rules — the only question is whether they are written down somewhere that runs.",
+  "topics": ["constraints", "CHECK", "UNIQUE", "domain integrity"],
+  "estimatedMinutes": 25,
+  "narrative": "## What This Lesson Is About\n\nEvery table has rules. Quantities are positive. A discount is a percentage. A status is one of a known set. The question is never whether the rules exist — it is whether they are written anywhere the database can enforce them.\n\nA rule in application code is enforced for *that* application. The import script does not know it. The support console does not know it. Neither does the migration you will write in eighteen months. A constraint is enforced for all of them, and it never goes out of date, because violating it is an error rather than a comment nobody read.\n\n## Scenario\n\nRun this:\n\n```sql\nSELECT * FROM OrderLineImport ORDER BY Reference;\n```\n\nSeven rows, and every rule you would have assumed is already broken:\n\n- **`ORD-1003` has a quantity of −3.** Nothing rejected it.\n- **`ORD-1005` has a 150% discount.** The line total is negative.\n- **`Status` appears as `pending`, `Pending`, `PENDING`, `shipped`, `Shipped`.** Every query that filters on it must know all the spellings.\n- **`ORD-1001` appears twice.** The reference was supposed to be unique.\n\nNone of this is a data-entry problem to be cleaned up once. Without constraints it happens again next week, because nothing prevents it.\n\n## Your task\n\nModel `OrderLines` with the rules written down:\n\n- `Reference` is unique.\n- `Quantity` must be greater than zero.\n- `DiscountPc` must be between 0 and 100.\n- `Status` must be one of `pending`, `shipped`, `delivered`, `cancelled`.\n\nOn the canvas, a table's inspector has a **Checks** section: pick a column, a comparison, and a value.\n\n## What to look for\n\n**A CHECK rejects `FALSE`, not `UNKNOWN` — so `NULL` passes it.** This is the trap. Microsoft's documentation is explicit: *\"CHECK constraints reject values that evaluate to FALSE. Because null values evaluate to UNKNOWN, their presence in expressions might override a constraint.\"* A `CHECK (Quantity > 0)` on a nullable column happily accepts `NULL`. If the rule is meant to hold for every row, the column must also be `NOT NULL` — the two work together, and module 8 is the other half of this.\n\n**A CHECK is validated on INSERT and UPDATE, not on DELETE**, and it is trivially satisfied by a table with no rows. It constrains values, not the shape of the table as a whole.\n\n**`UNIQUE` is not `PRIMARY KEY`.** It permits one `NULL` and it can be referenced by a foreign key. Use it for the *other* keys — the ones that must not repeat but are not the identifier. That is what `Reference` is here.\n\n**Constraining `Status` with a CHECK is the beginner's version of the right answer.** It works and it is honest. The grown-up version is a lookup table with a foreign key, which also gives you a place to store a display name and an ordering. The trade-off: a CHECK is one line and needs a migration to change; a lookup table is a join away and can be edited as data. Neither is wrong — pick deliberately.\n\n## The concept\n\nA constraint pays for itself three times:\n\n1. **It prevents the bad row**, which is the obvious part.\n2. **It documents the rule** in the one place nobody can forget to read — and `sys.check_constraints` will tell you what the rules are years later, when the people are gone.\n3. **It tells the optimizer something true.** A trusted constraint lets SQL Server rule out rows without reading them. That is a later module, but it is real: constraints can make queries faster, not just safer.\n\nThe cost is honest too. A constraint you have to work around is worse than none, and constraints are checked on every write. Constrain what is genuinely invariant — not what merely happens to be true today.\n\n## How this is graded\n\nThe check reads back the constraints your DDL created from the engine's catalog views, so the rules have to genuinely exist rather than being described.",
+  "steps": [
+    { "kind": "read", "anchor": "scenario" },
+    { "kind": "canvas", "prompt": "Model OrderLines, mark Reference unique, and add checks: Quantity > 0, DiscountPc BETWEEN 0 and 100, Status IN the four allowed values." },
+    { "kind": "sql", "prompt": "Run the DDL, then try to insert the -3 quantity row and watch the database refuse it." }
+  ],
+  "hints": [
+    "In the inspector, the Checks section builds a constraint from a column, a comparison and a value. Quantity with '>' and 0 is the first one.",
+    "For Status use the IN comparison and list the four allowed values, comma-separated and each in single quotes: 'pending', 'shipped', 'delivered', 'cancelled'.",
+    "A CHECK only rejects FALSE. NULL evaluates to UNKNOWN and slips through, so the columns you are constraining need NOT NULL as well — otherwise the rule has a hole in it."
+  ],
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-orderlines",
+        "name": "OrderLines",
+        "x": 120,
+        "y": 100,
+        "attributes": [
+          { "name": "OrderLineId", "dataType": "int", "isPrimaryKey": true, "isIdentity": true, "nullable": false },
+          { "name": "Reference", "dataType": "nvarchar(50)", "nullable": false },
+          { "name": "Status", "dataType": "nvarchar(50)", "nullable": false },
+          { "name": "Quantity", "dataType": "int", "nullable": false },
+          { "name": "UnitPrice", "dataType": "decimal(10,2)", "nullable": false },
+          { "name": "DiscountPc", "dataType": "int", "nullable": false }
+        ]
+      }
+    ],
+    "relationships": []
+  },
+  "designConditions": [
+    { "type": "entityExists", "table": "OrderLines" },
+    { "type": "naturalKeyUnique", "table": "OrderLines", "columns": ["Reference"] },
+    { "type": "checkConstraintExists", "table": "OrderLines", "column": "Quantity" },
+    { "type": "checkConstraintExists", "table": "OrderLines", "column": "DiscountPc" },
+    { "type": "checkConstraintExists", "table": "OrderLines", "column": "Status" },
+    { "type": "notNullable", "table": "OrderLines", "column": "Quantity" }
+  ],
+  "references": [
+    {
+      "title": "Unique constraints and check constraints — CHECK rejects FALSE, and NULL evaluates to UNKNOWN",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/unique-constraints-and-check-constraints#check-constraints"
+    },
+    {
+      "title": "Unique constraints and check constraints — UNIQUE allows one NULL and can be referenced by a foreign key",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/unique-constraints-and-check-constraints#unique-constraints"
+    },
+    {
+      "title": "Create check constraints",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/create-check-constraints"
+    }
+  ],
+  "startingQuery": "SELECT * FROM OrderLineImport ORDER BY Reference;",
+  "passConditions": [],
+  "azureUnsupported": false
+}
