@@ -293,39 +293,54 @@ public sealed partial class SqlExecutor
         await c.OpenAsync();
         await ImpersonateAsync(c, lesson.Database);
 
-        var wrapped = "SET STATISTICS IO ON; SET STATISTICS TIME ON; SET STATISTICS XML ON;\n" + userSql;
-        await using var cmd = new SqlCommand(wrapped, c) { CommandTimeout = QueryTimeoutSec };
+        // The SET options go in their own batch, not concatenated ahead of the
+        // learner's SQL. They are connection-scoped and persist for every
+        // statement that follows, and keeping them separate is what lets
+        // CREATE TRIGGER/PROCEDURE/VIEW/FUNCTION work at all: SQL Server
+        // requires each of those to be the first statement in its batch.
+        await ExecNonQuery(c, "SET STATISTICS IO ON; SET STATISTICS TIME ON; SET STATISTICS XML ON;");
 
         try
         {
-            await using var reader = await cmd.ExecuteReaderAsync();
-            do
+            // Splitting on GO for the same reason: it is the only way to submit
+            // more than one CREATE ... statement in a single run.
+            foreach (var batch in SplitBatches(userSql))
             {
-                if (reader.FieldCount == 1 && IsShowPlanColumn(reader.GetName(0)))
-                {
-                    if (await reader.ReadAsync() && !reader.IsDBNull(0))
-                        planXml = reader.GetString(0);
-                    continue;
-                }
-                if (reader.FieldCount == 0) continue;
+                if (string.IsNullOrWhiteSpace(batch)) continue;
 
-                var cols = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToList();
-                var rows = new List<List<object?>>();
-                int count = 0;
-                bool truncated = false;
-                while (await reader.ReadAsync())
+                await using var cmd = new SqlCommand(batch, c) { CommandTimeout = QueryTimeoutSec };
+                await using var reader = await cmd.ExecuteReaderAsync();
+                do
                 {
-                    count++;
-                    var row = new List<object?>(cols.Count);
-                    for (int i = 0; i < reader.FieldCount; i++)
-                        row.Add(reader.IsDBNull(i) ? null : Normalize(reader.GetValue(i)));
-                    if (rows.Count < RowCap) rows.Add(row); else truncated = true;
+                    if (reader.FieldCount == 1 && IsShowPlanColumn(reader.GetName(0)))
+                    {
+                        // Later batches overwrite earlier plans, so the plan the
+                        // learner sees is the last statement's — which is the
+                        // graded one by convention.
+                        if (await reader.ReadAsync() && !reader.IsDBNull(0))
+                            planXml = reader.GetString(0);
+                        continue;
+                    }
+                    if (reader.FieldCount == 0) continue;
+
+                    var cols = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToList();
+                    var rows = new List<List<object?>>();
+                    int count = 0;
+                    bool truncated = false;
+                    while (await reader.ReadAsync())
+                    {
+                        count++;
+                        var row = new List<object?>(cols.Count);
+                        for (int i = 0; i < reader.FieldCount; i++)
+                            row.Add(reader.IsDBNull(i) ? null : Normalize(reader.GetValue(i)));
+                        if (rows.Count < RowCap) rows.Add(row); else truncated = true;
+                    }
+                    resultSets.Add(new ResultSetDto(cols, rows, count, truncated));
                 }
-                resultSets.Add(new ResultSetDto(cols, rows, count, truncated));
+                while (await reader.NextResultAsync());
+
+                if (reader.RecordsAffected > 0) rowsAffected += reader.RecordsAffected;
             }
-            while (await reader.NextResultAsync());
-
-            rowsAffected = reader.RecordsAffected < 0 ? 0 : reader.RecordsAffected;
         }
         catch (SqlException ex)
         {
