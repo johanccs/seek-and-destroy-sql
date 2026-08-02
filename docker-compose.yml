@@ -1,3 +1,9 @@
+# Pinned so the project name does not follow the directory name. The containers
+# and the mssql-data volume were created as "sql-performance"; renaming the repo
+# folder would otherwise make Compose try to build a second, empty stack and
+# fail on the container names already in use.
+name: sql-performance
+
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest

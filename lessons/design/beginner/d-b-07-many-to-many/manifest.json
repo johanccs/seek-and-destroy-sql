@@ -1,0 +1,70 @@
+{
+  "id": "d-b-07-many-to-many",
+  "track": "design",
+  "kind": "design",
+  "level": "beginner",
+  "order": 7,
+  "title": "Many-to-Many and the Junction Table",
+  "description": "A book has many authors and an author has many books. A relational database cannot store that directly — you build a third table whose rows are the relationships. Why it matters: the alternative people reach for is a comma-separated column, and that column cannot be indexed, joined, counted or trusted.",
+  "topics": ["relationships", "junction table", "cardinality", "1NF"],
+  "estimatedMinutes": 25,
+  "narrative": "## What This Lesson Is About\n\nOne customer has many orders, but an order has exactly one customer. That asymmetry is what let module 5 solve the problem with a single foreign key column.\n\nNow take books and authors. A book can have several authors. An author can write several books. **Both** sides are \"many\", and there is no column you can add to either table that holds it — which side would you even put it on?\n\nThink of a seating plan. It is not an attribute of a guest, and it is not an attribute of a table. It is a fact about the *pairing*: this guest sits at that table. Pairings need somewhere of their own to live.\n\n## Scenario\n\nRun this:\n\n```sql\nSELECT Title, Authors FROM BookImport;\n```\n\nSix books, and the authors stuffed into one `nvarchar(400)` column: `'Erich Gamma, Richard Helm, Ralph Johnson, John Vlissides'`.\n\nIt looks like it works, right up until you ask it anything:\n\n- **\"How many books has Kent Beck written?\"** You are reduced to `WHERE Authors LIKE '%Kent Beck%'` — which cannot use an index, so it reads every row, and which will happily also match an author named `Kent Beckett`.\n- **\"Rename 'Erich Gamma' to 'E. Gamma'.\"** A string replace across every row, hoping nothing else contains that substring.\n- **\"List all authors.\"** There is no list. There is a pile of strings you would have to split apart first.\n- **\"Is this a real author?\"** Nothing checks. A typo creates a new author silently and permanently.\n\nThe column also breaks first normal form, which module 12 covers properly: a single field is holding a *list*, and relational operations do not work on lists hidden inside strings.\n\n## Your task\n\nModel this as three tables: `Books`, `Authors`, and the junction between them.\n\nThe canvas starts with `Books` and `Authors` already placed. Connect them with a relationship whose cardinality is **many-to-many** and generate the DDL — then read what came out before you run it.\n\n## What to look for\n\n**The generator will produce a third table you did not draw.** That is not the tool being clever; it is the only thing it *can* do. A many-to-many is not storable as an edge — it has to be materialised as a table, so drawing one and generating DDL always produces a junction. Look at the `CREATE TABLE BooksAuthors` it emits and satisfy yourself you could have written it by hand.\n\n**The junction's primary key is both foreign keys together.** `PRIMARY KEY (BookId, AuthorId)` does real work: it makes \"Kent Beck wrote Refactoring\" recordable exactly once. Give the junction its own surrogate `Id` instead and you have thrown that guarantee away — the same pairing can now be inserted twice, and nothing complains.\n\n**A junction table is a real table, and often a real entity.** The moment you want to record which author is listed *first*, or whether someone was an author or an editor, those columns go on the junction. That is the signal you have crossed from \"a pairing\" to \"a thing worth naming\" — `Authorship` rather than `BooksAuthors`.\n\n## The concept\n\nEvery many-to-many becomes two one-to-manys pointing at a table in the middle. Once you see that, the shape stops being a special case: `Books` has many `BooksAuthors` rows, `Authors` has many `BooksAuthors` rows, and each junction row has exactly one of each.\n\nThe three questions worth asking every time:\n\n1. **Does the pairing itself have attributes?** If yes, name the junction after what it *is*, not after the two tables it joins.\n2. **Can the same pair legitimately repeat?** Usually no, and the composite primary key enforces that. If it genuinely can — a student retaking a course in a later year — then the pairing needs another key column, and you should notice that as a modelling decision rather than discovering it in production.\n3. **Which side gets read most?** That decides the index you add later. The composite primary key already supports lookups leading with its first column; the *other* direction usually wants an index of its own. Module 22 covers that properly.\n\n## How this is graded\n\nThe check runs your DDL and reads the resulting schema back from the engine, so the junction has to genuinely exist with both foreign keys and the composite key. Writing the three `CREATE TABLE` statements yourself instead of using the canvas passes identically.",
+  "steps": [
+    { "kind": "read", "anchor": "scenario" },
+    { "kind": "canvas", "prompt": "Connect Books and Authors with a many-to-many relationship, then generate the DDL and read the junction table it produced." },
+    { "kind": "sql", "prompt": "Run it, then move the delimited author strings across with STRING_SPLIT and ask a question that was impossible before." }
+  ],
+  "hints": [
+    "There is no column you can add to Books or to Authors that holds this. Both sides are 'many', so the relationship needs a table of its own.",
+    "The junction only needs two columns to start: BookId and AuthorId. Together they are its primary key — that is what stops the same pairing being recorded twice.",
+    "Set the relationship's cardinality to many-to-many and generate the DDL. The junction table it emits is exactly what you would have written by hand; read it before running it."
+  ],
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-books",
+        "name": "Books",
+        "x": 70,
+        "y": 90,
+        "attributes": [
+          { "name": "BookId", "dataType": "int", "isPrimaryKey": true, "isIdentity": true, "nullable": false },
+          { "name": "Title", "dataType": "nvarchar(200)", "nullable": false },
+          { "name": "Isbn", "dataType": "nvarchar(50)", "nullable": false },
+          { "name": "PublishedOn", "dataType": "date", "nullable": false }
+        ]
+      },
+      {
+        "id": "e-authors",
+        "name": "Authors",
+        "x": 480,
+        "y": 90,
+        "attributes": [
+          { "name": "AuthorId", "dataType": "int", "isPrimaryKey": true, "isIdentity": true, "nullable": false },
+          { "name": "Name", "dataType": "nvarchar(100)", "nullable": false }
+        ]
+      }
+    ],
+    "relationships": []
+  },
+  "designConditions": [
+    { "type": "entityExists", "table": "Books" },
+    { "type": "entityExists", "table": "Authors" },
+    { "type": "entityExists", "table": "BooksAuthors" },
+    { "type": "primaryKey", "table": "BooksAuthors", "columns": ["BookId", "AuthorId"] },
+    { "type": "foreignKey", "table": "BooksAuthors", "columns": ["BookId"], "references": "Books" },
+    { "type": "foreignKey", "table": "BooksAuthors", "columns": ["AuthorId"], "references": "Authors" }
+  ],
+  "references": [
+    {
+      "title": "Primary and foreign key constraints",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/primary-and-foreign-key-constraints"
+    },
+    {
+      "title": "STRING_SPLIT (Transact-SQL)",
+      "url": "https://learn.microsoft.com/sql/t-sql/functions/string-split-transact-sql"
+    }
+  ],
+  "startingQuery": "SELECT Title, Authors FROM BookImport;",
+  "passConditions": [],
+  "azureUnsupported": false
+}

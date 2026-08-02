@@ -260,6 +260,13 @@ app.MapPost("/api/modules/{id}/check", async (string id, CheckRequest req, Lesso
         }
     }
 
+    // Reset the schema before applying the DDL, so Check is repeatable. Without
+    // this, a second press fails with "There is already an object named ..." —
+    // and iterating on a model is exactly what a learner does. Check means
+    // "build my design from scratch and grade the result", so starting from the
+    // seed state every time is also the semantically correct reading.
+    await exec.ResetAsync(l);
+
     var art = await exec.RunAsync(l, ddl);
     if (!art.Success)
         return Results.Json(new CheckResult(false, art.Error, ddl, warnings, null, null, null));

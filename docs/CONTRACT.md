@@ -593,6 +593,7 @@ itself — authors write machine-readable intent only.
 | `entityExists`     | `table`                                           | a table of that name exists in the schema |
 | `columnExists`     | `table`, `column`, `pattern` (optional type prefix) | the column exists, and its type starts with `pattern` if given |
 | `primaryKey`       | `table`, `columns` (optional)                     | the table has a primary key; with `columns`, exactly those |
+| `notNullable`      | `table`, `column`                                 | the column exists and is `NOT NULL` |
 | `foreignKey`       | `table`, `references`, `columns` (optional), `cardinality` (optional) | a foreign key points at `references`, on those columns, with that derived cardinality |
 | `indexOnFk`        | `table`, `column` or `columns`                    | an index **leads** with those columns (so a composite index counts) |
 | `namingConvention` | `pattern` (`PascalCase`\|`camelCase`\|`snake_case`\|regex), `scope` (`tables`\|`columns`\|`all`) | every name in scope matches |
