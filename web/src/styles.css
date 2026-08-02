@@ -491,10 +491,18 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
   --xy-attribution-background-color: transparent;
   background: var(--bg);
 }
-.erd-minimap { border: 1px solid var(--border); border-radius: 6px; }
+.erd-minimap {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.react-flow__minimap-node { fill: var(--bg-3); stroke: var(--accent); stroke-width: 2px; }
+.react-flow__minimap-node.selected { fill: var(--accent); }
 
 .erd-node {
-  min-width: 190px;
+  /* Fixed, not min-width: the node's size is declared to React Flow in
+     ErdCanvas (NODE_W/HEAD_H/ROW_H) so the minimap can draw it, and the two
+     must agree. */
+  width: 210px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -504,14 +512,15 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 }
 .erd-node.selected { border-color: var(--accent); }
 .erd-node-head {
+  height: 30px;
   padding: 6px 10px;
   background: var(--bg-3);
   border-bottom: 1px solid var(--border);
   font-weight: 600;
   font-size: 12.5px;
 }
-.erd-node-body { padding: 2px 0; }
-.erd-attr { position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 3px 10px; }
+.erd-node-body { padding: 0; }
+.erd-attr { position: relative; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 6px; align-items: center; height: 21px; padding: 0 10px; }
 .erd-attr-empty { display: block; color: var(--text-dim); font-style: italic; }
 .erd-attr-key { font-size: 9.5px; letter-spacing: .5px; color: var(--accent-2); font-weight: 700; }
 .erd-attr-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
