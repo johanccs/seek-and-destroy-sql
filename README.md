@@ -7,6 +7,20 @@
 **Live:** https://salmon-field-04fa1fd10.7.azurestaticapps.net (API: https://seek-and-destroy-api.azurewebsites.net)
 — running on Azure SQL Database + App Service + Static Web Apps.
 
+> ## 🚧 Work in progress
+>
+> This app is still being built and is **not finished**. Some features may not work yet,
+> and others will change.
+>
+> - The **SQL Performance** track is complete — all 80 lessons work end to end.
+> - The **Database Design** track is new: **5 of 35 modules** are written so far, all at
+>   Beginner level. The rest appear on the roadmap page but are not clickable yet.
+> - The design track's ERD canvas is mouse-only — no touch support.
+> - The hosted API sleeps when idle, so the first request after a quiet spell can take
+>   several seconds.
+>
+> Bug reports and suggestions are welcome.
+
 An interactive, web-based playground for developing **Microsoft SQL Server performance-tuning**
 skills — from beginner to expert. You write real T-SQL against a **real SQL Server 2022 engine**,
 see genuine execution plans, `STATISTICS IO/TIME`, locking and deadlocks, and each lesson grades

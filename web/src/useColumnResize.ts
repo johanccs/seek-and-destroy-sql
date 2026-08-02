@@ -40,6 +40,20 @@ export function useColumnResize({ storageKey, defaultWidth, min, max, minRight, 
   const [width, setWidth] = useState(desired.current);
   const dragging = useRef(false);
 
+  // Collapsing is separate from resizing on purpose. A pane dragged to its
+  // minimum is still in the way on a narrow screen, and the minimum has to stay
+  // large enough to be usable when the pane *is* open — so "as small as useful"
+  // and "gone" are two different states.
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem(storageKey + ":collapsed") === "1",
+  );
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((c) => {
+      localStorage.setItem(storageKey + ":collapsed", c ? "0" : "1");
+      return !c;
+    });
+  }, [storageKey]);
+
   // Widest the left column may be while still leaving `minRight` on the right.
   const fit = useCallback(
     (w: number) => {
@@ -90,10 +104,12 @@ export function useColumnResize({ storageKey, defaultWidth, min, max, minRight, 
 
   const onResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
+    // Dragging a collapsed pane would silently resize something invisible.
+    if (collapsed) return;
     dragging.current = true;
     document.body.style.cursor = axis === "y" ? "row-resize" : "col-resize";
     document.body.style.userSelect = "none";
-  }, [axis]);
+  }, [axis, collapsed]);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -125,5 +141,5 @@ export function useColumnResize({ storageKey, defaultWidth, min, max, minRight, 
     };
   }, [containerRef, fit, min, max, storageKey, axis]);
 
-  return { width, onResizeStart };
+  return { width: collapsed ? 0 : width, onResizeStart, collapsed, toggleCollapsed };
 }

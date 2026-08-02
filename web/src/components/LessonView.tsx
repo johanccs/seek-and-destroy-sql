@@ -8,6 +8,7 @@ import { ConcurrencyView } from "./ConcurrencyView";
 import { TutorPanel } from "./TutorPanel";
 import { FontSizeControl, useFontSize } from "./FontSizeControl";
 import { useColumnResize } from "../useColumnResize";
+import { ResizeHandle } from "./ResizeHandle";
 import { difficultyLabel } from "../difficulty";
 
 export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; onSolved: () => void; theme: "dark" | "light" }) {
@@ -22,7 +23,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
   const [schema, setSchema] = useState<SchemaInfo | null>(null);
   const [schemaError, setSchemaError] = useState<string | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
-  const { width: narrativeWidth, onResizeStart } = useColumnResize({
+  const { width: narrativeWidth, onResizeStart, collapsed: narrativeCollapsed, toggleCollapsed: toggleNarrative } = useColumnResize({
     storageKey: "narrativeWidth",
     defaultWidth: 380,
     min: 260,
@@ -208,7 +209,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
       </div>
 
       <div className="workspace" ref={workspaceRef} style={{ "--narrative-w": `${narrativeWidth}px` } as React.CSSProperties}>
-        <div className="narrative">
+        <div className={`narrative ${narrativeCollapsed ? "pane-collapsed" : ""}`}>
           <div className="narrative-header">
             <span className="muted" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".5px" }}>Lesson</span>
             <FontSizeControl label="Lesson" fontSize={narrativeFs} />
@@ -226,8 +227,16 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
               </div>
             )}
           </div>
-          <div className="workspace-resize-handle rz rz-col" onMouseDown={onResizeStart} />
         </div>
+
+        <ResizeHandle
+          axis="col"
+          side="before"
+          label="lesson text"
+          onResizeStart={onResizeStart}
+          collapsed={narrativeCollapsed}
+          onToggle={toggleNarrative}
+        />
 
         {lesson.isConcurrency && lesson.interleaving ? (
           <ConcurrencyView lessonId={lesson.id} interleaving={lesson.interleaving} />

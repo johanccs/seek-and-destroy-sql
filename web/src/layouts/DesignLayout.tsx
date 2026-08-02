@@ -1,5 +1,8 @@
+import { useRef } from "react";
 import { NavLink, Outlet } from "react-router";
 import { useCurriculum } from "../hooks/useCurriculum";
+import { useColumnResize } from "../useColumnResize";
+import { ResizeHandle } from "../components/ResizeHandle";
 import { difficultyLabel } from "../difficulty";
 
 const LEVEL_TITLES: Record<string, string> = {
@@ -11,13 +14,26 @@ const LEVEL_TITLES: Record<string, string> = {
 
 export default function DesignLayout() {
   const { levels, progress, error } = useCurriculum("design");
+
+  // Its own storage key, so sizing the module list here does not move the
+  // lesson list on the performance track. minRight is larger than the
+  // performance track's because a module page has three columns to fit.
+  const appRef = useRef<HTMLDivElement>(null);
+  const { width: sidebarWidth, onResizeStart, collapsed, toggleCollapsed } = useColumnResize({
+    storageKey: "designSidebarWidth",
+    defaultWidth: 320,
+    min: 220,
+    max: 720,
+    minRight: 700,
+    containerRef: appRef,
+  });
   const pct =
     progress && progress.totalLessons
       ? Math.round((progress.solvedLessons / progress.totalLessons) * 100)
       : 0;
 
   return (
-    <div className="app" style={{ "--sidebar-w": "320px" } as React.CSSProperties}>
+    <div className="app" ref={appRef} style={{ "--sidebar-w": `${sidebarWidth}px` } as React.CSSProperties}>
       <aside className="sidebar">
         <div className="brand">
           <div className="sub">
@@ -64,6 +80,9 @@ export default function DesignLayout() {
           </div>
         ))}
       </aside>
+
+      <ResizeHandle axis="col" side="before" label="module list"
+        onResizeStart={onResizeStart} collapsed={collapsed} onToggle={toggleCollapsed} />
 
       <main className="main">
         <Outlet />

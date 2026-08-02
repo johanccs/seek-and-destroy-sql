@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 import ReactMarkdown from "react-markdown";
 import { api } from "../api";
 import { useColumnResize } from "../useColumnResize";
+import { ResizeHandle } from "../components/ResizeHandle";
 import { PassBanner } from "../components/PassBanner";
 import { ErdCanvas } from "../design/ErdCanvas";
 import { Inspector, type Selection } from "../design/Inspector";
@@ -38,7 +39,7 @@ export default function ModuleRoute() {
   // in the performance track. Editing a table with several columns needs real
   // room, and a fixed share of the pane was never going to suit every model.
   const bodyRef = useRef<HTMLDivElement>(null);
-  const { width: narrativeWidth, onResizeStart: onNarrativeResize } = useColumnResize({
+  const { width: narrativeWidth, onResizeStart: onNarrativeResize, collapsed: narrCollapsed, toggleCollapsed: toggleNarr } = useColumnResize({
     storageKey: "moduleNarrativeWidth",
     defaultWidth: 340,
     min: 200,
@@ -47,7 +48,7 @@ export default function ModuleRoute() {
     containerRef: bodyRef,
     axis: "x",
   });
-  const { width: outputWidth, onResizeStart: onOutputResize } = useColumnResize({
+  const { width: outputWidth, onResizeStart: onOutputResize, collapsed: outCollapsed, toggleCollapsed: toggleOut } = useColumnResize({
     storageKey: "moduleOutputWidth",
     defaultWidth: 380,
     min: 220,
@@ -58,7 +59,7 @@ export default function ModuleRoute() {
   });
 
   const workspaceRef = useRef<HTMLElement>(null);
-  const { width: inspectorHeight, onResizeStart: onInspectorResize } = useColumnResize({
+  const { width: inspectorHeight, onResizeStart: onInspectorResize, collapsed: inspCollapsed, toggleCollapsed: toggleInsp } = useColumnResize({
     storageKey: "erdInspectorHeight",
     defaultWidth: 300,
     min: 90,
@@ -183,7 +184,7 @@ export default function ModuleRoute() {
           "--module-output-w": `${outputWidth}px`,
         } as React.CSSProperties}
       >
-        <section className="narrative">
+        <section className={`narrative ${narrCollapsed ? "pane-collapsed" : ""}`}>
           <div className="markdown-body">
             <ReactMarkdown>{module.narrative}</ReactMarkdown>
           </div>
@@ -201,7 +202,8 @@ export default function ModuleRoute() {
           )}
         </section>
 
-        <div className="rz rz-col" onMouseDown={onNarrativeResize} title="Drag to resize the lesson text" />
+        <ResizeHandle axis="col" side="before" label="lesson text"
+          onResizeStart={onNarrativeResize} collapsed={narrCollapsed} onToggle={toggleNarr} />
 
         <section
           className="erd-workspace"
@@ -214,13 +216,15 @@ export default function ModuleRoute() {
             onSelect={setSelection}
             selectedId={selection?.id ?? null}
           />
-          <div className="erd-inspector-resize-handle rz rz-row" onMouseDown={onInspectorResize} />
-          <Inspector model={model} selection={selection} dispatch={dispatch} />
+          <ResizeHandle axis="row" side="after" label="properties panel" className="erd-inspector-resize-handle"
+            onResizeStart={onInspectorResize} collapsed={inspCollapsed} onToggle={toggleInsp} />
+          <Inspector model={model} selection={selection} dispatch={dispatch} collapsed={inspCollapsed} />
         </section>
 
-        <div className="rz rz-col" onMouseDown={onOutputResize} title="Drag to resize the DDL pane" />
+        <ResizeHandle axis="col" side="after" label="DDL pane"
+          onResizeStart={onOutputResize} collapsed={outCollapsed} onToggle={toggleOut} />
 
-        <section className="erd-output">
+        <section className={`erd-output ${outCollapsed ? "pane-collapsed" : ""}`}>
           {evaluation && <PassBanner evaluation={evaluation} newlySolved={!!check?.progress?.newlySolved} />}
           {error && <div className="hint" style={{ borderColor: "var(--bad)" }}>{error}</div>}
           <div className="props-sub">Generated DDL — this is exactly what runs</div>
