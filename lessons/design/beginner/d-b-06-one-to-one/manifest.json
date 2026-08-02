@@ -1,0 +1,106 @@
+{
+  "id": "d-b-06-one-to-one",
+  "track": "design",
+  "kind": "design",
+  "level": "beginner",
+  "order": 6,
+  "title": "One-to-One, and When It's Really Inheritance",
+  "description": "A group of columns only some rows ever use is usually a second table waiting to happen. Model it as a one-to-one and the database can finally say \"these facts arrive together or not at all\". Why it matters: a wall of nullable columns is a rule nobody wrote down — and the database cannot enforce a rule it was never told about.",
+  "topics": [
+    "relationships",
+    "cardinality",
+    "nullability",
+    "subtypes"
+  ],
+  "estimatedMinutes": 20,
+  "narrative": "## What This Lesson Is About\n\nOne-to-one is the rarest of the three relationship shapes, and the most misunderstood. When you genuinely need it, it is almost always for one of two reasons: a **group of optional attributes** that only some rows have, or a **subtype** — a kind of thing that is a special case of a more general thing.\n\nThink of a passport. Every citizen has an identity record; only some have a passport. You would not staple four blank passport pages into every citizen's file just in case. You keep passports as a separate set of records, each one belonging to exactly one citizen.\n\n## Scenario\n\nRun this:\n\n```sql\nSELECT * FROM CustomerImport;\n```\n\nSix customers. Four are individuals; two are businesses. And four columns — `VatNumber`, `CompanyRegNo`, `TaxCountryCode`, `VatVerifiedOn` — are `NULL` for everyone except the two businesses.\n\nThose four columns are carrying an unwritten rule: *either all of them are filled in, or none of them are.* A customer with a VAT number but no country code is nonsense. But nothing in the schema says so, so nothing prevents it:\n\n```sql\nUPDATE CustomerImport SET VatNumber = '4999999999' WHERE Name = 'Thandi Mokoena';\n```\n\nThe database accepts that happily. It has no idea the group belongs together.\n\nThere is a second cost. Every one of those columns has to be nullable, which means you can never write `NOT NULL` on any of them — even though, for a business account, every one of them is genuinely required.\n\n## Your task\n\nModel this properly: a `Customers` table for the facts every customer has, and a `CustomerTaxDetails` table for the group that only business accounts have, related one-to-one.\n\n`Customers` is already on the canvas. Add `CustomerTaxDetails`, connect it, and set the relationship's cardinality to **one-to-one**.\n\n## What to look for\n\n**A one-to-one is a foreign key plus a uniqueness guarantee.** That is the whole trick. A plain foreign key allows many child rows per parent — that is one-to-*many*. What makes it one-to-*one* is that the child's foreign key columns cannot repeat.\n\nThere are two ways to guarantee that, and the neater one is to make the child's foreign key **also its primary key**. `CustomerTaxDetails.CustomerId` is both: it identifies the row *and* points at the customer. A primary key cannot repeat, so a customer cannot have two tax records. (The other way — a separate surrogate key plus a `UNIQUE` constraint on the foreign key column — works identically and costs you an extra column.)\n\n**Notice what the new table can say that the old columns could not.** In `CustomerTaxDetails`, `VatNumber` and `CompanyRegNo` are `NOT NULL`. The unwritten rule is now written down and enforced: a tax record exists in full, or it does not exist. That is the real prize here, not tidiness.\n\n**This app derives cardinality rather than taking your word for it.** After your DDL runs, the schema is read back and a foreign key is reported as one-to-one only when its columns are actually covered by a primary key or unique index. Label a relationship one-to-one on the canvas without backing it with uniqueness and the check will disagree with you — correctly.\n\n## The concept\n\nWhen you see a one-to-one, ask which of these it is:\n\n1. **An optional attribute group** — like this one. The child table exists because the facts belong together and only apply sometimes.\n2. **A subtype** — `Vehicle` with `Car` and `Truck`, each holding the columns only that kind has. This is inheritance expressed in tables, and the child's shared primary key is what ties an instance to its general form.\n3. **A splitting-for-performance decision** — moving rarely-read wide columns out of a hot table. Legitimate, but it is a tuning choice rather than a modelling one, and it should be made with measurements rather than instinct.\n\nAnd one case where it is *none* of the above: if the child table's columns apply to every parent row and are always populated, the one-to-one is buying you nothing. Put them back. A relationship that is never optional and never repeats is just columns with extra steps — and an extra join.\n\n## How this is graded\n\nAs always, the check runs your DDL against a real SQL Server and grades the schema that comes back, not the drawing. Writing the `CREATE TABLE` statements by hand instead of using the canvas passes identically.",
+  "steps": [
+    {
+      "kind": "read",
+      "anchor": "scenario"
+    },
+    {
+      "kind": "canvas",
+      "prompt": "Add CustomerTaxDetails and connect it to Customers. Set the cardinality to one-to-one — and make sure the model actually backs that claim."
+    },
+    {
+      "kind": "sql",
+      "prompt": "Generate and run the DDL, then move the six rows across from CustomerImport — the two business accounts get a tax record, the other four do not."
+    }
+  ],
+  "hints": [
+    "The new table's key is not a new number. It is the customer's own id: CustomerId identifies the tax record and points at the customer at the same time.",
+    "Uniqueness is what separates one-to-one from one-to-many. If CustomerId is the primary key of CustomerTaxDetails, a customer cannot have two tax records — the constraint does the work for you.",
+    "Once the columns live in their own table, they can be NOT NULL. That is the point of the exercise: the rule 'these arrive together' becomes something the database enforces."
+  ],
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-customers",
+        "name": "Customers",
+        "x": 80,
+        "y": 130,
+        "attributes": [
+          {
+            "name": "CustomerId",
+            "dataType": "int",
+            "isPrimaryKey": true,
+            "isIdentity": true,
+            "nullable": false
+          },
+          {
+            "name": "Name",
+            "dataType": "nvarchar(100)",
+            "nullable": false
+          },
+          {
+            "name": "Email",
+            "dataType": "nvarchar(200)",
+            "nullable": false
+          }
+        ]
+      }
+    ],
+    "relationships": []
+  },
+  "designConditions": [
+    {
+      "type": "entityExists",
+      "table": "CustomerTaxDetails"
+    },
+    {
+      "type": "primaryKey",
+      "table": "CustomerTaxDetails",
+      "columns": [
+        "CustomerId"
+      ]
+    },
+    {
+      "type": "foreignKey",
+      "table": "CustomerTaxDetails",
+      "columns": [
+        "CustomerId"
+      ],
+      "references": "Customers",
+      "cardinality": "oneToOne"
+    },
+    {
+      "type": "notNullable",
+      "table": "CustomerTaxDetails",
+      "column": "VatNumber"
+    }
+  ],
+  "references": [
+    {
+      "title": "Create foreign key relationships — a foreign key may reference a PRIMARY KEY, UNIQUE constraint, or unique index",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/create-foreign-key-relationships#limitations"
+    },
+    {
+      "title": "Create a clustered index — PRIMARY KEY and UNIQUE constraints each generate an index",
+      "url": "https://learn.microsoft.com/sql/relational-databases/indexes/create-clustered-indexes#typical-implementations"
+    }
+  ],
+  "startingQuery": "SELECT * FROM CustomerImport;",
+  "passConditions": [],
+  "azureUnsupported": false
+}

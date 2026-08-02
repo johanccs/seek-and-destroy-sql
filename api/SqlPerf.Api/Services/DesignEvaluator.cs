@@ -30,6 +30,7 @@ public static class DesignEvaluator
                 "entityExists" => EntityExists(rule, schema),
                 "columnExists" => ColumnExists(rule, schema),
                 "primaryKey" => PrimaryKey(rule, schema),
+                "notNullable" => NotNullable(rule, schema),
                 "foreignKey" => ForeignKey(rule, schema),
                 "indexOnFk" => IndexOnFk(rule, schema),
                 "namingConvention" => NamingConvention(rule, schema),
@@ -59,6 +60,18 @@ public static class DesignEvaluator
         if (!string.IsNullOrWhiteSpace(r.Pattern) && !c.DataType.StartsWith(r.Pattern!, StringComparison.OrdinalIgnoreCase))
             return ($"{label} as {r.Pattern}", false, $"is {c.DataType}");
         return (label, true, c.DataType);
+    }
+
+    // "This fact is required." Modules use it to check that moving columns into
+    // their own table actually bought the stricter constraint that motivated it.
+    private static (string, bool, string) NotNullable(RuleSpec r, SchemaDto s)
+    {
+        var t = Table(s, r.Table);
+        var c = t?.Columns.FirstOrDefault(x => Eq(x.Name, r.Column));
+        var label = $"{r.Table}.{r.Column} is NOT NULL";
+        if (t is null) return (label, false, $"no table {r.Table}");
+        if (c is null) return (label, false, "column not found");
+        return (label, !c.Nullable, c.Nullable ? "is nullable" : "required");
     }
 
     private static (string, bool, string) PrimaryKey(RuleSpec r, SchemaDto s)
