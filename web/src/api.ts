@@ -8,6 +8,7 @@ import type {
   SchemaInfo,
   TutorMessage,
 } from "./types";
+import type { CheckResult, DdlResponse, ErdModel, ModuleDetail } from "./design/types";
 
 const BASE = (import.meta.env.VITE_API_BASE as string) || "http://localhost:5080";
 
@@ -127,6 +128,45 @@ export const api = {
       }
     }
   },
+
+  // ---- Database Design track ----
+  tracks: () =>
+    fetch(`${BASE}/api/tracks`).then(
+      json<{ key: string; title: string; description: string; totalLessons: number; solvedLessons: number }[]>,
+    ),
+
+  module: (id: string) => fetch(`${BASE}/api/modules/${id}`).then(json<ModuleDetail>),
+
+  moduleModel: (id: string) =>
+    fetch(`${BASE}/api/modules/${id}/model`).then(json<{ model: ErdModel | null; updatedAtUtc: string | null }>),
+
+  saveModuleModel: (id: string, model: ErdModel) =>
+    fetch(`${BASE}/api/modules/${id}/model`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+    }).then(json<{ saved: boolean }>),
+
+  moduleDdl: (id: string, model: ErdModel) =>
+    fetch(`${BASE}/api/modules/${id}/ddl`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+    }).then(json<DdlResponse>),
+
+  // sql wins over model when present: it is the learner's own DDL, and grading
+  // must not care which one produced the schema.
+  moduleCheck: (id: string, body: { model?: ErdModel; sql?: string }) =>
+    fetch(`${BASE}/api/modules/${id}/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).then(json<CheckResult>),
+
+  moduleReset: (id: string) =>
+    fetch(`${BASE}/api/modules/${id}/reset`, { method: "POST" }).then(
+      json<{ status: string; database: string; elapsedMs: number }>,
+    ),
 
   recreateSqlContainer: (keepData: boolean) =>
     fetch(`${BASE}/api/settings/recreate-sql-container`, {

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import RootLayout from "./layouts/RootLayout";
 import PerfLayout from "./layouts/PerfLayout";
@@ -5,6 +6,7 @@ import DesignLayout from "./layouts/DesignLayout";
 import PerfEmpty from "./routes/PerfEmpty";
 import LessonRoute from "./routes/LessonRoute";
 import DesignOverview from "./routes/DesignOverview";
+const ModuleRoute = lazy(() => import("./routes/ModuleRoute"));
 import { SettingsView } from "./components/SettingsView";
 import { PrivacyView } from "./components/PrivacyView";
 import { TermsView } from "./components/TermsView";
@@ -28,7 +30,18 @@ export const router = createBrowserRouter([
       {
         path: "design",
         element: <DesignLayout />,
-        children: [{ index: true, element: <DesignOverview /> }],
+        children: [
+          { index: true, element: <DesignOverview /> },
+          {
+            path: "modules/:moduleId",
+            // Lazily loaded so the performance track never pays for React Flow.
+            element: (
+              <Suspense fallback={<div className="empty">Loading canvas…</div>}>
+                <ModuleRoute />
+              </Suspense>
+            ),
+          },
+        ],
       },
       { path: "settings", element: <SettingsView /> },
       { path: "privacy", element: <PrivacyView /> },
