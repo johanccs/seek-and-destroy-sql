@@ -31,6 +31,8 @@ public static class DesignEvaluator
                 "columnExists" => ColumnExists(rule, schema),
                 "primaryKey" => PrimaryKey(rule, schema),
                 "notNullable" => NotNullable(rule, schema),
+                "surrogateKey" => SurrogateKey(rule, schema),
+                "naturalKeyUnique" => NaturalKeyUnique(rule, schema),
                 "foreignKey" => ForeignKey(rule, schema),
                 "indexOnFk" => IndexOnFk(rule, schema),
                 "namingConvention" => NamingConvention(rule, schema),
@@ -88,6 +90,38 @@ public static class DesignEvaluator
         bool ok = want.SetEquals(actual);
         return ($"{r.Table} is keyed on {string.Join(", ", r.Columns)}", ok,
             actual.Count > 0 ? $"is {string.Join(", ", actual)}" : "no primary key");
+    }
+
+    // A surrogate key: one column, engine-generated, carrying no meaning. The
+    // IDENTITY property is what distinguishes it from a single-column natural
+    // key that merely happens to be an int.
+    private static (string, bool, string) SurrogateKey(RuleSpec r, SchemaDto s)
+    {
+        var t = Table(s, r.Table);
+        var label = $"{r.Table} has a surrogate key";
+        if (t is null) return (label, false, $"no table {r.Table}");
+
+        var pk = t.Columns.Where(c => c.InPrimaryKey).ToList();
+        if (pk.Count == 0) return (label, false, "no primary key");
+        if (pk.Count > 1) return (label, false, $"key is composite ({string.Join(", ", pk.Select(c => c.Name))})");
+        return (label, pk[0].IsIdentity, pk[0].IsIdentity ? $"{pk[0].Name} IDENTITY" : $"{pk[0].Name} is not generated");
+    }
+
+    // The natural key is still enforced, just not used as the identifier —
+    // a UNIQUE constraint rather than the primary key.
+    private static (string, bool, string) NaturalKeyUnique(RuleSpec r, SchemaDto s)
+    {
+        var t = Table(s, r.Table);
+        var cols = r.Columns is { Count: > 0 } ? r.Columns : (r.Column is null ? new List<string>() : new List<string> { r.Column });
+        var label = $"{r.Table}({string.Join(", ", cols)}) is unique";
+        if (t is null) return (label, false, $"no table {r.Table}");
+        if (cols.Count == 0) return (label, false, "rule names no columns");
+
+        var want = cols.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var hit = t.Indexes.FirstOrDefault(i =>
+            i.IsUnique &&
+            Split(i.KeyColumns).Select(StripDirection).ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(want));
+        return (label, hit is not null, hit is not null ? hit.Name : "no unique constraint on those columns");
     }
 
     private static (string, bool, string) ForeignKey(RuleSpec r, SchemaDto s)

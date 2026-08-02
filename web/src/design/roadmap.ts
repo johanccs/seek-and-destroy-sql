@@ -17,8 +17,8 @@ export const ROADMAP: RoadmapLevel[] = [
     entries: [
       { n: 1, title: "What a data model is", blurb: "Entities, attributes and relationships — the three things every model is made of." },
       { n: 2, title: "Tables, rows, columns and schemas", blurb: "What the engine actually stores, and what a schema is for." },
-      { n: 3, title: "Choosing data types", blurb: "What nvarchar(max) everywhere really costs you." },
-      { n: 4, title: "Primary keys: natural vs surrogate", blurb: "When the real-world identifier is the right key, and when it isn't." },
+      { n: 3, title: "Choosing data types", blurb: "What nvarchar(max) everywhere really costs you.", id: "d-b-03-data-types" },
+      { n: 4, title: "Primary keys: natural vs surrogate", blurb: "When the real-world identifier is the right key, and when it isn't.", id: "d-b-04-natural-vs-surrogate-keys" },
       { n: 5, title: "One-to-many relationships", blurb: "The shape most of a database is made of, and which side carries the key.", id: "d-b-05-one-to-many" },
       { n: 6, title: "One-to-one, and when it's really inheritance", blurb: "A rarer shape that usually means something else is going on.", id: "d-b-06-one-to-one" },
       { n: 7, title: "Many-to-many and the junction table", blurb: "Why the engine has no direct way to store this, and what to do instead.", id: "d-b-07-many-to-many" },

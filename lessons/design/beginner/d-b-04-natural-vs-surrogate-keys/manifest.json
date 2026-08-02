@@ -1,0 +1,72 @@
+{
+  "id": "d-b-04-natural-vs-surrogate-keys",
+  "track": "design",
+  "kind": "design",
+  "level": "beginner",
+  "order": 4,
+  "title": "Primary Keys: Natural vs Surrogate",
+  "description": "An email address identifies a member perfectly — until they change it, and every table that copied it is now wrong. Keep the meaningful value as an enforced rule and point at a meaningless one instead. Why it matters: the question is not which key is 'correct', it is which values you are willing to have to change everywhere at once.",
+  "topics": ["primary keys", "surrogate keys", "natural keys", "constraints"],
+  "estimatedMinutes": 20,
+  "narrative": "## What This Lesson Is About\n\nEvery table needs a primary key: the column, or columns, that identify a row. The question is whether to use a value that already means something — an email address, an ISBN, a national ID — or a number the database makes up.\n\nThink of a library book. Its ISBN is a perfectly good natural identifier. But the library still sticks its own barcode on the spine, because the barcode belongs to *the library's copy* and will never be reissued, corrected, or reused by a publisher. Both identifiers are real; they answer different questions.\n\n## Scenario\n\nRun this:\n\n```sql\nSELECT * FROM MemberImport;\nSELECT * FROM MemberAudit;\n```\n\n`MemberImport` is keyed on `Email`. `MemberAudit` refers to members the only way it can — by copying the email into every row.\n\nNow Thandi changes her email address. Watch what that costs:\n\n- Her two audit rows still say `thandi@example.co.za`. They are now **orphans pointing at a member who no longer exists** under that name.\n- Fixing them means an update in every table that copied the address. Today that is one table. In a year it is six, and one of them belongs to another team.\n- If the schema used a real foreign key with `ON UPDATE CASCADE`, the engine would rewrite every child row — a wide, locking update caused by someone editing their own profile.\n\nAnd the failure mode nobody plans for: **natural keys get reused.** Employee numbers, phone numbers, and email addresses all get recycled eventually. When they do, the old rows silently attach to the new person. Nothing errors. The data is just quietly wrong.\n\n## Your task\n\nModel `Members` with a surrogate primary key, keeping `Email` as an enforced unique rule, and `MemberActions` pointing at the member by that surrogate.\n\n## What to look for\n\n**The choice is not \"natural *or* surrogate\". It is both.** This trips people up in both directions. Drop the natural key entirely and you have thrown away a real business rule — nothing now stops two members sharing an email. Use it as the primary key and you have chosen a value that can change as the thing everything else points at.\n\nSo: surrogate as the **identifier**, natural key as a **`UNIQUE` constraint**. `Email` is still guaranteed unique; it is just not what other tables reference.\n\n**A surrogate key must be meaningless to work.** The moment anyone reads meaning into it — \"ids under 1000 are staff\", \"the id tells you the joining order\" — it has acquired semantics, and semantics can change. Its entire value is that it has nothing to say.\n\n**This module's check requires the key to be engine-generated.** A single-column `int` primary key you populate yourself is not a surrogate; it is a natural key that happens to be a number. `IDENTITY` is what makes it the database's business rather than yours.\n\n## The concept\n\nWhen a natural key genuinely is the right primary key:\n\n- It is **immutable** — it will never be corrected, reformatted or reissued.\n- It is **never reused**, by anyone, ever.\n- It is **narrow**, because every foreign key and index inherits its width.\n- It is **already required**, so making it the key adds no new obligation.\n\nCountry codes and currency codes pass. Email addresses, phone numbers, names, national IDs and account numbers fail at least one — usually the first two, and usually only in production.\n\nOne honest caveat: surrogate keys are not free. They add a column, an index and a join to every lookup by a business value, and they make it possible to insert the same real-world thing twice unless you also enforce the natural key. That last point is why the `UNIQUE` constraint in this module is not optional decoration — without it, a surrogate key actively hides duplicates.\n\n## How this is graded\n\nThe check reads back the keys and constraints your DDL created. `Members` must have a single-column `IDENTITY` primary key, `Email` must carry a unique constraint, and `MemberActions` must reference `Members` by the surrogate.",
+  "steps": [
+    { "kind": "read", "anchor": "scenario" },
+    { "kind": "canvas", "prompt": "Give Members a surrogate key, mark Email unique, and point MemberActions at the member by that surrogate." },
+    { "kind": "sql", "prompt": "Run the DDL, move the data across, then change Thandi's email and confirm her history still follows her." }
+  ],
+  "hints": [
+    "Two different jobs need two different columns. MemberId identifies the row; Email is still a rule that must hold, but it is not what other tables point at.",
+    "Mark Email with the 'uq' flag in the inspector. That emits a UNIQUE constraint — the natural key stays enforced without being the identifier.",
+    "MemberActions should carry MemberId, not MemberEmail. That is the whole payoff: changing an email touches exactly one row."
+  ],
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-members",
+        "name": "Members",
+        "x": 70,
+        "y": 110,
+        "attributes": [
+          { "name": "Email", "dataType": "nvarchar(200)", "nullable": false },
+          { "name": "FullName", "dataType": "nvarchar(100)", "nullable": false },
+          { "name": "JoinedOn", "dataType": "date", "nullable": false }
+        ]
+      },
+      {
+        "id": "e-actions",
+        "name": "MemberActions",
+        "x": 480,
+        "y": 110,
+        "attributes": [
+          { "name": "ActionId", "dataType": "int", "isPrimaryKey": true, "isIdentity": true, "nullable": false },
+          { "name": "Action", "dataType": "nvarchar(50)", "nullable": false },
+          { "name": "HappenedOn", "dataType": "date", "nullable": false }
+        ]
+      }
+    ],
+    "relationships": []
+  },
+  "designConditions": [
+    { "type": "entityExists", "table": "Members" },
+    { "type": "surrogateKey", "table": "Members" },
+    { "type": "naturalKeyUnique", "table": "Members", "columns": ["Email"] },
+    { "type": "foreignKey", "table": "MemberActions", "references": "Members", "cardinality": "manyToOne" }
+  ],
+  "references": [
+    {
+      "title": "Primary and foreign key constraints",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/primary-and-foreign-key-constraints"
+    },
+    {
+      "title": "Unique constraints and check constraints",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/unique-constraints-and-check-constraints"
+    },
+    {
+      "title": "CREATE TABLE (Transact-SQL) — IDENTITY property",
+      "url": "https://learn.microsoft.com/sql/t-sql/statements/create-table-transact-sql-identity-property"
+    }
+  ],
+  "startingQuery": "SELECT * FROM MemberImport;\nSELECT * FROM MemberAudit;",
+  "passConditions": [],
+  "azureUnsupported": false
+}

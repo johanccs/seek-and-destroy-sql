@@ -14,6 +14,8 @@ export type ErdAttribute = {
   nullable?: boolean;
   isPrimaryKey?: boolean;
   isIdentity?: boolean;
+  /** Unique, but not the identifier — emitted as a UNIQUE constraint. */
+  isUnique?: boolean;
 };
 
 export type ErdEntity = {
