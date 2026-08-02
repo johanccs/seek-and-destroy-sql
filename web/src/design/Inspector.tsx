@@ -11,14 +11,16 @@ export function Inspector({
   model,
   selection,
   dispatch,
+  collapsed = false,
 }: {
   model: ErdModel;
   selection: Selection;
   dispatch: (a: ErdAction) => void;
+  collapsed?: boolean;
 }) {
   if (!selection) {
     return (
-      <div className="erd-inspector">
+      <div className={`erd-inspector ${collapsed ? "pane-collapsed" : ""}`}>
         <div className="props-sub">Properties</div>
         <p className="muted">
           Select a table or a relationship to edit it. Right-click works too.
@@ -31,7 +33,7 @@ export function Inspector({
     const e = model.entities.find((x) => x.id === selection.id);
     if (!e) return <div className="erd-inspector" />;
     return (
-      <div className="erd-inspector">
+      <div className={`erd-inspector ${collapsed ? "pane-collapsed" : ""}`}>
         <div className="props-sub">Table</div>
         <input
           className="erd-input"
@@ -140,7 +142,7 @@ export function Inspector({
   const nameOf = (id: string) => model.entities.find((e) => e.id === id)?.name ?? "?";
 
   return (
-    <div className="erd-inspector">
+    <div className={`erd-inspector ${collapsed ? "pane-collapsed" : ""}`}>
       <div className="props-sub">Relationship</div>
       <p className="erd-rel-summary">
         <strong>{nameOf(r.fromEntityId)}</strong>.{r.fromColumns.join(", ")} →{" "}

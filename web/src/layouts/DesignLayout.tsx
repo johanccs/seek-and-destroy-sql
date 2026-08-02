@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { NavLink, Outlet } from "react-router";
 import { useCurriculum } from "../hooks/useCurriculum";
 import { useColumnResize } from "../useColumnResize";
+import { ResizeHandle } from "../components/ResizeHandle";
 import { difficultyLabel } from "../difficulty";
 
 const LEVEL_TITLES: Record<string, string> = {
@@ -18,7 +19,7 @@ export default function DesignLayout() {
   // lesson list on the performance track. minRight is larger than the
   // performance track's because a module page has three columns to fit.
   const appRef = useRef<HTMLDivElement>(null);
-  const { width: sidebarWidth, onResizeStart } = useColumnResize({
+  const { width: sidebarWidth, onResizeStart, collapsed, toggleCollapsed } = useColumnResize({
     storageKey: "designSidebarWidth",
     defaultWidth: 320,
     min: 220,
@@ -78,8 +79,10 @@ export default function DesignLayout() {
             ))}
           </div>
         ))}
-        <div className="sidebar-resize-handle rz rz-col" onMouseDown={onResizeStart} />
       </aside>
+
+      <ResizeHandle axis="col" side="before" label="module list"
+        onResizeStart={onResizeStart} collapsed={collapsed} onToggle={toggleCollapsed} />
 
       <main className="main">
         <Outlet />

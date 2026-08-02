@@ -3,6 +3,7 @@ import { NavLink, Outlet } from "react-router";
 import type { LevelGroup } from "../types";
 import { useCurriculum } from "../hooks/useCurriculum";
 import { useColumnResize } from "../useColumnResize";
+import { ResizeHandle } from "../components/ResizeHandle";
 import { difficultyLabel } from "../difficulty";
 
 export type PerfOutletContext = { refresh: () => void };
@@ -22,7 +23,7 @@ export default function PerfLayout() {
   const [search, setSearch] = useState("");
 
   const appRef = useRef<HTMLDivElement>(null);
-  const { width: sidebarWidth, onResizeStart } = useColumnResize({
+  const { width: sidebarWidth, onResizeStart, collapsed, toggleCollapsed } = useColumnResize({
     storageKey: "sidebarWidth",
     defaultWidth: 300,
     min: 220,
@@ -111,8 +112,10 @@ export default function PerfLayout() {
             ))}
           </div>
         ))}
-        <div className="sidebar-resize-handle rz rz-col" onMouseDown={onResizeStart} />
       </aside>
+
+      <ResizeHandle axis="col" side="before" label="lesson list"
+        onResizeStart={onResizeStart} collapsed={collapsed} onToggle={toggleCollapsed} />
 
       <main className="main">
         {/* refresh re-fetches levels+progress so a solve turns the sidebar tick
