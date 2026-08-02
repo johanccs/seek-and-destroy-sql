@@ -81,6 +81,17 @@ export function Inspector({
               />
               PK
             </label>
+            <label className="erd-flag" title="Unique, but not the identifier — emitted as a UNIQUE constraint">
+              <input
+                type="checkbox"
+                checked={!!a.isUnique}
+                disabled={!!a.isPrimaryKey}
+                onChange={(ev) =>
+                  dispatch({ t: "updateAttribute", entityId: e.id, index: i, patch: { isUnique: ev.target.checked } })
+                }
+              />
+              uq
+            </label>
             <label className="erd-flag">
               <input
                 type="checkbox"

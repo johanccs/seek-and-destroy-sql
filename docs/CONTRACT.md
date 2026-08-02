@@ -223,6 +223,10 @@ so adding them never breaks an existing manifest.
 }
 ```
 
+**`ErdAttribute`** — `name`, `dataType`, plus optional `nullable`, `isPrimaryKey`, `isIdentity`
+and `isUnique`. `isUnique` emits a `UNIQUE` constraint, which is how a natural key is expressed
+on a table keyed by a surrogate.
+
 **`ErdRelationship`** — `fromEntityId` is the **child** (the side that carries the foreign
 key); `toEntityId` is the parent. `cardinality` is `manyToOne` | `oneToOne` | `manyToMany`;
 `onDelete` is `NO ACTION` | `CASCADE` | `SET NULL`. A `manyToMany` relationship has no direct
@@ -594,6 +598,8 @@ itself — authors write machine-readable intent only.
 | `columnExists`     | `table`, `column`, `pattern` (optional type prefix) | the column exists, and its type starts with `pattern` if given |
 | `primaryKey`       | `table`, `columns` (optional)                     | the table has a primary key; with `columns`, exactly those |
 | `notNullable`      | `table`, `column`                                 | the column exists and is `NOT NULL` |
+| `surrogateKey`     | `table`                                           | the primary key is a single `IDENTITY` column |
+| `naturalKeyUnique` | `table`, `columns`                                | a unique constraint or index covers exactly those columns |
 | `foreignKey`       | `table`, `references`, `columns` (optional), `cardinality` (optional) | a foreign key points at `references`, on those columns, with that derived cardinality |
 | `indexOnFk`        | `table`, `column` or `columns`                    | an index **leads** with those columns (so a composite index counts) |
 | `namingConvention` | `pattern` (`PascalCase`\|`camelCase`\|`snake_case`\|regex), `scope` (`tables`\|`columns`\|`all`) | every name in scope matches |

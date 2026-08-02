@@ -87,6 +87,11 @@ public static partial class DdlGenerator
             else
                 warnings.Add($"{e.Name} has no primary key.");
 
+            // A unique constraint per flagged column: this is how a natural key
+            // is expressed when the table is keyed on a surrogate instead.
+            foreach (var u in e.Attributes.Where(a => a.IsUnique && !a.IsPrimaryKey))
+                lines.Add($"    CONSTRAINT {Ident($"UQ_{e.Name}_{u.Name}")} UNIQUE ({Ident(u.Name)})");
+
             sb.AppendLine(string.Join(",\n", lines)).AppendLine(");").AppendLine();
         }
 

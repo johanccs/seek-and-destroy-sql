@@ -25,6 +25,10 @@ public sealed class ErdAttribute
     public bool Nullable { get; set; }
     public bool IsPrimaryKey { get; set; }
     public bool IsIdentity { get; set; }
+    // A natural key: unique, but not the row's identifier. Emitted as a UNIQUE
+    // constraint, which is how you say "no two rows may share this value"
+    // without making it the primary key.
+    public bool IsUnique { get; set; }
 }
 
 public sealed class ErdRelationship

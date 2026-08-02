@@ -19,7 +19,7 @@ import type { ErdAction } from "./model";
 
 type EntityData = {
   name: string;
-  attributes: { name: string; dataType: string; nullable?: boolean; isPrimaryKey?: boolean }[];
+  attributes: { name: string; dataType: string; nullable?: boolean; isPrimaryKey?: boolean; isUnique?: boolean }[];
   fkColumns: Set<string>;
 };
 
@@ -36,7 +36,7 @@ function EntityNode({ data, selected }: NodeProps<Node<EntityData>>) {
           <div className="erd-attr" key={a.name}>
             <Handle type="target" position={Position.Left} id={`${a.name}-t`} className="erd-port" />
             <span className="erd-attr-key">
-              {a.isPrimaryKey ? "PK" : data.fkColumns.has(a.name.toLowerCase()) ? "FK" : ""}
+              {a.isPrimaryKey ? "PK" : data.fkColumns.has(a.name.toLowerCase()) ? "FK" : a.isUnique ? "UQ" : ""}
             </span>
             <span className="erd-attr-name">{a.name}</span>
             <span className="erd-attr-type">

@@ -1,0 +1,61 @@
+{
+  "id": "d-b-03-data-types",
+  "track": "design",
+  "kind": "design",
+  "level": "beginner",
+  "order": 3,
+  "title": "Choosing Data Types",
+  "description": "A column's type is the first constraint you get for free: it decides what can be stored, what can be compared, and what can be indexed. Why it matters: nvarchar(max) for everything looks flexible and is actually the most expensive decision in the table — it cannot be a key, it breaks sorting and arithmetic, and it lets impossible data in.",
+  "topics": ["data types", "constraints", "indexing"],
+  "estimatedMinutes": 20,
+  "narrative": "## What This Lesson Is About\n\nA data type is not a storage detail. It is the first rule the database enforces on your behalf, and you get it for free just by choosing well.\n\nThink of labelled jars in a kitchen. A jar marked *flour* that only accepts flour is doing work for you: nothing else can end up in it, you know what a spoonful means, and you can weigh it. A row of identical unlabelled jars that accept anything is more \"flexible\" in exactly the way that helps nobody.\n\n## Scenario\n\nRun this:\n\n```sql\nSELECT * FROM ProductImport;\n```\n\nSix products, and every single column is `nvarchar(max)` — prices, dates, stock counts, and a true/false flag that appears as `true`, `TRUE`, `Y`, `false` and `N`.\n\nHere is what that costs, and none of it is theoretical:\n\n- **Arithmetic is guesswork.** `SUM(PriceZar * StockCount)` has to convert every value first, and one bad row (`'about 400'`) takes the whole query down with a conversion error.\n- **Dates do not sort.** As text, `'2026-03-04'` happens to sort correctly — but only because of the format. `'3/4/2026'` would not, and nothing stops someone inserting it.\n- **The flag has five spellings.** Every query that reads it has to know all of them, forever, and a sixth will appear eventually.\n- **Impossible values are accepted.** `'2026-02-30'` is not a date. As `nvarchar` it stores happily and fails later, somewhere else, in something that was working yesterday.\n\nAnd one cost that surprises people:\n\n- **You cannot index it.** Microsoft's documentation is explicit that LOB types — `nvarchar(max)`, `varchar(max)`, `varbinary(max)`, `xml`, `text` — *\"can't be specified as key columns for an index\"*. So `Sku` cannot be a primary key, cannot be a unique key, and cannot be seeked. The column you would most want to look products up by is the one you have made unindexable.\n\n## Your task\n\nModel a `Products` table with types that match the data, and make `Sku` a unique natural key.\n\n## What to look for\n\n**Pick the narrowest type that holds every legal value.** Not the smallest you can get away with today — the narrowest that is *correct*. `StockCount` is an `int`; making it `tinyint` to save three bytes breaks the day someone stocks 300 of something.\n\n**Money is `decimal`, not `float`.** `float` is binary floating point: it cannot represent 0.1 exactly, so totals drift. `decimal(10,2)` stores exactly what you meant. This is the single most common typing mistake in a commercial schema.\n\n**`bit` for a true/false, and then it has one spelling.** `IsActive bit NOT NULL` cannot be `'Y'`, cannot be `'yes'`, cannot be `NULL`. Every query that reads it is simpler forever.\n\n**Size matters more than it looks.** The index key limit is 900 bytes for a clustered index and 1,700 for a nonclustered one. And every non-null `nvarchar(max)` column costs an extra 24 bytes of fixed allocation that counts against the 8,060-byte row limit during a sort — which is how a table full of `max` columns starts failing at operations that have nothing obviously to do with its types.\n\n## The concept\n\nThree questions, in this order:\n\n1. **What is this, really?** A date is a date. Money is a decimal. A flag is a bit. An identifier is usually a short string or an int. Most typing mistakes are made by skipping this question, not by getting it wrong.\n2. **What is the widest legal value?** That sets the length. Guessing generously is fine; `nvarchar(max)` is not \"generous\", it is a different kind of column with different rules.\n3. **Will I search, sort or join on it?** If yes, it has to be indexable — which rules out the LOB types entirely, and makes the length limits worth checking.\n\nThe pattern to be suspicious of is a column typed for the *import format* rather than the *data*. `nvarchar` is how the CSV arrived; it is rarely what the value is.\n\n## How this is graded\n\nThe check reads back the column types your DDL actually produced. `PriceZar` must be a decimal, `LaunchedOn` a date type, `IsActive` a bit — asserted against the engine's catalog, not the diagram.",
+  "steps": [
+    { "kind": "read", "anchor": "scenario" },
+    { "kind": "canvas", "prompt": "Model Products with a type per column that matches what it holds, and mark Sku unique." },
+    { "kind": "sql", "prompt": "Run the DDL, then convert the import rows across and try the three queries that were impossible before." }
+  ],
+  "hints": [
+    "Work column by column and ask what the value actually is: PriceZar is money, LaunchedOn is a date, IsActive is a yes/no, StockCount is a whole number.",
+    "Money is decimal(10,2), never float. Binary floating point cannot represent 0.1 exactly, so totals drift by cents that nobody can account for.",
+    "Sku is the code people look products up by, so it has to be indexable — which nvarchar(max) can never be. Give it a real length and mark it unique."
+  ],
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-products",
+        "name": "Products",
+        "x": 140,
+        "y": 110,
+        "attributes": [
+          { "name": "ProductId", "dataType": "int", "isPrimaryKey": true, "isIdentity": true, "nullable": false }
+        ]
+      }
+    ],
+    "relationships": []
+  },
+  "designConditions": [
+    { "type": "entityExists", "table": "Products" },
+    { "type": "columnExists", "table": "Products", "column": "PriceZar", "pattern": "decimal" },
+    { "type": "columnExists", "table": "Products", "column": "LaunchedOn", "pattern": "date" },
+    { "type": "columnExists", "table": "Products", "column": "IsActive", "pattern": "bit" },
+    { "type": "columnExists", "table": "Products", "column": "StockCount", "pattern": "int" },
+    { "type": "naturalKeyUnique", "table": "Products", "columns": ["Sku"] }
+  ],
+  "references": [
+    {
+      "title": "CREATE INDEX (Transact-SQL) — LOB types cannot be index key columns",
+      "url": "https://learn.microsoft.com/sql/t-sql/statements/create-index-transact-sql#arguments"
+    },
+    {
+      "title": "CREATE INDEX (Transact-SQL) — index key size is 900 bytes clustered, 1,700 nonclustered",
+      "url": "https://learn.microsoft.com/sql/t-sql/statements/create-index-transact-sql#index-key-size"
+    },
+    {
+      "title": "nchar and nvarchar (Transact-SQL) — each non-null nvarchar(max) column costs 24 extra bytes against the row limit during sorts",
+      "url": "https://learn.microsoft.com/sql/t-sql/data-types/nchar-and-nvarchar-transact-sql#remarks"
+    }
+  ],
+  "startingQuery": "SELECT * FROM ProductImport;",
+  "passConditions": [],
+  "azureUnsupported": false
+}
