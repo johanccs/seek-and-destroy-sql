@@ -1,0 +1,105 @@
+{
+  "id": "d-b-02-tables-rows-columns-schemas",
+  "track": "design",
+  "kind": "design",
+  "level": "beginner",
+  "order": 2,
+  "title": "Tables, Rows, Columns and Schemas",
+  "description": "A table is not a spreadsheet - it is a row in sys.tables, and its columns are rows in sys.columns. Why it matters: once you can see that the database describes itself, schema qualification stops being ceremony and becomes the thing that decides which table your query actually hit.",
+  "topics": [
+    "tables",
+    "schemas",
+    "catalog views",
+    "name resolution"
+  ],
+  "estimatedMinutes": 20,
+  "narrative": "## What This Lesson Is About\n\nA table looks like a spreadsheet, and that comparison gets you about a week before it starts costing you.\n\nA spreadsheet is a grid you look at. A table is a *declaration* the engine stored — and it stored it in the only way it knows how to store anything, which is as rows in another table. Your `Customers` table is a row in `sys.tables`. Its columns are rows in `sys.columns`. The database describes itself using itself.\n\nThat is not a curiosity. It is why the Check button on this page can read your work back rather than taking a diagram's word for it, and it is why the rest of this course can talk about \"what the engine actually did\" as a thing you can go and look at.\n\n## Scenario\n\nStart with the simplest possible question:\n\n```sql\nSELECT SCHEMA_NAME() AS my_default_schema;\n```\n\nNot `dbo`. You are working in a schema of this module's own, with a database user of its own — and so is every other lesson in this app. Now look at what else is in here:\n\n```sql\nSELECT t.name AS table_name, COUNT(*) AS in_how_many_schemas\nFROM sys.tables t\nGROUP BY t.name\nHAVING COUNT(*) > 1\nORDER BY in_how_many_schemas DESC, table_name;\n```\n\nRun it. There are dozens of tables called `Orders` in this single database, and several called `Customers`, and nothing has collided. That is what a schema is for, demonstrated on the app you are reading this in rather than on an example someone invented.\n\n## Your task\n\nModel a small `Customers` table: an identifier, a full name, and an email that is required.\n\nKeep it small deliberately. Building the table is not the lesson — looking at what the engine did with it is.\n\n## What to look for\n\n**Your table becomes a row.** After the DDL runs:\n\n```sql\nSELECT t.name, s.name AS schema_name\nFROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id\nWHERE t.schema_id = SCHEMA_ID(SCHEMA_NAME());\n```\n\n**Your columns become rows too**, with the type, the length and the nullability all stored as data:\n\n```sql\nSELECT name, system_type_id, max_length, is_nullable\nFROM sys.columns WHERE object_id = OBJECT_ID('Customers');\n```\n\nMicrosoft's documentation describes these plainly: `sys.tables` *\"returns a row for each user table in a SQL Server database\"*, and `sys.columns` *\"returns a row for each column of an object that has columns\"*. Note `max_length` is in **bytes**, not characters — your `Email nvarchar(256)` reports 512, because each character costs two.\n\nNow run the duplicate-name query from the scenario again. The count next to `Customers` has gone up by one: you just added a table to it. You were never looking at a diagram of the database — you were looking at the database, and it changed when you did.\n\n**An unqualified name is a question, not an answer.** When you write `SELECT * FROM Customers`, SQL Server does not simply know which table you mean. The documented rule: *\"When database objects are referenced by using a one-part name, SQL Server first looks in the user's default schema. If the object is not found there, SQL Server looks next in the `dbo` schema. If the object is not in the `dbo` schema, an error is returned.\"*\n\nTwo lookups, then an error. Every unqualified query in this app has been quietly relying on that first step — this module's schema is your default schema, which is why the lessons can write `SELECT * FROM Orders` and mean their own.\n\n**Avoid `SELECT *` against the catalog.** Microsoft recommends against it explicitly, because they may add columns to catalog views in future releases and your code will break when they do. Name the columns you want. The queries above do.\n\n## The concept\n\nA schema is not a folder. It is a **namespace and a standing grant**, and the second half is the part people miss.\n\nThe namespace half is what you saw: dozens of `Orders` tables, no collisions, because the full name of a table is `schema.table` and the one-part form is just a convenience with a documented fallback.\n\nThe standing grant half is why schemas exist in production. Permissions applied to a schema are inherited by the objects in it — *including objects added later*. Grant `SELECT` on a `Reporting` schema once, and next year's tables are covered the day they are created, without anyone remembering to go back and grant them. That is a different tool from a folder; a folder does not do that.\n\n**The trade-off, and it is a real one.** Schemas cost nothing to create and nothing at runtime, which makes it tempting to add one per team or per feature. Resist a little. Every boundary you draw is a boundary your queries have to cross: cross-schema joins want qualification everywhere, and once different users have different default schemas, the same unqualified query text means different tables depending on who ran it. Schemas earn their keep when they group objects that genuinely share a *permission story*. Grouping by team org chart is how you end up with `Sales2` three years later.\n\n## How this is graded\n\nThe check confirms that a `Customers` table exists in your schema, that it has a primary key, and that it has an `Email` column that is `NOT NULL` — read back from the engine's own catalog, which is the thing this module is about.\n\nNothing about schemas is graded, because there is nothing to grade: you did not choose your schema, the app gave you one. The catalog queries in the SQL step are there to be *run and read*, not to be marked.\n",
+  "steps": [
+    {
+      "kind": "read",
+      "anchor": "scenario"
+    },
+    {
+      "kind": "canvas",
+      "prompt": "Model a small Customers table: an identifier, a full name, and an email that is required."
+    },
+    {
+      "kind": "sql",
+      "prompt": "Run the DDL, then query the catalog views to see what the engine stored - and find out which schema you have been working in all along."
+    }
+  ],
+  "hints": [
+    "Keep the table small on purpose. Building it is not the lesson; looking at what the engine did with it is.",
+    "SELECT SCHEMA_NAME() tells you your default schema. It is not dbo - this module has its own, and so does every other lesson in the app.",
+    "Group sys.tables by name and keep the ones appearing more than once. Dozens of schemas in this database contain a table called Orders, and none of them collide. That is the whole point of a namespace."
+  ],
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-customers",
+        "name": "Customers",
+        "x": 140,
+        "y": 110,
+        "attributes": [
+          {
+            "name": "CustomerId",
+            "dataType": "int",
+            "isPrimaryKey": true,
+            "isIdentity": true,
+            "nullable": false
+          }
+        ]
+      }
+    ],
+    "relationships": []
+  },
+  "designConditions": [
+    {
+      "type": "entityExists",
+      "table": "Customers"
+    },
+    {
+      "type": "primaryKey",
+      "table": "Customers"
+    },
+    {
+      "type": "columnExists",
+      "table": "Customers",
+      "column": "Email"
+    },
+    {
+      "type": "notNullable",
+      "table": "Customers",
+      "column": "Email"
+    }
+  ],
+  "references": [
+    {
+      "title": "Ownership and user-schema separation - one-part names resolve against the default schema, then dbo, then error",
+      "url": "https://learn.microsoft.com/sql/relational-databases/security/authentication-access/ownership-and-user-schema-separation#the-dbo-schema"
+    },
+    {
+      "title": "Ownership and user-schema separation - schema permissions are automatically applied to objects added later",
+      "url": "https://learn.microsoft.com/sql/relational-databases/security/authentication-access/ownership-and-user-schema-separation#schema-owners-and-permissions"
+    },
+    {
+      "title": "sys.schemas - database schemas act as namespaces or containers for objects",
+      "url": "https://learn.microsoft.com/sql/relational-databases/system-catalog-views/schemas-catalog-views-sys-schemas"
+    },
+    {
+      "title": "sys.tables - returns a row for each user table in a SQL Server database",
+      "url": "https://learn.microsoft.com/sql/relational-databases/system-catalog-views/sys-tables-transact-sql"
+    },
+    {
+      "title": "sys.columns - returns a row for each column, with max_length in bytes",
+      "url": "https://learn.microsoft.com/sql/relational-databases/system-catalog-views/sys-columns-transact-sql"
+    },
+    {
+      "title": "System catalog views - avoid SELECT * against a catalog view, columns may be added in future releases",
+      "url": "https://learn.microsoft.com/sql/relational-databases/system-catalog-views/catalog-views-transact-sql#remarks"
+    }
+  ],
+  "startingQuery": "SELECT SCHEMA_NAME() AS my_default_schema;",
+  "passConditions": [],
+  "azureUnsupported": false
+}
