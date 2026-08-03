@@ -1,0 +1,134 @@
+{
+  "id": "d-b-10-capstone-order-entry",
+  "track": "design",
+  "kind": "design",
+  "level": "beginner",
+  "order": 10,
+  "title": "Capstone: An Order-Entry System",
+  "description": "Everything in this level, applied once, from a written brief and an empty canvas. Why it matters: the modules gave you one idea at a time - a real design is deciding which ideas apply, in what order, to a description written by someone who does not know what a foreign key is.",
+  "topics": [
+    "modelling",
+    "relationships",
+    "junction tables",
+    "constraints"
+  ],
+  "estimatedMinutes": 45,
+  "narrative": "## What This Lesson Is About\n\nNine modules gave you one idea at a time, each with the shape of the answer already suggested. This one gives you a paragraph of prose and an empty canvas.\n\nThat gap is the actual skill. Real briefs are written by people who do not know what a foreign key is, and they do not arrive sorted into modules. Deciding *which* ideas apply, and in what order, is the work — and it is the part no single module can teach you.\n\nTake your time. Read the brief twice before you draw anything.\n\n## Scenario\n\nA small homeware shop wants to stop running on spreadsheets. Here is the whole brief, in their words:\n\n> Customers place orders. An order is placed on a date, and is either still being\n> picked, or has shipped — in which case we know when. An order has several lines\n> on it. Each line is for one product, at some quantity, at the price we charged\n> for it at the time. Products have a stock code we print on labels, a name, and\n> a current list price.\n\nThey have also sent you the price list they already publish:\n\n```sql\nSELECT * FROM PriceListExtract ORDER BY Sku;\n```\n\nThat is everything. Nobody is going to tell you how many tables there are.\n\n## Your task\n\nModel the whole system on the canvas, then build it and put one real order through it.\n\nWork from the brief, not from this page. If you want a way in, start with the nouns and ask of each one whether the shop keeps facts about it.\n\n## What to look for\n\n**Read \"at the price we charged for it at the time\" again.** It is the most important clause in the brief and it is easy to skim past.\n\nSuppose the price lives only on the product. Someone raises the price of a mug from R129 to R199 — an ordinary Tuesday. What just happened to every order placed last year? Their totals changed. Not because anything about those orders changed, but because a fact they were borrowing moved underneath them. You can no longer answer \"what did this customer pay?\", which is a question a business genuinely needs to answer, sometimes to a court.\n\nThe price charged and the price now are **two different facts that usually have the same value**. Storing the charged price on the line is not duplication to be normalized away — it is the only place that fact can honestly live.\n\n**One of your tables is not a thing.** Three of them are: a customer, a product, an order. The fourth exists because an order has many products and a product appears on many orders, and there is no way to write that down directly.\n\nBut notice what happens once you have it. That table needs a quantity, and a price. Those are not facts about the order, and not facts about the product — they are facts about *this product being on this order*. A junction table that carries its own attributes is the first time in this level that a table exists for a **relationship** rather than for a thing, and once you can see that shape, you see it everywhere: enrolments, bookings, memberships, assignments.\n\n**Not every field in the brief is a column.** \"Still being picked, or has shipped — in which case we know when\" describes one nullable date, not a status column and a date. If `ShippedOn` is NULL the order has not shipped; if it has a value, it has. Adding a separate status field gives you two facts that can contradict each other, and eventually they will. Module 8 made this argument; here you get to act on it.\n\n**What is not here, and why.** There is no one-to-one in this design. Module 6 taught you the shape, and the honest answer is that this domain has none — inventing one so the capstone can tick every box would teach you to add tables to satisfy a checklist, which is the opposite of the point. When you meet a real one-to-one you will know it: it usually means optional detail, or a genuine subtype.\n\n## The concept\n\nFour nouns became four tables here, and that is worth being suspicious of rather than pleased about. It is not a method. It happened because this brief is small and well told; a real one has nouns that turn out to be attributes (\"a stock code\"), nouns that turn out to be the same thing under two names, and things the business never mentions because everyone already knows them.\n\nWhat *is* method is the question you have been asking since module 1: **what is this a fact about?** Apply it to every value in the brief and the tables fall out, including the one that is not a thing.\n\n**The trade-offs you have just made, stated so you know you made them:**\n\n- **A derived total.** Nothing stores the order's total; it is `SUM(Quantity * UnitPriceZar)` over the lines, so it cannot disagree with them. The cost is that every read recomputes it. At this size that is free. At a hundred million lines it is a decision to revisit — and the advanced modules do.\n- **A surrogate key on Products, with the SKU as a unique constraint.** The stock code identifies a product perfectly well. Module 4's argument applies: business identifiers get reissued, retyped and re-scoped, and you want the thing your foreign keys point at to be inert.\n- **Storing the charged price.** It duplicates the list price on the day, and it is right anyway. Duplication is only a problem when the two copies are the *same fact*.\n\n## How this is graded\n\nThe check confirms the four tables exist and each has a primary key; that `Orders` references `Customers` and `OrderLines` references both `Orders` and `Products`; that `Products.Sku` is unique; that `OrderLines` has a decimal `UnitPriceZar`; that there is a CHECK constraint on `OrderLines.Quantity`; and that `Orders.PlacedOn` is NOT NULL.\n\nTwo things it deliberately does **not** check, so you know where you are on your own:\n\n- **Nothing about indexing.** Foreign keys are not indexed automatically by SQL Server, and there are good reasons to index these — but that is module 23's argument, and this level has not made it.\n- **Nothing about `ShippedOn`.** Grading it would mean asserting that a column is nullable, which is asserting the *absence* of a constraint. The reasoning above stands on its own; the grader is not backing it up.\n\nPassing means the structure holds. It does not mean the model is beyond criticism — bring it to module 11 and you will find things to argue with, which is the right way to arrive there.\n",
+  "steps": [
+    {
+      "kind": "read",
+      "anchor": "scenario"
+    },
+    {
+      "kind": "canvas",
+      "prompt": "Model the whole system from the brief. Nothing is drawn for you."
+    },
+    {
+      "kind": "sql",
+      "prompt": "Run the DDL, put one order with two lines through it, then recalculate the total from what you stored."
+    }
+  ],
+  "hints": [
+    "Start by listing the nouns in the brief: customer, order, line, product. Four nouns, four tables - that is not a general method, but here it holds.",
+    "An order has many products and a product is on many orders. The line is where those two meet, which makes it a junction table - and it carries a quantity and a price of its own, which makes it more than a pair of keys.",
+    "Read 'the price we charged for it at the time' once more. If the price lives only on Products, what happens to last year's orders the day someone edits it?",
+    "'Still being picked, or has shipped - in which case we know when' is one nullable date, not a status column plus a date. Two fields would let them disagree."
+  ],
+  "startingModel": {
+    "entities": [],
+    "relationships": []
+  },
+  "designConditions": [
+    {
+      "type": "entityExists",
+      "table": "Customers"
+    },
+    {
+      "type": "entityExists",
+      "table": "Orders"
+    },
+    {
+      "type": "entityExists",
+      "table": "OrderLines"
+    },
+    {
+      "type": "entityExists",
+      "table": "Products"
+    },
+    {
+      "type": "primaryKey",
+      "table": "Customers"
+    },
+    {
+      "type": "primaryKey",
+      "table": "Orders"
+    },
+    {
+      "type": "primaryKey",
+      "table": "OrderLines"
+    },
+    {
+      "type": "primaryKey",
+      "table": "Products"
+    },
+    {
+      "type": "foreignKey",
+      "table": "Orders",
+      "references": "Customers"
+    },
+    {
+      "type": "foreignKey",
+      "table": "OrderLines",
+      "references": "Orders"
+    },
+    {
+      "type": "foreignKey",
+      "table": "OrderLines",
+      "references": "Products"
+    },
+    {
+      "type": "naturalKeyUnique",
+      "table": "Products",
+      "columns": [
+        "Sku"
+      ]
+    },
+    {
+      "type": "columnExists",
+      "table": "OrderLines",
+      "column": "UnitPriceZar",
+      "pattern": "decimal"
+    },
+    {
+      "type": "checkConstraintExists",
+      "table": "OrderLines",
+      "column": "Quantity"
+    },
+    {
+      "type": "notNullable",
+      "table": "Orders",
+      "column": "PlacedOn"
+    }
+  ],
+  "references": [
+    {
+      "title": "Unique constraints and check constraints - UNIQUE allows one NULL and can be referenced by a foreign key",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/unique-constraints-and-check-constraints#unique-constraints"
+    },
+    {
+      "title": "Unique constraints and check constraints - CHECK rejects values evaluating to FALSE; NULL evaluates to UNKNOWN",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/unique-constraints-and-check-constraints#check-constraints"
+    },
+    {
+      "title": "Primary and foreign key constraints - creating a foreign key constraint does not automatically create a corresponding index",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/primary-and-foreign-key-constraints#indexes-on-foreign-key-constraints"
+    },
+    {
+      "title": "decimal and numeric - exact-precision numeric types, for money rather than float",
+      "url": "https://learn.microsoft.com/sql/t-sql/data-types/decimal-and-numeric-transact-sql"
+    }
+  ],
+  "startingQuery": "SELECT * FROM PriceListExtract ORDER BY Sku;",
+  "passConditions": [],
+  "azureUnsupported": false
+}

@@ -24,7 +24,7 @@ export const ROADMAP: RoadmapLevel[] = [
       { n: 7, title: "Many-to-many and the junction table", blurb: "Why the engine has no direct way to store this, and what to do instead.", id: "d-b-07-many-to-many" },
       { n: 8, title: "NULLs, defaults and optionality", blurb: "Saying 'we don't know' without saying 'zero'.", id: "d-b-08-nulls-and-defaults" },
       { n: 9, title: "Constraints as executable documentation", blurb: "CHECK and UNIQUE: rules the database enforces rather than the team remembering.", id: "d-b-09-constraints-as-documentation" },
-      { n: 10, title: "Capstone: an order-entry system", blurb: "Model the whole thing end to end, from a written brief." },
+      { n: 10, title: "Capstone: an order-entry system", blurb: "Model the whole thing end to end, from a written brief.", id: "d-b-10-capstone-order-entry" },
     ],
   },
   {
