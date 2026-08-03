@@ -15,7 +15,7 @@ export const ROADMAP: RoadmapLevel[] = [
     title: "Beginner",
     widget: "ERD canvas, guided",
     entries: [
-      { n: 1, title: "What a data model is", blurb: "Entities, attributes and relationships — the three things every model is made of." },
+      { n: 1, title: "What a data model is", blurb: "Entities, attributes and relationships — the three things every model is made of.", id: "d-b-01-what-a-data-model-is" },
       { n: 2, title: "Tables, rows, columns and schemas", blurb: "What the engine actually stores, and what a schema is for.", id: "d-b-02-tables-rows-columns-schemas" },
       { n: 3, title: "Choosing data types", blurb: "What nvarchar(max) everywhere really costs you.", id: "d-b-03-data-types" },
       { n: 4, title: "Primary keys: natural vs surrogate", blurb: "When the real-world identifier is the right key, and when it isn't.", id: "d-b-04-natural-vs-surrogate-keys" },

@@ -1,0 +1,108 @@
+{
+  "id": "d-b-01-what-a-data-model-is",
+  "track": "design",
+  "kind": "design",
+  "level": "beginner",
+  "order": 1,
+  "title": "What a Data Model Is",
+  "description": "A data model is three things and no more: entities, the attributes that describe them, and the relationships between them. Why it matters: almost every design mistake later in this course is really a first-step mistake - two different things kept in one place, or one thing split across two.",
+  "topics": [
+    "entities",
+    "attributes",
+    "relationships",
+    "modelling"
+  ],
+  "estimatedMinutes": 15,
+  "narrative": "## What This Lesson Is About\n\nA data model is three things and no more.\n\n**Entities** are the things you keep facts about. **Attributes** are the individual facts. **Relationships** are how the things connect. Every diagram in this course, and every schema you will ever inherit, is built from those three and nothing else.\n\nThat sounds too simple to be worth a module. It is not, because almost every design mistake in the rest of this course is really a mistake made here: two different things kept in one place, or one thing split across two. Everything later — keys, normalization, indexing — is easier or harder depending on whether this step went well.\n\n## Scenario\n\nRun this:\n\n```sql\nSELECT * FROM CustomerOrdersFlat ORDER BY CustomerName, PlacedOn;\n```\n\nFive rows. Two customers. Look at what repeats.\n\nThandi's name, email and phone number appear three times — once per order she placed. Pieter's appear twice. Nobody decided that; it is a side effect of putting two different kinds of thing in one table and letting the wider one set the row count.\n\nThree things follow from it, and they are the reason this matters rather than being merely untidy:\n\n- **Correcting a phone number means finding every copy.** Miss one and the table now disagrees with itself, with no way to tell which copy is right.\n- **A customer cannot exist before their first order.** There is no row to put them in. \"Sign up now, buy later\" is not expressible in this table.\n- **The last order cannot be deleted without deleting the customer.** The only record that Thandi exists is inside her orders.\n\nAsk the question that unlocks the whole thing: *what is this a fact about?* `CustomerPhone` is a fact about a customer. `PlacedOn` is a fact about an order. Two different subjects in one table means two entities, whatever the table says.\n\n## Your task\n\nSplit `CustomerOrdersFlat` into `Customers` and `Orders`, give each the attributes that genuinely belong to it, and connect them.\n\nBoth tables are already on the canvas with their identifiers. **The relationship is not** — you draw that one.\n\n## What to look for\n\n**Which side carries the key.** This is the one rule module 1 hands you rather than teaches: *the side that has many of the other is the side that carries the key*. One customer has many orders, so `CustomerId` goes on `Orders`.\n\nTry it the other way in your head. An `OrderId` column on `Customers` gives each customer exactly one order — you would have described a world where placing a second order requires becoming a second customer. The key goes on the many side because that is the side where the value differs per row.\n\nModule 5 explains why this works, what to do when both sides are \"many\", and what happens when you delete the row on the one side. For now, take the rule.\n\n**Not every repeated value is a second entity.** `PlacedOn` repeats if two orders land on the same day, and a date is not an entity. Repetition is a hint, not a proof. The test is the subject question — *what is this a fact about* — not the count of duplicates.\n\n**Where the line falls is a judgement.** Is a delivery address an entity, or three attributes on the customer? There is no universal answer. If a customer can have several, it is an entity. If you only ever keep one and never search on it, three columns are honest and simpler. Module 1 gives you no rule for this, and you should be suspicious of anyone who offers one — the answer comes from the domain, not from the diagram.\n\n## The concept\n\nModelling is deciding what the *things* are before deciding how to store them. The three primitives:\n\n1. **Entity** — a thing you keep facts about. Usually a noun in how the business talks: customer, order, product, invoice. It becomes a table.\n2. **Attribute** — one fact about one entity. It becomes a column. If a fact is about something other than the entity it is sitting on, it is in the wrong place, and that is the single most common modelling error there is.\n3. **Relationship** — how two entities connect, and how many of each can take part. It becomes a foreign key.\n\nThe flat table you started with is not *wrong* in some abstract sense — it is exactly what a spreadsheet export looks like, and data arrives that way constantly. It is wrong for *storing*, because it cannot represent a customer without an order, and it cannot keep one fact in one place.\n\n**The trade-off, stated plainly:** splitting entities apart is not free. Getting Thandi's orders now needs a join, and a model split too finely is genuinely harder to work with than one that is a bit too coarse. This course will spend several modules on when to split and when to stop. What you should take from this one is only that *deciding* is a step — the flat table is not a neutral default, it is a decision that was made by not making one.\n\n## How this is graded\n\nThe check confirms that both tables exist, that `Customers` has an `Email` column, that `Orders` has a primary key, and that `Orders` has a foreign key pointing at `Customers`.\n\nThat last one is the one to watch. Connect the tables the other way round and you will see exactly this:\n\n> **Orders references Customers** — no foreign keys on this table\n\nRead it as an instruction. It is naming the relationship it wanted: a foreign key **on** `Orders`, **pointing at** `Customers`. \"No foreign keys on this table\" means `Orders` has none — you put yours on `Customers`. Delete it, draw it from `Orders` to `Customers` instead, and run the check again.\n\nFailing that check once is a perfectly good way to learn this, and quite a lot of people do. It is not a rough edge.\n\nThe grader reads the database your DDL actually built, so it does not care how the diagram looks. It cares that a customer can exist without an order, and that an order can only belong to a customer who exists.\n",
+  "steps": [
+    {
+      "kind": "read",
+      "anchor": "scenario"
+    },
+    {
+      "kind": "canvas",
+      "prompt": "Split the flat table into Customers and Orders, give each the attributes that belong to it, and draw the relationship between them."
+    },
+    {
+      "kind": "sql",
+      "prompt": "Run the DDL, move the rows across, and confirm two customers now exist once each rather than five times between them."
+    }
+  ],
+  "hints": [
+    "Read the columns and ask 'what is this a fact about?'. CustomerPhone is a fact about a customer. PlacedOn is a fact about an order. That question is the whole technique.",
+    "The side that has many of the other is the side that carries the key. One customer has many orders, so CustomerId goes on Orders - never OrderId on Customers.",
+    "Drag from the edge of one table to the other to create the relationship. If the check says the foreign key it wanted is missing, you have drawn it the other way round: delete it and drag the other way."
+  ],
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-customers",
+        "name": "Customers",
+        "x": 120,
+        "y": 100,
+        "attributes": [
+          {
+            "name": "CustomerId",
+            "dataType": "int",
+            "isPrimaryKey": true,
+            "isIdentity": true,
+            "nullable": false
+          }
+        ]
+      },
+      {
+        "id": "e-orders",
+        "name": "Orders",
+        "x": 480,
+        "y": 100,
+        "attributes": [
+          {
+            "name": "OrderId",
+            "dataType": "int",
+            "isPrimaryKey": true,
+            "isIdentity": true,
+            "nullable": false
+          }
+        ]
+      }
+    ],
+    "relationships": []
+  },
+  "designConditions": [
+    {
+      "type": "entityExists",
+      "table": "Customers"
+    },
+    {
+      "type": "entityExists",
+      "table": "Orders"
+    },
+    {
+      "type": "columnExists",
+      "table": "Customers",
+      "column": "Email"
+    },
+    {
+      "type": "primaryKey",
+      "table": "Orders"
+    },
+    {
+      "type": "foreignKey",
+      "table": "Orders",
+      "references": "Customers"
+    }
+  ],
+  "references": [
+    {
+      "title": "Create foreign key relationships - a foreign key column references the primary key of the parent table",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/create-foreign-key-relationships"
+    },
+    {
+      "title": "Primary and foreign key constraints - the foreign key is defined on the table that references the other",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/primary-and-foreign-key-constraints"
+    }
+  ],
+  "startingQuery": "SELECT * FROM CustomerOrdersFlat ORDER BY CustomerName, PlacedOn;",
+  "passConditions": [],
+  "azureUnsupported": false
+}
