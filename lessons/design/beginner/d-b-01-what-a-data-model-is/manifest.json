@@ -94,7 +94,7 @@
   ],
   "references": [
     {
-      "title": "Create foreign key relationships - a foreign key column references the primary key of the parent table",
+      "title": "Create foreign key relationships - a foreign key may reference a PRIMARY KEY or a UNIQUE constraint in the parent table",
       "url": "https://learn.microsoft.com/sql/relational-databases/tables/create-foreign-key-relationships"
     },
     {
