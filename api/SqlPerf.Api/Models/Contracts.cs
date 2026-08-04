@@ -127,10 +127,15 @@ public sealed record ProgressDto(bool Solved, int? BestLogicalReads, int? BestDu
 public sealed record SolutionDto(string Solution);
 
 // A design module: everything LessonDetailDto carries, plus the canvas pieces.
+//
+// StartingQuery is what the scratch query box opens on. Design narratives ask
+// the learner to run a SELECT and look at the result ("run this and watch the
+// two emails disagree"), so the module has to arrive with somewhere to run it.
 public sealed record ModuleDetailDto(
     string Id, string Track, string Kind, string Level, string Title, string Description,
     List<string> Topics, int EstimatedMinutes, string Narrative, List<string> Hints,
-    List<ModuleStep> Steps, ErdModel? StartingModel, ProgressDto Progress, bool AzureUnsupported);
+    List<ModuleStep> Steps, ErdModel? StartingModel, ProgressDto Progress, bool AzureUnsupported,
+    string StartingQuery);
 
 public sealed record ModelSaveRequest(ErdModel Model);
 public sealed record ModelDto(ErdModel? Model, DateTime? UpdatedAtUtc);

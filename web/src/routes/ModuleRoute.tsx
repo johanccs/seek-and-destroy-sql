@@ -5,12 +5,13 @@ import { api } from "../api";
 import { useColumnResize } from "../useColumnResize";
 import { ResizeHandle } from "../components/ResizeHandle";
 import { PassBanner } from "../components/PassBanner";
+import { ResultsPanel } from "../components/ResultsPanel";
 import { ErdCanvas } from "../design/ErdCanvas";
 import { Inspector, type Selection } from "../design/Inspector";
 import { StepBar } from "../design/StepBar";
 import { apply, redo, undo, type ErdAction, type History } from "../design/model";
 import { emptyModel, type CheckResult, type ModuleDetail } from "../design/types";
-import type { Evaluation } from "../types";
+import type { Evaluation, RunResult } from "../types";
 
 const initialHistory: History = { past: [], present: emptyModel(), future: [] };
 
@@ -32,6 +33,17 @@ export default function ModuleRoute() {
   const [check, setCheck] = useState<CheckResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [hintCount, setHintCount] = useState(0);
+
+  // The scratch query is deliberately separate from the DDL pane. The DDL pane
+  // is the graded artefact — Check wipes the schema and rebuilds it from that
+  // text. A scratch query runs against the schema as it stands right now and
+  // resets nothing, which is the only way the anomaly demonstrations work: run
+  // the half-finished UPDATE, then SELECT and watch the two emails disagree.
+  // Running both from one box would mean every SELECT dropped the learner's
+  // tables first.
+  const [query, setQuery] = useState("");
+  const [queryResult, setQueryResult] = useState<RunResult | null>(null);
+  const [running, setRunning] = useState(false);
 
   const model = history.present;
   const dispatch = useCallback((action: ErdAction) => dispatchHistory({ kind: "do", action }), []);
@@ -78,11 +90,16 @@ export default function ModuleRoute() {
     setModule(null);
     setCheck(null);
     setDdl("");
+    setQuery("");
+    setQueryResult(null);
     setError(null);
     Promise.all([api.module(moduleId), api.moduleModel(moduleId)])
       .then(([m, saved]) => {
         if (!current) return;
         setModule(m);
+        // Open on the module's scenario query, so "run this" in the narrative
+        // has somewhere obvious to happen.
+        setQuery(m.startingQuery ?? "");
         dispatchHistory({ kind: "do", action: { t: "load", model: saved.model ?? m.startingModel ?? emptyModel() } });
       })
       .catch((e) => current && setError(String(e)));
@@ -137,6 +154,21 @@ export default function ModuleRoute() {
     }
   };
 
+  // Never graded: `graded: false` means the run reports and returns without
+  // touching progress, so exploring cannot accidentally complete a module.
+  const runQuery = async () => {
+    if (!moduleId || !query.trim()) return;
+    setRunning(true);
+    setError(null);
+    try {
+      setQueryResult(await api.run(moduleId, query, false));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setRunning(false);
+    }
+  };
+
   const reset = async () => {
     if (!moduleId || !module) return;
     setBusy(true);
@@ -145,6 +177,8 @@ export default function ModuleRoute() {
       dispatchHistory({ kind: "do", action: { t: "load", model: module.startingModel ?? emptyModel() } });
       setDdl("");
       setCheck(null);
+      setQuery(module.startingQuery ?? "");
+      setQueryResult(null);
       setError(null);
     } finally {
       setBusy(false);
@@ -238,6 +272,30 @@ export default function ModuleRoute() {
             placeholder="Press “Generate DDL” to turn your model into T-SQL. You can edit it before running — or ignore the canvas and write it yourself."
             onChange={(e) => setDdl(e.target.value)}
           />
+
+          <div className="props-sub erd-scratch-head">
+            <span>Scratch query — explore the data, never graded</span>
+            <button className="btn small" onClick={runQuery} disabled={running || !query.trim()}>
+              ▶ {running ? "Running…" : "Run"}
+            </button>
+          </div>
+          <textarea
+            className="erd-scratch-sql"
+            value={query}
+            spellCheck={false}
+            placeholder="SELECT * FROM …&#10;&#10;Run the queries the lesson asks you to run. This does not reset your schema and cannot complete the module."
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // Ctrl/Cmd+Enter runs, matching the performance track's editor.
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();
+                void runQuery();
+              }
+            }}
+          />
+          <div className="erd-scratch-results">
+            <ResultsPanel result={queryResult} prevStats={null} tabs={["results", "messages"]} />
+          </div>
         </section>
       </div>
     </div>

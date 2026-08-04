@@ -645,8 +645,12 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 .erd-rel-note { font-size: 11.5px; margin: 0 0 8px; }
 
 .erd-ddl {
+  /* Was min-height: 200px, when this textarea was the pane's only occupant.
+     The scratch runner now shares the column, and an empty DDL box pushing the
+     results grid below the fold is the difference between a learner finding the
+     Run button and not. */
   flex: 1;
-  min-height: 200px;
+  min-height: 140px;
   background: var(--bg-3);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -658,6 +662,32 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
   resize: vertical;
 }
 .erd-ddl:focus { outline: none; border-color: var(--accent); }
+
+/* Scratch query runner, below the DDL in the design track's output pane.
+   The DDL above is the graded artefact — Check wipes the schema and rebuilds
+   from it. This runs against the schema as it stands and resets nothing, which
+   is what the anomaly demonstrations need: run a half-finished UPDATE, then
+   SELECT and watch two rows disagree. */
+.erd-scratch-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.erd-scratch-sql {
+  flex: none;
+  min-height: 90px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  resize: vertical;
+}
+.erd-scratch-sql:focus { outline: none; border-color: var(--accent); }
+/* ResultsPanel sizes itself from --results-h. Here it is a plain block in a
+   scrolling pane rather than a resizable dock, so pin a workable height and let
+   its own tab-body scroll inside that. */
+.erd-scratch-results { flex: none; --results-h: 260px; }
+.erd-scratch-results .results { border-top: none; }
 
 @media (max-width: 1200px) {
   .module-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(320px, 1fr) auto; overflow-y: auto; }
