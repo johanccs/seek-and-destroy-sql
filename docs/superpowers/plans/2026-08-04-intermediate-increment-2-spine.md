@@ -16,7 +16,9 @@
 - **Verify against primary sources before writing, and cite in the manifest's `references` array.** Codd for 1NF–3NF, Boyce–Codd for BCNF, Microsoft Learn for anything SQL Server-specific.
 - **Identifiers are `PascalCase`**, matching the Beginner level.
 - **Every module ends in the learner building something real** — there is no rule that grades comprehension.
-- Manifest keys, exactly: `id`, `track` (`"design"`), `kind` (`"design"`), `level` (`"intermediate"`), `order`, `title`, `description`, `topics`, `estimatedMinutes`, `narrative`, `steps`, `hints`, `startingModel`, `designConditions`, `references`.
+- Manifest keys, exactly: `id`, `track` (`"design"`), `kind` (`"design"`), `level` (`"intermediate"`), `order`, `title`, `description`, `topics`, `estimatedMinutes`, `narrative`, `steps`, `hints`, `startingQuery`, `startingModel`, `designConditions`, `references`.
+- **`foreignKey` rules take `columns` (a list), never `column`.** `DesignEvaluator.ForeignKey` reads only `r.Columns`; a singular `column` is silently ignored and the rule degrades to "any foreign key to that table". `RuleSpec` is a flat bag of optionals, so a wrong key name is never an error — it just grades less than you think.
+- **`startingModel` relationships take `fromColumns`/`toColumns` (lists), never the singular forms.** `ErdCanvas` calls `r.fromColumns.forEach(...)` unguarded, so the wrong key name is a canvas crash on load rather than a silent no-op.
 - `steps` entries are `{ "kind": "read" | "canvas" | "sql", "prompt"?: string, "anchor"?: string }`. Only the **current** step's prompt renders, so prompts may be a full sentence.
 
 ## The functional dependencies — the contract every task grades against
@@ -115,7 +117,7 @@ ALTER TABLE EnrolmentSheet
   { "type": "columnExists", "table": "Course", "column": "Credits" },
   { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "CourseTitle" },
   { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "Credits" },
-  { "type": "foreignKey", "table": "EnrolmentSheet", "column": "CourseCode", "references": "Course" }
+  { "type": "foreignKey", "table": "EnrolmentSheet", "columns": ["CourseCode"], "references": "Course" }
 ]
 ```
 
@@ -342,7 +344,7 @@ ALTER TABLE EnrolmentSheet
   { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "StudentEmail" },
   { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "InstructorName" },
   { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "RoomCode" },
-  { "type": "foreignKey", "table": "EnrolmentSheet", "column": "StudentId", "references": "Student" }
+  { "type": "foreignKey", "table": "EnrolmentSheet", "columns": ["StudentId"], "references": "Student" }
 ]
 ```
 
@@ -432,8 +434,8 @@ ALTER TABLE CourseOffering
   { "type": "columnAbsent", "table": "CourseOffering", "column": "InstructorOffice" },
   { "type": "columnAbsent", "table": "CourseOffering", "column": "RoomBuilding" },
   { "type": "columnAbsent", "table": "CourseOffering", "column": "RoomCapacity" },
-  { "type": "foreignKey", "table": "CourseOffering", "column": "InstructorName", "references": "Instructor" },
-  { "type": "foreignKey", "table": "CourseOffering", "column": "RoomCode", "references": "Room" }
+  { "type": "foreignKey", "table": "CourseOffering", "columns": ["InstructorName"], "references": "Instructor" },
+  { "type": "foreignKey", "table": "CourseOffering", "columns": ["RoomCode"], "references": "Room" }
 ]
 ```
 
@@ -535,7 +537,7 @@ DROP TABLE StudentCourseInstructor;
   { "type": "entityExists", "table": "StudentInstructor" },
   { "type": "primaryKey", "table": "StudentInstructor", "columns": ["StudentId", "InstructorName"] },
   { "type": "columnAbsent", "table": "StudentInstructor", "column": "CourseCode" },
-  { "type": "foreignKey", "table": "StudentInstructor", "column": "InstructorName", "references": "InstructorCourse" }
+  { "type": "foreignKey", "table": "StudentInstructor", "columns": ["InstructorName"], "references": "InstructorCourse" }
 ]
 ```
 
@@ -633,3 +635,28 @@ but decide it deliberately.
 **Content is verified before writing, not after.** The FD analysis in this plan was checked against the standard characterisation of 3NF-but-not-BCNF. If you find yourself unsure whether something is a 2NF or a 3NF violation, work out the candidate keys first — the answer follows mechanically from which attributes are prime.
 
 **What this increment does not do:** modules 16 (4NF/5NF), 17 (denormalizing), 18 (naming) and 19 (the capstone) are increment 3.
+
+**The lesson catalog is loaded once at process start.** The `lessons` directory is
+bind-mounted into the API container, so edits appear on disk immediately — but
+`LessonCatalog` reads them into memory at startup and does not watch the
+directory. A new module 404s until `docker compose restart api`. Do that before
+concluding a manifest is malformed.
+
+## Found while executing this plan
+
+Two things the plan assumed were in place turned out not to be, and both were
+fixed here rather than deferred:
+
+- **The design track had nowhere to run a query.** Every narrative says "run
+  this" and shows a `SELECT`, but `ResultsPanel` was mounted only by the
+  performance track; a query pasted into the DDL box ran and had its rows
+  discarded. Beginner module 1 shipped in that state. There is now a scratch
+  query box, deliberately separate from the DDL pane — the DDL pane is the
+  graded artefact and Check rebuilds the schema from it, while a scratch run
+  executes against the schema as it stands and resets nothing. That separation
+  is what makes module 11's anomaly demonstrations possible at all.
+- **Markdown tables did not render.** `ReactMarkdown` was mounted with no
+  plugins, so GFM tables came out as literal pipe characters. Fixed with
+  `remark-gfm` plus styling for `.markdown-body` tables, which had none. This
+  passed a build and a type-check and was only visible on the rendered page —
+  the DOM contained the text throughout.
