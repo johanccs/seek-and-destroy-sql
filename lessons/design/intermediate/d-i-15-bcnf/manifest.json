@@ -1,0 +1,97 @@
+{
+  "id": "d-i-15-bcnf",
+  "track": "design",
+  "kind": "design",
+  "level": "intermediate",
+  "order": 15,
+  "title": "BCNF: When 3NF Isn't Enough",
+  "description": "A table can satisfy every clause of 'the key, the whole key, and nothing but the key' and still store one fact twice. It happens when two candidate keys overlap, and 3NF permits it on purpose. Why it matters: BCNF is also the one normal form that can cost you a constraint — so this is the module where the right answer is sometimes to stop at 3NF.",
+  "topics": ["normalization", "BCNF", "candidate keys", "dependency preservation"],
+  "estimatedMinutes": 35,
+  "narrative": "## What This Lesson Is About\n\nEvery module so far has ended with a table that was better than the one before it. This one starts with a table that is **already in third normal form** and shows you that it is still wrong.\n\nThat is the entire reason Boyce–Codd normal form exists. It is not \"one more level of tidiness\" — it closes a specific, deliberate hole in the definition of 3NF.\n\n## Scenario\n\nThe department wants to record **which instructor taught which student**. Two rules apply:\n\n1. A course may be taught by **several** instructors.\n2. Each instructor teaches **only one** course.\n\nThat second rule is the unusual one, and everything follows from it.\n\n```sql\nSELECT * FROM StudentCourseInstructor ORDER BY StudentId, CourseCode;\n```\n\n| StudentId | CourseCode | InstructorName |\n|---|---|---|\n| 1 | DB101 | Dr Naidoo |\n| 1 | ST200 | Prof Botha |\n| 2 | DB101 | Dr Naidoo |\n| 3 | ST200 | Prof Botha |\n\n### The functional dependencies\n\n- **`(StudentId, CourseCode) → InstructorName`** — given a student and a course, you know who taught them. (Rule 1: several instructors teach a course, so the course alone is not enough.)\n- **`InstructorName → CourseCode`** — given an instructor, you know the course. (Rule 2, restated.)\n\n### The candidate keys\n\nThere are **two**, and this is the crux:\n\n- **`{StudentId, CourseCode}`** — the primary key.\n- **`{StudentId, InstructorName}`** — knowing the student and the instructor also pins the row, because the instructor determines the course.\n\nThey are both in the schema: the second one is the `UNIQUE (StudentId, InstructorName)` constraint. It is not decoration — it is a candidate key written down.\n\n**They overlap on `StudentId`.** Hold on to that.\n\n## Why this table is in 3NF\n\nRun the checklist honestly.\n\n- **1NF?** Yes — every value atomic, no repeating groups.\n- **2NF?** Yes. The non-key attribute is `InstructorName`, and it depends on both key columns, not part of them.\n- **3NF?** **Yes** — and this is the part that surprises people.\n\nThere *is* an offending determinant: `InstructorName → CourseCode`, and `InstructorName` is not a superkey. So why does 3NF pass it?\n\nBecause 3NF's actual definition contains an exemption. For every dependency `X → Y`, 3NF requires that **either** `X` is a superkey, **or** `Y` is a *prime attribute* — an attribute that is part of some candidate key.\n\nHere `Y` is `CourseCode`, and `CourseCode` **is** prime: it belongs to the candidate key `{StudentId, CourseCode}`. The exemption applies. **The table passes 3NF, correctly and by design.**\n\n## Why it fails BCNF\n\n> **Boyce–Codd normal form:** for every non-trivial dependency `X → Y`, `X` must be a superkey. No exemptions.\n\nBCNF deletes the prime-attribute escape hatch. `InstructorName` determines `CourseCode` and `InstructorName` is not a superkey — knowing the instructor does not identify a row, because one instructor teaches many students. So the table violates BCNF.\n\n**That exemption is the entire difference between 3NF and BCNF.** Everything else about the two forms is identical.\n\n### What the redundancy actually is\n\nLook at the data again. \"Dr Naidoo teaches DB101\" is recorded on **every row for every student she teaches** — twice here, and once per enrolled student in a real dataset.\n\nSo:\n\n- **Update:** Dr Naidoo switches to `DB301`. Every one of her rows must change together, and nothing enforces that. Miss one and the database says she teaches two courses — which rule 2 forbids, and which no constraint on this table can catch.\n- **Insert:** an instructor who has not yet taught anybody cannot be recorded. `StudentId` is in both candidate keys.\n- **Delete:** remove the last student Prof Botha taught and the fact that he teaches `ST200` disappears.\n\nThe same three anomalies as module 11 — in a table that passes 3NF.\n\n## When you can stop looking\n\n**A BCNF violation requires overlapping candidate keys.** If a table has exactly one candidate key, then 3NF and BCNF say the same thing, and a 3NF table is automatically in BCNF.\n\nThis is worth knowing because it tells you when to stop: the moment you confirm there is only one candidate key, BCNF is not a question you need to ask. Most tables you design will be in that position. This one is not, because `{StudentId, CourseCode}` and `{StudentId, InstructorName}` share `StudentId`.\n\n## Your task\n\nDecompose on the offending determinant — split the table so that `InstructorName` becomes a key rather than a non-key determinant:\n\n- **`InstructorCourse (InstructorName, CourseCode)`**, keyed on **`InstructorName`**.\n- **`StudentInstructor (StudentId, InstructorName)`**, keyed on both columns.\n- Drop `StudentCourseInstructor`.\n\n`CourseCode` must **not** appear on `StudentInstructor`. Keeping a copy there would rebuild the exact redundancy you just removed — and it is the most common wrong answer, because the table looks more useful with it.\n\nBoth new tables are in BCNF: in each one, the only determinant is the key.\n\n## The cost — and why this module does not sell BCNF\n\nThe decomposition is **lossless**: join the two tables back and you get the original rows, with nothing invented and nothing lost.\n\nBut it is **not dependency-preserving**, and that is a real loss.\n\nThe dependency `(StudentId, CourseCode) → InstructorName` can no longer be enforced by either table alone. Nothing in the new schema stops student 1 being linked to two different instructors who both teach `DB101`. Rejoin the tables and the violation is visible; look at either table on its own and it is not. Enforcing that rule now needs a trigger or an application check — **you have traded a declarative constraint for procedural code.**\n\nThis is not a footnote. **BCNF is the only normal form that can cost you a constraint**, and there is a genuine theorem behind that: a lossless, dependency-preserving decomposition into BCNF does not always exist. Into 3NF, it always does.\n\nSo do not read this module as \"3NF is a stepping stone to the real answer\". Read it as a trade:\n\n- **Go to BCNF** when the redundancy is the bigger risk — when those rows will be updated often and independently, and a disagreement would be costly or hard to detect.\n- **Stop at 3NF** when the dependency you would lose is one you need the database to enforce, and the redundancy is small, stable or already protected another way.\n\nA senior engineer stopping at 3NF for a stated reason is doing the job properly. Stopping at 3NF because you did not know BCNF existed is not the same thing, and telling the difference is the point of this module.\n\n## What to look for\n\n**`Instructor` and `InstructorCourse` both exist now, and you should ask why.** `Instructor(InstructorName, InstructorOffice)` came from module 14 — where an instructor sits. `InstructorCourse(InstructorName, CourseCode)` comes from this one — what they teach. Both are keyed on `InstructorName`.\n\nThe honest answer: **they could be one table.** Two tables with the same key and a one-to-one relationship are usually one table. The split here falls out of the modules arriving in this order, not from any principle — and merging them would be a perfectly good design. It is worth saying plainly, because the alternative is you inferring a rule that is not there.\n\n**This is the end of the forms that pay for themselves.** 4NF and 5NF exist and module 16 covers them; they address multi-valued and join dependencies, and they come up far less often. In practice the vast majority of well-designed schemas sit in 3NF or BCNF, with specific, deliberate exceptions where someone measured something.\n\n## How this is graded\n\nThe check confirms `InstructorCourse` exists keyed on `InstructorName` and carrying `CourseCode`, that `StudentInstructor` exists keyed on `(StudentId, InstructorName)`, that `CourseCode` is **absent** from `StudentInstructor`, and that the foreign key connects them.\n\nWhat it cannot do is larger than usual here. It **cannot verify the two rules hold** — those are facts about the department, not the schema. It **cannot check losslessness**, and it **cannot check dependency preservation at all**; that is a property of a set of dependencies, and the catalog has never heard of them. The structural fingerprint is the whole of what is being graded, and for BCNF the gap between that fingerprint and actually understanding the form is the widest in this level.",
+  "steps": [
+    { "kind": "read", "anchor": "scenario" },
+    { "kind": "sql", "prompt": "Run SELECT * FROM StudentCourseInstructor and count how many times 'Dr Naidoo teaches DB101' is recorded — then try updating just one of those rows and see whether anything stops you." },
+    { "kind": "canvas", "prompt": "Model InstructorCourse keyed on InstructorName and StudentInstructor keyed on both its columns, then drop StudentCourseInstructor. Do not put CourseCode on StudentInstructor." }
+  ],
+  "hints": [
+    "Find the determinants first. InstructorName determines CourseCode — and InstructorName is not a superkey, because one instructor teaches many students.",
+    "Both candidate keys are already in the schema: the PRIMARY KEY is one, and the UNIQUE constraint is the other. They share StudentId, and that overlap is why BCNF has something to say.",
+    "The decomposition rule is mechanical: take the offending determinant, make it the key of a new table, and move what it determines into that table with it.",
+    "Resist putting CourseCode on StudentInstructor. It is reachable through the instructor, and storing it again recreates exactly the redundancy you are removing."
+  ],
+  "startingQuery": "SELECT * FROM StudentCourseInstructor ORDER BY StudentId, CourseCode;",
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-studentcourseinstructor",
+        "name": "StudentCourseInstructor",
+        "x": 120,
+        "y": 80,
+        "attributes": [
+          { "name": "StudentId", "dataType": "int", "isPrimaryKey": true, "nullable": false },
+          { "name": "CourseCode", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "InstructorName", "dataType": "nvarchar(100)", "nullable": false }
+        ]
+      },
+      {
+        "id": "e-course",
+        "name": "Course",
+        "x": 560,
+        "y": 80,
+        "attributes": [
+          { "name": "CourseCode", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "CourseTitle", "dataType": "nvarchar(120)", "nullable": false },
+          { "name": "Credits", "dataType": "int", "nullable": false }
+        ]
+      },
+      {
+        "id": "e-instructor",
+        "name": "Instructor",
+        "x": 560,
+        "y": 280,
+        "attributes": [
+          { "name": "InstructorName", "dataType": "nvarchar(100)", "isPrimaryKey": true, "nullable": false },
+          { "name": "InstructorOffice", "dataType": "nvarchar(40)", "nullable": false }
+        ]
+      },
+      {
+        "id": "e-student",
+        "name": "Student",
+        "x": 120,
+        "y": 300,
+        "attributes": [
+          { "name": "StudentId", "dataType": "int", "isPrimaryKey": true, "nullable": false },
+          { "name": "StudentName", "dataType": "nvarchar(100)", "nullable": false },
+          { "name": "StudentEmail", "dataType": "nvarchar(200)", "nullable": false }
+        ]
+      }
+    ],
+    "relationships": []
+  },
+  "designConditions": [
+    { "type": "entityExists", "table": "InstructorCourse" },
+    { "type": "primaryKey", "table": "InstructorCourse", "columns": ["InstructorName"] },
+    { "type": "columnExists", "table": "InstructorCourse", "column": "CourseCode" },
+    { "type": "entityExists", "table": "StudentInstructor" },
+    { "type": "primaryKey", "table": "StudentInstructor", "columns": ["StudentId", "InstructorName"] },
+    { "type": "columnAbsent", "table": "StudentInstructor", "column": "CourseCode" },
+    { "type": "foreignKey", "table": "StudentInstructor", "columns": ["InstructorName"], "references": "InstructorCourse" }
+  ],
+  "references": [
+    {
+      "title": "E. F. Codd, Recent Investigations into Relational Data Base Systems (1974) — the Boyce–Codd normal form",
+      "url": "https://dl.acm.org/doi/10.5555/1725718"
+    },
+    {
+      "title": "William Kent, A Simple Guide to Five Normal Forms in Relational Database Theory (1983) — BCNF, overlapping candidate keys, and the limits of the mnemonic",
+      "url": "https://dl.acm.org/doi/10.1145/358024.358054"
+    },
+    {
+      "title": "Unique constraints and check constraints (SQL Server) — UNIQUE as a way of writing down a second candidate key",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/unique-constraints-and-check-constraints"
+    }
+  ],
+  "passConditions": [],
+  "azureUnsupported": false
+}
