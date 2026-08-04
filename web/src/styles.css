@@ -663,6 +663,30 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 }
 .erd-ddl:focus { outline: none; border-color: var(--accent); }
 
+/* Markdown tables in lesson narratives. Enabled by remark-gfm — without the
+   plugin these rendered as a single run of literal pipe characters, which is
+   how they shipped until someone looked at the page rather than the DOM.
+
+   display: block is what lets a table scroll: the narrative pane is ~340px by
+   default and a seven-column sample of rows will not fit. Scrolling the table
+   inside its own box keeps the pane itself from scrolling sideways. */
+.markdown-body table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 12px;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--border);
+  padding: 5px 9px;
+  text-align: left;
+  white-space: nowrap;
+}
+.markdown-body th { background: var(--bg-3); color: var(--text); font-weight: 600; }
+
 /* Scratch query runner, below the DDL in the design track's output pane.
    The DDL above is the graded artefact — Check wipes the schema and rebuilds
    from it. This runs against the schema as it stands and resets nothing, which

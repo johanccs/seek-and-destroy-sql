@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { useParams } from "react-router";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { api } from "../api";
 import { useColumnResize } from "../useColumnResize";
 import { ResizeHandle } from "../components/ResizeHandle";
@@ -223,7 +224,7 @@ export default function ModuleRoute() {
       >
         <section className={`narrative ${narrCollapsed ? "pane-collapsed" : ""}`}>
           <div className="markdown-body">
-            <ReactMarkdown>{module.narrative}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{module.narrative}</ReactMarkdown>
           </div>
           {module.hints.length > 0 && (
             <div className="hints">
