@@ -1,0 +1,120 @@
+{
+  "id": "d-i-13-second-normal-form",
+  "track": "design",
+  "kind": "design",
+  "level": "intermediate",
+  "order": 13,
+  "title": "Second Normal Form: Partial Dependencies",
+  "description": "With a composite key, any attribute that depends on only part of that key is sitting in the wrong table. EnrolmentSheet has three such attributes — and the one most people miss depends on two of the three key columns rather than one. Why it matters: 2NF is the form that surrogate keys hide rather than fix.",
+  "topics": ["normalization", "2NF", "partial dependencies", "composite keys"],
+  "estimatedMinutes": 30,
+  "narrative": "## What This Lesson Is About\n\n`EnrolmentSheet` is keyed on `(StudentId, CourseCode, Term)` — the three things that together identify one enrolment. The repeating groups are gone, so the table is in first normal form.\n\nIt is still wrong, and now the wrongness has a precise shape.\n\n> **Second normal form:** no non-key attribute depends on only *part* of a composite key.\n\nThe practical test is a question you ask of every non-key column:\n\n> **\"If only part of the key changed, would this column change with it?\"**\n>\n> Or, more usefully: **\"which part of the key do I actually need in order to know this value?\"**\n\nIf the answer is \"less than the whole key\", the column is in the wrong table.\n\n## Scenario\n\n```sql\nSELECT * FROM EnrolmentSheet ORDER BY StudentId, CourseCode;\n```\n\nWork through the columns one at a time.\n\n### 1. `StudentName`, `StudentEmail` — depend on `StudentId` alone\n\nThandi's name does not change when she enrols in a different course. You need only `StudentId` to know it. So it depends on **one third of the key**, and it is stored once per enrolment — which is precisely the update anomaly from module 11, still unfixed.\n\n### 2. `RoomBuilding`, `RoomCapacity`, `InstructorOffice`… wait\n\nHold these. They are a different problem, and module 14 deals with them. Note them and move on — part of the skill here is not fixing everything at once.\n\n### 3. `InstructorName`, `RoomCode` — depend on `(CourseCode, Term)`\n\n**This is the one people miss.** It is easy to check each key column on its own, decide `InstructorName` depends on neither `CourseCode` alone nor `Term` alone, and conclude it must depend on the whole key.\n\nIt does not. Run this:\n\n```sql\nSELECT DISTINCT CourseCode, Term, InstructorName, RoomCode FROM EnrolmentSheet;\n```\n\nTwo rows, for four enrolments. Everyone taking `DB101` in `2026S1` has Dr Naidoo and room R101 — the instructor and the room are facts about **the course in that term**, and `StudentId` has nothing to do with them.\n\nA partial dependency does not have to be on a *single* key column. It is any **proper subset** of the key, and `(CourseCode, Term)` is a proper subset of `(StudentId, CourseCode, Term)`. Two out of three still counts.\n\n### 4. `Grade` — depends on the whole key\n\nThandi got an A in `DB101` and a B in `ST200`. Change any one of the three key columns and the grade changes. `Grade` is the only column that genuinely belongs on this table.\n\n## Your task\n\nGive each dependency the table its determinant keys:\n\n- **`Student (StudentId, StudentName, StudentEmail)`**, keyed on `StudentId`.\n- **`CourseOffering (CourseCode, Term, InstructorName, InstructorOffice, RoomCode, RoomBuilding, RoomCapacity)`**, keyed on **`(CourseCode, Term)`**.\n- Drop all seven moved columns from `EnrolmentSheet`, leaving `(StudentId, CourseCode, Term, Grade)`.\n- Add a foreign key from `EnrolmentSheet.StudentId` to `Student`.\n\nCarry `InstructorOffice`, `RoomBuilding` and `RoomCapacity` across to `CourseOffering` for now, unchanged. They do not belong there either — but their problem is a different one, and putting them there first is what makes module 14's point visible.\n\n## Why the instructor goes on the offering, not the course\n\nThis is a modelling decision, not a mechanical consequence, and it is worth stating out loud.\n\nYou could put `InstructorName` on `Course`. It would look tidier — one fewer column on the offering. But it asserts something false: **that a course has one instructor, forever.** Dr Naidoo teaches `DB101` in `2026S1`; next year it may be someone else, and next semester it may be two people.\n\nWho teaches a course is a fact about **the course in a term**, which is exactly `CourseOffering`'s key. Putting it on `Course` would be the same class of error you have been removing all along — attaching a fact to the wrong thing.\n\nRemember this decision. **Module 15 depends on it**, and it will not work if the instructor is on `Course`.\n\n## What to look for\n\n**2NF only bites on composite keys.** If a table's primary key is a single column, no proper subset of it exists to depend on, so the table is in 2NF automatically. This sounds like good news and is a trap: giving `EnrolmentSheet` an `EnrolmentId IDENTITY` surrogate key would make it 2NF-compliant **without moving a single column**. The redundancy would be exactly where it was; it just would no longer be visible in the key.\n\nThis is the honest case against reflexive surrogate keys. They are often right — module 4 argues for them — but a surrogate key does not fix a dependency problem, it **hides** it. If you use one, work out the natural key anyway and keep it as a `UNIQUE` constraint; that is where the dependencies stay legible.\n\n**`EnrolmentSheet` still carries a foreign key to `Course`, and there is now a sharper option.** With `CourseOffering` in place, `(CourseCode, Term)` on an enrolment could reference the *offering* rather than the course — which would also stop anyone enrolling in a term the course was never offered in. That is a genuine improvement and not what this module grades; notice it, and notice that decomposition keeps creating new places for constraints to live.\n\n**What decomposition bought here.** `Student` now has one row per student, so an email can no longer disagree with itself — the update anomaly from module 11 is finally dead. `CourseOffering` can record that `DB301` runs in `2026S2` in room R110 before anyone signs up.\n\n## How this is graded\n\nStructurally, as always: `Student` exists and is keyed on `StudentId`; `CourseOffering` exists and is keyed on `(CourseCode, Term)`; `InstructorName` and `RoomCode` are on the offering; the moved columns are gone from `EnrolmentSheet`; the foreign key to `Student` is there.\n\nThe grader **cannot see functional dependencies.** Nothing in `sys.columns` records that `StudentId → StudentEmail`; that is a fact about students, not about the schema. What the check verifies is the structural fingerprint that a correct 2NF decomposition leaves behind — not the reasoning that should have produced it.",
+  "steps": [
+    { "kind": "read", "anchor": "scenario" },
+    { "kind": "sql", "prompt": "Run SELECT DISTINCT CourseCode, Term, InstructorName, RoomCode FROM EnrolmentSheet — four enrolments collapse to two rows, which is the partial dependency made visible." },
+    { "kind": "canvas", "prompt": "Model Student keyed on StudentId and CourseOffering keyed on (CourseCode, Term), move the seven columns across, and link EnrolmentSheet to Student." }
+  ],
+  "hints": [
+    "Take each non-key column and ask which part of the key you need to know its value. StudentName needs only StudentId. Grade needs all three.",
+    "A partial dependency can be on more than one column — (CourseCode, Term) is a proper subset of the key, so InstructorName and RoomCode are partial dependencies too. This is the one that gets missed.",
+    "CourseOffering's primary key is both CourseCode and Term together. Keying it on CourseCode alone would say a course runs in exactly one term, which is not true.",
+    "Copy the rows across with SELECT DISTINCT before dropping the columns — and expect CourseOffering to end up with two rows from four enrolments."
+  ],
+  "startingQuery": "SELECT * FROM EnrolmentSheet ORDER BY StudentId, CourseCode;",
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-enrolmentsheet",
+        "name": "EnrolmentSheet",
+        "x": 120,
+        "y": 60,
+        "attributes": [
+          { "name": "StudentId", "dataType": "int", "isPrimaryKey": true, "nullable": false },
+          { "name": "StudentName", "dataType": "nvarchar(100)", "nullable": false },
+          { "name": "StudentEmail", "dataType": "nvarchar(200)", "nullable": false },
+          { "name": "CourseCode", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "Term", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "InstructorName", "dataType": "nvarchar(100)", "nullable": false },
+          { "name": "InstructorOffice", "dataType": "nvarchar(40)", "nullable": false },
+          { "name": "RoomCode", "dataType": "nvarchar(12)", "nullable": false },
+          { "name": "RoomBuilding", "dataType": "nvarchar(60)", "nullable": false },
+          { "name": "RoomCapacity", "dataType": "int", "nullable": false },
+          { "name": "Grade", "dataType": "nvarchar(2)", "nullable": true }
+        ]
+      },
+      {
+        "id": "e-course",
+        "name": "Course",
+        "x": 560,
+        "y": 60,
+        "attributes": [
+          { "name": "CourseCode", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "CourseTitle", "dataType": "nvarchar(120)", "nullable": false },
+          { "name": "Credits", "dataType": "int", "nullable": false }
+        ]
+      },
+      {
+        "id": "e-studentphone",
+        "name": "StudentPhone",
+        "x": 560,
+        "y": 260,
+        "attributes": [
+          { "name": "StudentId", "dataType": "int", "isPrimaryKey": true, "nullable": false },
+          { "name": "Phone", "dataType": "nvarchar(30)", "isPrimaryKey": true, "nullable": false }
+        ]
+      },
+      {
+        "id": "e-studentskill",
+        "name": "StudentSkill",
+        "x": 560,
+        "y": 400,
+        "attributes": [
+          { "name": "StudentId", "dataType": "int", "isPrimaryKey": true, "nullable": false },
+          { "name": "Skill", "dataType": "nvarchar(60)", "isPrimaryKey": true, "nullable": false }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "r-enrolment-course",
+        "fromEntityId": "e-enrolmentsheet",
+        "toEntityId": "e-course",
+        "fromColumns": ["CourseCode"],
+        "toColumns": ["CourseCode"],
+        "cardinality": "manyToOne"
+      }
+    ]
+  },
+  "designConditions": [
+    { "type": "entityExists", "table": "Student" },
+    { "type": "primaryKey", "table": "Student", "columns": ["StudentId"] },
+    { "type": "columnExists", "table": "Student", "column": "StudentName" },
+    { "type": "columnExists", "table": "Student", "column": "StudentEmail" },
+    { "type": "entityExists", "table": "CourseOffering" },
+    { "type": "primaryKey", "table": "CourseOffering", "columns": ["CourseCode", "Term"] },
+    { "type": "columnExists", "table": "CourseOffering", "column": "InstructorName" },
+    { "type": "columnExists", "table": "CourseOffering", "column": "RoomCode" },
+    { "type": "entityExists", "table": "EnrolmentSheet" },
+    { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "StudentName" },
+    { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "StudentEmail" },
+    { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "InstructorName" },
+    { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "RoomCode" },
+    { "type": "foreignKey", "table": "EnrolmentSheet", "columns": ["StudentId"], "references": "Student" }
+  ],
+  "references": [
+    {
+      "title": "E. F. Codd, Further Normalization of the Data Base Relational Model (1971) — second normal form",
+      "url": "https://dl.acm.org/doi/10.5555/1734714.1734716"
+    },
+    {
+      "title": "Description of the database normalization basics (Microsoft) — second normal form and composite keys",
+      "url": "https://learn.microsoft.com/office/troubleshoot/access/database-normalization-description"
+    },
+    {
+      "title": "Primary and foreign key constraints (SQL Server)",
+      "url": "https://learn.microsoft.com/sql/relational-databases/tables/primary-and-foreign-key-constraints"
+    }
+  ],
+  "passConditions": [],
+  "azureUnsupported": false
+}
