@@ -5,8 +5,8 @@ import type { ModuleStep } from "./types";
 // The pane class names are the ones ModuleRoute already renders.
 const STEP_META: Record<ModuleStep["kind"], { label: string; pane: string }> = {
   read: { label: "Read", pane: "narrative" },
-  canvas: { label: "Model", pane: "canvas" },
-  sql: { label: "Run", pane: "sql" },
+  canvas: { label: "Model", pane: "erd-workspace" },
+  sql: { label: "Run", pane: "erd-output" },
 };
 
 /**
