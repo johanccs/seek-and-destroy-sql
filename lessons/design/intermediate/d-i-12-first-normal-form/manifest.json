@@ -1,0 +1,102 @@
+{
+  "id": "d-i-12-first-normal-form",
+  "track": "design",
+  "kind": "design",
+  "level": "intermediate",
+  "order": 12,
+  "title": "First Normal Form: Repeating Groups in Disguise",
+  "description": "Phone1, Phone2, Phone3 is obviously the wrong shape. A comma-separated Skills column looks tidy and is worse — it cannot be indexed, joined, counted or constrained. They are the same mistake, and 1NF is the rule that catches both. Why it matters: the CSV column is the one that still gets written today, usually by someone who knows about 1NF.",
+  "topics": ["normalization", "1NF", "repeating groups", "atomicity"],
+  "estimatedMinutes": 25,
+  "narrative": "## What This Lesson Is About\n\nModule 11 gave courses their own table. The student side of `EnrolmentSheet` is still untouched, and it contains two problems that look completely different and are in fact identical:\n\n```sql\nSELECT StudentId, StudentName, Phone1, Phone2, Phone3, Skills FROM EnrolmentSheet;\n```\n\n- `Phone1`, `Phone2`, `Phone3` — a repeating group, spelled out in column names.\n- `Skills` — `'SQL,Python'`, `'SQL,R,Excel'` — a repeating group, spelled out inside one value.\n\nFirst normal form rules out both. The first one everybody spots. The second one is the reason 1NF is still worth a module in 2026.\n\n## Scenario\n\n### `Phone3` is a design bug, not a limit\n\nAyesha already has all three slots full. A fourth number has nowhere to go, and your options are all bad: add `Phone4` (and ship a migration every time reality outgrows the schema), overwrite one, or lose it.\n\nThat is the visible cost. The invisible one is worse. Find the student with a given number:\n\n```sql\nSELECT StudentId FROM EnrolmentSheet\nWHERE Phone1 = '011 555 0177' OR Phone2 = '011 555 0177' OR Phone3 = '011 555 0177';\n```\n\n**No index can serve that query.** An index on `Phone1` does not help find `Phone2`. You would need three indexes, and the engine still has to union three seeks. Add `Phone4` and every such query in the codebase is now silently wrong until someone remembers to edit it.\n\nCounting is no better. \"How many numbers do we hold?\" becomes a `CASE` expression counting non-`NULL`s across three columns. `COUNT(*)` would have done it.\n\n### The CSV column is not the tidy alternative\n\n`Skills` looks like it solved the problem: one column, no arbitrary limit, no `Skill4` migration. Now use it. Find every student with SQL:\n\n```sql\nSELECT StudentId, Skills FROM EnrolmentSheet WHERE Skills LIKE '%SQL%';\n```\n\nIt appears to work. It is broken in three ways at once:\n\n1. **It is wrong.** `LIKE '%SQL%'` also matches `MySQL`, `PL/SQL` and `NoSQL`. The database cannot tell a value from a substring, because to the database there is no value — there is one long string.\n2. **It cannot use an index.** A leading `%` forces a scan of every row, always.\n3. **Nothing can be constrained or joined.** There is no foreign key to a `Skill` table, so `'Pyton'` is as valid as `'Python'`. There is no `JOIN`, so counting students per skill needs `STRING_SPLIT` at query time, on every query, forever.\n\n**A comma-separated column is a repeating group that has learned to hide.** It moved the repetition from the column names into the data, where the schema can no longer see it — and where the engine cannot help you.\n\n## What \"atomic\" actually means\n\n1NF is usually stated as \"every value must be atomic\", which is unhelpful, because atomicity is not a property of a value. `'SQL,Python'` is one string; the engine is perfectly happy to store it. And plenty of values we treat as atomic have parts — a `datetime` has a year in it, and nobody calls that a 1NF violation.\n\nThe useful test is about **your queries, not your data**:\n\n> A value is atomic *for your design* if the database never has to split it to answer a question you actually ask.\n\nYou split `Skills` on every skill query, so it is not atomic here. You never split `StudentEmail`, even though it has a local part and a domain — so it is atomic here, and it would stop being atomic the day you start grouping students by mail domain.\n\nThis is why 1NF cannot be checked mechanically from the data alone, and why the grader below checks structure rather than atomicity.\n\n## Your task\n\nGive each repeating group its own table:\n\n- `StudentPhone (StudentId, Phone)`, keyed on **both** columns together.\n- `StudentSkill (StudentId, Skill)`, keyed on **both** columns together.\n- Then drop `Phone1`, `Phone2`, `Phone3` and `Skills` from `EnrolmentSheet`.\n\nThe composite key is doing real work. It says a student may have many phone numbers *and* that the same number cannot be recorded twice for them — a rule the three-column version could not express at all.\n\nEvery complaint above now goes away. One index on `StudentPhone(Phone)` serves the lookup. `COUNT(*)` counts. A fourth number is an `INSERT`, not a migration. `StudentSkill.Skill` can take a foreign key to a real skills list, so `'Pyton'` becomes an error instead of a row.\n\n## What to look for\n\n**The honest trade-off: you now need a join to reassemble.** Displaying \"Thandi — 082 555 0101, 021 555 0199\" costs a join and a `STRING_AGG`. That is a real cost, and it is why the CSV column keeps getting written.\n\nAnd sometimes the CSV-shaped column is genuinely right. A postal address line, a free-text note, a serialised blob the application only ever hands back whole — if you never query *into* the value, splitting it buys you nothing and costs you a join. **The test is not \"does this value contain a separator\", it is \"do I ever search, filter, count, join or constrain the parts?\"** For `Skills`, the answer is yes on all five.\n\n**`StudentPhone` and `StudentSkill` have no foreign key to a student table yet.** There is no `Student` table — the student's name and email are still sitting on `EnrolmentSheet`. Module 13 creates it and the keys can be wired up properly then. Noticing that gap is the right instinct; it is the next violation in the queue.\n\n## How this is graded\n\nThe check confirms `StudentPhone` and `StudentSkill` exist with a `Phone` and a `Skill` column, and that all four offending columns are gone from `EnrolmentSheet`.\n\nIt does **not** verify that you migrated the data correctly — that every phone number made it across and that `'SQL,R,Excel'` became three rows rather than one. It also cannot verify atomicity, because as the section above argues, atomicity depends on the questions you intend to ask and not on anything stored in the catalog. A table that passes this check with zero rows in it passes for the wrong reason.",
+  "steps": [
+    { "kind": "read", "anchor": "scenario" },
+    { "kind": "sql", "prompt": "Run the LIKE '%SQL%' query, then insert a student whose skills include 'NoSQL' and run it again — watch the wrong row come back." },
+    { "kind": "canvas", "prompt": "Model StudentPhone and StudentSkill, each keyed on both of its columns, then drop Phone1, Phone2, Phone3 and Skills from EnrolmentSheet." }
+  ],
+  "hints": [
+    "To move the three phone columns into rows, UNION ALL three SELECTs — one per column — and filter out the NULLs.",
+    "STRING_SPLIT(Skills, ',') with CROSS APPLY turns the CSV column into one row per skill. Needing that function to read your own data is the argument against the column.",
+    "Both child tables want a composite primary key: (StudentId, Phone) and (StudentId, Skill). A single-column key on StudentId would allow only one phone per student, which is the bug you are fixing."
+  ],
+  "startingQuery": "SELECT StudentId, StudentName, Phone1, Phone2, Phone3, Skills FROM EnrolmentSheet;",
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-course",
+        "name": "Course",
+        "x": 560,
+        "y": 80,
+        "attributes": [
+          { "name": "CourseCode", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "CourseTitle", "dataType": "nvarchar(120)", "nullable": false },
+          { "name": "Credits", "dataType": "int", "nullable": false }
+        ]
+      },
+      {
+        "id": "e-enrolmentsheet",
+        "name": "EnrolmentSheet",
+        "x": 120,
+        "y": 80,
+        "attributes": [
+          { "name": "StudentId", "dataType": "int", "isPrimaryKey": true, "nullable": false },
+          { "name": "StudentName", "dataType": "nvarchar(100)", "nullable": false },
+          { "name": "StudentEmail", "dataType": "nvarchar(200)", "nullable": false },
+          { "name": "Phone1", "dataType": "nvarchar(30)", "nullable": true },
+          { "name": "Phone2", "dataType": "nvarchar(30)", "nullable": true },
+          { "name": "Phone3", "dataType": "nvarchar(30)", "nullable": true },
+          { "name": "Skills", "dataType": "nvarchar(400)", "nullable": true },
+          { "name": "CourseCode", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "Term", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "InstructorName", "dataType": "nvarchar(100)", "nullable": false },
+          { "name": "InstructorOffice", "dataType": "nvarchar(40)", "nullable": false },
+          { "name": "RoomCode", "dataType": "nvarchar(12)", "nullable": false },
+          { "name": "RoomBuilding", "dataType": "nvarchar(60)", "nullable": false },
+          { "name": "RoomCapacity", "dataType": "int", "nullable": false },
+          { "name": "Grade", "dataType": "nvarchar(2)", "nullable": true }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "r-enrolment-course",
+        "fromEntityId": "e-enrolmentsheet",
+        "toEntityId": "e-course",
+        "fromColumns": ["CourseCode"],
+        "toColumns": ["CourseCode"],
+        "cardinality": "manyToOne"
+      }
+    ]
+  },
+  "designConditions": [
+    { "type": "entityExists", "table": "StudentPhone" },
+    { "type": "columnExists", "table": "StudentPhone", "column": "StudentId" },
+    { "type": "columnExists", "table": "StudentPhone", "column": "Phone" },
+    { "type": "primaryKey", "table": "StudentPhone", "columns": ["StudentId", "Phone"] },
+    { "type": "entityExists", "table": "StudentSkill" },
+    { "type": "columnExists", "table": "StudentSkill", "column": "StudentId" },
+    { "type": "columnExists", "table": "StudentSkill", "column": "Skill" },
+    { "type": "primaryKey", "table": "StudentSkill", "columns": ["StudentId", "Skill"] },
+    { "type": "entityExists", "table": "EnrolmentSheet" },
+    { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "Phone1" },
+    { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "Phone2" },
+    { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "Phone3" },
+    { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "Skills" }
+  ],
+  "references": [
+    {
+      "title": "E. F. Codd, A Relational Model of Data for Large Shared Data Banks (1970) — §1.4 normal form, the removal of non-simple domains",
+      "url": "https://dl.acm.org/doi/10.1145/362384.362685"
+    },
+    {
+      "title": "STRING_SPLIT (Transact-SQL) — the function you need only because the column should not exist",
+      "url": "https://learn.microsoft.com/sql/t-sql/functions/string-split-transact-sql"
+    },
+    {
+      "title": "SARGability: why a leading wildcard in LIKE prevents an index seek",
+      "url": "https://learn.microsoft.com/sql/relational-databases/performance/create-an-index-with-included-columns"
+    }
+  ],
+  "passConditions": [],
+  "azureUnsupported": false
+}
