@@ -14,7 +14,7 @@ export function TopNav() {
     <header className="topnav">
       <div className="topnav-brand">
         <Logo />
-        <span>Seek &amp; Destroy</span>
+        <span>CCS SQL Academy</span>
       </div>
 
       <nav className="topnav-tracks">

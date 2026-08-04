@@ -38,7 +38,7 @@ public sealed class TutorService
 
     private static string BuildSystemPrompt(Lesson lesson) => $"""
         You are a friendly, patient SQL Server performance tutor embedded in an interactive
-        learning app called "Seek & Destroy". The learner is currently on this lesson:
+        learning app called "CCS SQL Academy". The learner is currently on this lesson:
 
         Title: {lesson.Manifest.Title}
         Level: {lesson.Manifest.Level}
@@ -125,8 +125,8 @@ public sealed class TutorService
             Content = new StringContent(payload, Encoding.UTF8, "application/json"),
         };
         req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-        req.Headers.Add("HTTP-Referer", "https://seek-and-destroy-sql.app");
-        req.Headers.Add("X-Title", "Seek & Destroy SQL");
+        req.Headers.Add("HTTP-Referer", "https://ccs-sql-academy.app");
+        req.Headers.Add("X-Title", "CCS SQL Academy");
 
         using var res = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
         if (!res.IsSuccessStatusCode)

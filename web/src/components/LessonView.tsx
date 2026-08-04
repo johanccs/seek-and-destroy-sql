@@ -165,7 +165,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
     if (!w) return;
     const narrativeHtml = document.querySelector(".narrative .markdown-body")?.innerHTML
       ?? document.querySelector(".narrative")?.innerHTML ?? "";
-    w.document.write(`<!doctype html><html><head><title>${lesson.title} — Seek &amp; Destroy</title>
+    w.document.write(`<!doctype html><html><head><title>${lesson.title} — CCS SQL Academy</title>
       <style>
         body { font-family: -apple-system, "Segoe UI", sans-serif; max-width: 780px; margin: 40px auto; color: #1c2530; line-height: 1.55; }
         h1 { font-size: 22px; } h2 { font-size: 17px; margin-top: 28px; } code { background: #eef1f5; padding: 1px 5px; border-radius: 4px; }

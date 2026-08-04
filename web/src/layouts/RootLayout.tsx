@@ -20,7 +20,7 @@ export default function RootLayout() {
             <NavLink to="/terms" className={({ isActive }) => `footer-link ${isActive ? "active" : ""}`}>
               Terms
             </NavLink>
-            <a href="https://github.com/johanccs/seek-and-destroy-sql" target="_blank" rel="noopener">
+            <a href="https://github.com/johanccs/ccs-sql-academy" target="_blank" rel="noopener">
               GitHub
             </a>
           </nav>
