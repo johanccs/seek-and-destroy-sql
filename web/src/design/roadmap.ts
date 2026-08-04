@@ -15,8 +15,8 @@ export const ROADMAP: RoadmapLevel[] = [
     title: "Beginner",
     widget: "ERD canvas, guided",
     entries: [
-      { n: 1, title: "What a data model is", blurb: "Entities, attributes and relationships — the three things every model is made of." },
-      { n: 2, title: "Tables, rows, columns and schemas", blurb: "What the engine actually stores, and what a schema is for." },
+      { n: 1, title: "What a data model is", blurb: "Entities, attributes and relationships — the three things every model is made of.", id: "d-b-01-what-a-data-model-is" },
+      { n: 2, title: "Tables, rows, columns and schemas", blurb: "What the engine actually stores, and what a schema is for.", id: "d-b-02-tables-rows-columns-schemas" },
       { n: 3, title: "Choosing data types", blurb: "What nvarchar(max) everywhere really costs you.", id: "d-b-03-data-types" },
       { n: 4, title: "Primary keys: natural vs surrogate", blurb: "When the real-world identifier is the right key, and when it isn't.", id: "d-b-04-natural-vs-surrogate-keys" },
       { n: 5, title: "One-to-many relationships", blurb: "The shape most of a database is made of, and which side carries the key.", id: "d-b-05-one-to-many" },
@@ -24,7 +24,7 @@ export const ROADMAP: RoadmapLevel[] = [
       { n: 7, title: "Many-to-many and the junction table", blurb: "Why the engine has no direct way to store this, and what to do instead.", id: "d-b-07-many-to-many" },
       { n: 8, title: "NULLs, defaults and optionality", blurb: "Saying 'we don't know' without saying 'zero'.", id: "d-b-08-nulls-and-defaults" },
       { n: 9, title: "Constraints as executable documentation", blurb: "CHECK and UNIQUE: rules the database enforces rather than the team remembering.", id: "d-b-09-constraints-as-documentation" },
-      { n: 10, title: "Capstone: an order-entry system", blurb: "Model the whole thing end to end, from a written brief." },
+      { n: 10, title: "Capstone: an order-entry system", blurb: "Model the whole thing end to end, from a written brief.", id: "d-b-10-capstone-order-entry" },
     ],
   },
   {
