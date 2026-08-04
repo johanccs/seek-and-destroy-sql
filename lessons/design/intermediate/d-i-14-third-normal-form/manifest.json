@@ -1,0 +1,128 @@
+{
+  "id": "d-i-14-third-normal-form",
+  "track": "design",
+  "kind": "design",
+  "level": "intermediate",
+  "order": 14,
+  "title": "Third Normal Form: Transitive Dependencies",
+  "description": "The key determines the room; the room determines the building. Store the building on the offering and you have written down a fact about a fact, once per offering that happens to use that room. Why it matters: 3NF is where the familiar mnemonic finally earns its keep — and the last place it works, because module 15 breaks it.",
+  "topics": ["normalization", "3NF", "transitive dependencies"],
+  "estimatedMinutes": 30,
+  "narrative": "## What This Lesson Is About\n\nAfter module 13, `EnrolmentSheet` is clean: `(StudentId, CourseCode, Term, Grade)`, and `Grade` depends on the whole key. Both remaining problems have moved into `CourseOffering`, and they have **the same shape as each other**.\n\n> **Third normal form:** no non-key attribute depends on another non-key attribute.\n\nThe chain to look for is `key → non-key → non-key`. 2NF was about depending on *too little* of the key. 3NF is about depending on **something that isn't the key at all**.\n\n## Scenario\n\n```sql\nSELECT * FROM CourseOffering ORDER BY CourseCode, Term;\n```\n\nFour offerings. Look at what repeats:\n\n| CourseCode | Term | InstructorName | InstructorOffice | RoomCode | RoomBuilding | RoomCapacity |\n|---|---|---|---|---|---|---|\n| DB101 | 2026S1 | Dr Naidoo | B-214 | R101 | Science Block | 60 |\n| DB101 | 2026S2 | Dr Naidoo | B-214 | R101 | Science Block | 60 |\n| ST200 | 2026S1 | Prof Botha | C-108 | R205 | Maths Block | 40 |\n| ST200 | 2026S2 | Dr Khumalo | A-002 | R101 | Science Block | 60 |\n\n**`Science Block` is stored three times. `B-214` is stored twice.** Not because three offerings are in three different places, but because three offerings happen to use `R101`.\n\n### The chain\n\n```\n(CourseCode, Term)  →  RoomCode  →  RoomBuilding\n```\n\nRead it left to right. The key determines which room the offering uses — that is a real fact about the offering, and `RoomCode` belongs here. But `RoomBuilding` is determined by `RoomCode`, **not** by the key. The building is a fact about *the room*.\n\nThe same chain again:\n\n```\n(CourseCode, Term)  →  InstructorName  →  InstructorOffice\n```\n\nDr Naidoo's office is a fact about Dr Naidoo. It has nothing to do with which course she teaches in which term, and it is stored once per offering she happens to teach.\n\n### \"A fact about a fact\"\n\nThat is the recognition heuristic. For every column, ask: **is this a fact about the thing the key identifies, or a fact about one of the other columns?**\n\n- Is `RoomBuilding` a fact about *this offering*? No — it is a fact about `R101`.\n- Is `InstructorOffice` a fact about *this offering*? No — it is a fact about Dr Naidoo.\n- Is `RoomCode` a fact about *this offering*? **Yes.** This offering meets in R101. That one stays.\n\nA fact about a fact belongs in the table that fact came from.\n\n### Why it bites\n\nRoom R101 is refurbished and its capacity drops to 55. You now have to update **three rows** to record one change, and nothing stops you from updating two — leaving the database asserting that R101 seats 60 on Mondays and 55 on Wednesdays.\n\nAnd the insert anomaly is back in a new costume: **a room that no offering uses cannot be recorded at all.** Build a new lecture theatre and it does not exist until someone timetables a class in it.\n\n## Your task\n\nGive each determinant its own table:\n\n- **`Instructor (InstructorName, InstructorOffice)`**, keyed on `InstructorName`.\n- **`Room (RoomCode, RoomBuilding, RoomCapacity)`**, keyed on `RoomCode`.\n- Drop `InstructorOffice`, `RoomBuilding` and `RoomCapacity` from `CourseOffering`.\n- Add foreign keys from `CourseOffering` to both new tables.\n\n**`RoomCode` and `InstructorName` stay on `CourseOffering`** — now as foreign keys. This is the part people get wrong: 3NF does not say \"move the whole chain out\", it says the *dependent* attributes go with their determinant. Which room an offering uses is genuinely a fact about the offering. What the room is *like* is not.\n\n## The mnemonic, and where it stops working\n\nYou have now done all three, and the usual summary fits them exactly:\n\n> Every non-key attribute must depend on **the key** (1NF), **the whole key** (2NF), **and nothing but the key** (3NF).\n\nIt is a genuinely good mnemonic. Learn it.\n\nThen know its limit: **it assumes there is one key.** Every clause says *the* key, and a table with two overlapping candidate keys makes that phrase ambiguous — \"nothing but the key\" stops having a single meaning. That is exactly the gap module 15 walks into, where a table satisfies all three clauses and is still storing a fact twice.\n\nSo: the mnemonic is complete for 1NF, 2NF and 3NF, and it is not the end of the story. Most schemas can stop here. The next module is about knowing when yours cannot.\n\n## What to look for\n\n**`RoomCapacity` is the interesting one.** It is unambiguously a property of the room, so 3NF says it belongs in `Room`. But it is also the column someone will want back on `CourseOffering` — \"just a copy, for the timetabling report, so we don't have to join.\"\n\nThat instinct is not stupid, and it is not automatically wrong. It is **denormalization**, and it is a real technique with a real price: you are trading a guaranteed-consistent join for a faster read and a copy you must now keep in step yourself. Module 17 does exactly this on purpose and measures what it costs. The rule is only that you do it **knowingly, with a reason and a plan for the copies** — never by accident, and never before you have measured that the join is actually the problem.\n\n**Normalization keeps creating places for constraints to live.** `Room` now has one row per room, so `RoomCapacity > 0` is one CHECK that protects every offering. On the old table you would have needed it on every row, and it would still not have stopped two rows disagreeing.\n\n**Watch what happened to the anomalies.** A new room can now be created before anyone books it. Deleting the last offering in R205 no longer erases R205. Changing a capacity is one row. Same three anomalies as module 11, one level further down.\n\n## How this is graded\n\nThe check confirms `Instructor` and `Room` exist with the right keys and detail columns, that the three transitive columns are gone from `CourseOffering`, and that both foreign keys are in place.\n\nAs always this is a structural fingerprint. **The grader cannot see that `RoomCode → RoomBuilding`** — that is a fact about how rooms and buildings relate in the world, and no catalog view records it. It checks that you built the shape a correct 3NF decomposition produces, not that you can recognise a transitive dependency in a table you have not seen before. That second skill is the one worth having, and it is the one only you can check.",
+  "steps": [
+    { "kind": "read", "anchor": "scenario" },
+    { "kind": "sql", "prompt": "Run SELECT * FROM CourseOffering and count how many times 'Science Block' appears — then work out how many rows you would have to touch to rename that building." },
+    { "kind": "canvas", "prompt": "Model Instructor keyed on InstructorName and Room keyed on RoomCode, move the detail columns across, and leave InstructorName and RoomCode behind as foreign keys." }
+  ],
+  "hints": [
+    "Look for a chain: the key gives you RoomCode, and RoomCode gives you RoomBuilding. The middle of that chain is where the new table's key is.",
+    "Ask of each column: is this a fact about the offering, or a fact about one of the other columns? RoomBuilding is a fact about the room.",
+    "RoomCode and InstructorName do NOT leave CourseOffering. They stay as foreign keys — which room an offering uses really is a fact about the offering.",
+    "Populate the new tables with SELECT DISTINCT before dropping the columns. Expect Room to end up with two rows from four offerings, which is the redundancy you just removed."
+  ],
+  "startingQuery": "SELECT * FROM CourseOffering ORDER BY CourseCode, Term;",
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-courseoffering",
+        "name": "CourseOffering",
+        "x": 120,
+        "y": 60,
+        "attributes": [
+          { "name": "CourseCode", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "Term", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "InstructorName", "dataType": "nvarchar(100)", "nullable": false },
+          { "name": "InstructorOffice", "dataType": "nvarchar(40)", "nullable": false },
+          { "name": "RoomCode", "dataType": "nvarchar(12)", "nullable": false },
+          { "name": "RoomBuilding", "dataType": "nvarchar(60)", "nullable": false },
+          { "name": "RoomCapacity", "dataType": "int", "nullable": false }
+        ]
+      },
+      {
+        "id": "e-course",
+        "name": "Course",
+        "x": 560,
+        "y": 60,
+        "attributes": [
+          { "name": "CourseCode", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "CourseTitle", "dataType": "nvarchar(120)", "nullable": false },
+          { "name": "Credits", "dataType": "int", "nullable": false }
+        ]
+      },
+      {
+        "id": "e-enrolmentsheet",
+        "name": "EnrolmentSheet",
+        "x": 120,
+        "y": 330,
+        "attributes": [
+          { "name": "StudentId", "dataType": "int", "isPrimaryKey": true, "nullable": false },
+          { "name": "CourseCode", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "Term", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "Grade", "dataType": "nvarchar(2)", "nullable": true }
+        ]
+      },
+      {
+        "id": "e-student",
+        "name": "Student",
+        "x": 560,
+        "y": 330,
+        "attributes": [
+          { "name": "StudentId", "dataType": "int", "isPrimaryKey": true, "nullable": false },
+          { "name": "StudentName", "dataType": "nvarchar(100)", "nullable": false },
+          { "name": "StudentEmail", "dataType": "nvarchar(200)", "nullable": false }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "id": "r-offering-course",
+        "fromEntityId": "e-courseoffering",
+        "toEntityId": "e-course",
+        "fromColumns": ["CourseCode"],
+        "toColumns": ["CourseCode"],
+        "cardinality": "manyToOne"
+      },
+      {
+        "id": "r-enrolment-student",
+        "fromEntityId": "e-enrolmentsheet",
+        "toEntityId": "e-student",
+        "fromColumns": ["StudentId"],
+        "toColumns": ["StudentId"],
+        "cardinality": "manyToOne"
+      }
+    ]
+  },
+  "designConditions": [
+    { "type": "entityExists", "table": "Instructor" },
+    { "type": "primaryKey", "table": "Instructor", "columns": ["InstructorName"] },
+    { "type": "columnExists", "table": "Instructor", "column": "InstructorOffice" },
+    { "type": "entityExists", "table": "Room" },
+    { "type": "primaryKey", "table": "Room", "columns": ["RoomCode"] },
+    { "type": "columnExists", "table": "Room", "column": "RoomBuilding" },
+    { "type": "columnExists", "table": "Room", "column": "RoomCapacity" },
+    { "type": "entityExists", "table": "CourseOffering" },
+    { "type": "columnExists", "table": "CourseOffering", "column": "RoomCode" },
+    { "type": "columnExists", "table": "CourseOffering", "column": "InstructorName" },
+    { "type": "columnAbsent", "table": "CourseOffering", "column": "InstructorOffice" },
+    { "type": "columnAbsent", "table": "CourseOffering", "column": "RoomBuilding" },
+    { "type": "columnAbsent", "table": "CourseOffering", "column": "RoomCapacity" },
+    { "type": "foreignKey", "table": "CourseOffering", "columns": ["InstructorName"], "references": "Instructor" },
+    { "type": "foreignKey", "table": "CourseOffering", "columns": ["RoomCode"], "references": "Room" }
+  ],
+  "references": [
+    {
+      "title": "E. F. Codd, Further Normalization of the Data Base Relational Model (1971) — third normal form and transitive dependence",
+      "url": "https://dl.acm.org/doi/10.5555/1734714.1734716"
+    },
+    {
+      "title": "Description of the database normalization basics (Microsoft) — third normal form",
+      "url": "https://learn.microsoft.com/office/troubleshoot/access/database-normalization-description"
+    },
+    {
+      "title": "William Kent, A Simple Guide to Five Normal Forms in Relational Database Theory (1983) — the source of the 'nothing but the key' summary",
+      "url": "https://dl.acm.org/doi/10.1145/358024.358054"
+    }
+  ],
+  "passConditions": [],
+  "azureUnsupported": false
+}
