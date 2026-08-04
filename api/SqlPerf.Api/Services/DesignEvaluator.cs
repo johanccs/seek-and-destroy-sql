@@ -29,6 +29,7 @@ public static class DesignEvaluator
             {
                 "entityExists" => EntityExists(rule, schema),
                 "columnExists" => ColumnExists(rule, schema),
+                "columnAbsent" => ColumnAbsent(rule, schema),
                 "primaryKey" => PrimaryKey(rule, schema),
                 "notNullable" => NotNullable(rule, schema),
                 "hasDefault" => HasDefault(rule, schema),
@@ -64,6 +65,25 @@ public static class DesignEvaluator
         if (!string.IsNullOrWhiteSpace(r.Pattern) && !c.DataType.StartsWith(r.Pattern!, StringComparison.OrdinalIgnoreCase))
             return ($"{label} as {r.Pattern}", false, $"is {c.DataType}");
         return (label, true, c.DataType);
+    }
+
+    // The inverse of ColumnExists, and the rule normalization is graded on: a
+    // decomposition is only real if the redundant column left the table it did
+    // not belong in.
+    //
+    // A missing table fails rather than passes. "CourseTitle is absent from
+    // Enrolment" is vacuously true when there is no Enrolment, and treating
+    // that as a pass would reward deleting the table instead of decomposing it.
+    private static (string, bool, string) ColumnAbsent(RuleSpec r, SchemaDto s)
+    {
+        var label = $"{r.Table}.{r.Column} no longer exists";
+        var t = Table(s, r.Table);
+        if (t is null) return (label, false, $"no table {r.Table}");
+
+        var c = t.Columns.FirstOrDefault(x => Eq(x.Name, r.Column));
+        return c is null
+            ? (label, true, "moved out")
+            : (label, false, $"still present as {c.DataType}");
     }
 
     // "This fact is required." Modules use it to check that moving columns into
