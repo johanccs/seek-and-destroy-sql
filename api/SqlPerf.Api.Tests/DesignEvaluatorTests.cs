@@ -65,4 +65,16 @@ public class DesignEvaluatorTests
         Assert.False(result.Passed);
         Assert.Contains("no table", result.Conditions[0].Detail);
     }
+
+    // A negative rule with no column would otherwise match nothing and pass
+    // vacuously, turning an authoring slip into a silently green module.
+    [Fact]
+    public void ColumnAbsent_fails_when_the_rule_has_no_column()
+    {
+        var schema = SchemaWith("Enrolment", "StudentId", "CourseCode");
+
+        var result = DesignEvaluator.Evaluate(new[] { Absent("Enrolment", null!) }, schema);
+
+        Assert.False(result.Passed);
+    }
 }

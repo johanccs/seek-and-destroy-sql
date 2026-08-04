@@ -77,6 +77,13 @@ public static class DesignEvaluator
     private static (string, bool, string) ColumnAbsent(RuleSpec r, SchemaDto s)
     {
         var label = $"{r.Table}.{r.Column} no longer exists";
+
+        // A negative rule with no column would match nothing and pass vacuously,
+        // so an authoring slip would show up as a green module rather than a red
+        // one. Every positive rule fails loudly in the same situation.
+        if (string.IsNullOrWhiteSpace(r.Column))
+            return ($"{r.Table}: columnAbsent rule has no column", false, "manifest error");
+
         var t = Table(s, r.Table);
         if (t is null) return (label, false, $"no table {r.Table}");
 
