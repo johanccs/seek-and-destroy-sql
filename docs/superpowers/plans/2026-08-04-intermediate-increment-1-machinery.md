@@ -215,7 +215,7 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Why this exists:** `ModuleStep` is typed, authored in all ten Beginner manifests, and shipped over the wire in `ModuleDetailDto` — and nothing renders it. This task consumes data that already exists, so it improves all ten shipped modules on merge.
 
-Behaviour is deliberately passive: clicking a step selects it and scrolls the matching pane into view. Nothing locks, nothing gates, and no state persists. `narrative`, `canvas` and `sql` are the three pane class names already present in `ModuleRoute`.
+Behaviour is deliberately passive: clicking a step selects it and scrolls the matching pane into view. Nothing locks, nothing gates, and no state persists. The three pane class names actually present in `ModuleRoute` are `narrative`, `erd-workspace` and `erd-output` — verified in the DOM, not assumed.
 
 - [ ] **Step 1: Create the component**
 
@@ -229,8 +229,8 @@ import type { ModuleStep } from "./types";
 // The pane class names are the ones ModuleRoute already renders.
 const STEP_META: Record<ModuleStep["kind"], { label: string; pane: string }> = {
   read: { label: "Read", pane: "narrative" },
-  canvas: { label: "Model", pane: "canvas" },
-  sql: { label: "Run", pane: "sql" },
+  canvas: { label: "Model", pane: "erd-workspace" },
+  sql: { label: "Run", pane: "erd-output" },
 };
 
 /**
