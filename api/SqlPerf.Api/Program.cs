@@ -190,7 +190,7 @@ app.MapGet("/api/modules/{id}", async (string id, LessonCatalog cat, ProgressSto
     var m = l.Manifest;
     return Results.Json(new ModuleDetailDto(m.Id, m.Track, m.Kind, m.Level, m.Title, m.Description,
         m.Topics, m.EstimatedMinutes, m.Narrative, m.Hints, m.Steps, m.StartingModel,
-        await progress.GetAsync(id), m.AzureUnsupported));
+        await progress.GetAsync(id), m.AzureUnsupported, m.StartingQuery));
 });
 
 // The saved diagram. Falls back to the module's startingModel so a first visit

@@ -1,0 +1,79 @@
+{
+  "id": "d-i-11-why-normalize",
+  "track": "design",
+  "kind": "design",
+  "level": "intermediate",
+  "order": 11,
+  "title": "Why Normalize: The Three Anomalies",
+  "description": "Normalization is not a set of rules to obey — it is the removal of three specific bugs that redundancy causes. This module shows all three happening in a real table, with real SQL, before naming a single normal form. Why it matters: a designer who normalizes because a checklist said so will denormalize just as thoughtlessly later.",
+  "topics": ["normalization", "anomalies", "redundancy"],
+  "estimatedMinutes": 25,
+  "narrative": "## What This Lesson Is About\n\nSomebody kept the enrolments in a spreadsheet, and then somebody else loaded the spreadsheet into SQL Server unchanged. The result is `EnrolmentSheet`: one row per enrolment, and every fact about the student, the course, the instructor and the room copied onto every row that mentions them.\n\nIt is not obviously broken. It queries fine. You can read it. That is exactly why this design survives in production for years — the damage it does is not visible in a `SELECT`.\n\nThis module makes the damage visible. Three bugs, each demonstrated with SQL you run yourself. No normal form is named until the end, deliberately: **normalization is anomaly-removal, and the normal forms are just names for the patterns that cause the anomalies.** Learning the names first is how people end up applying them as ritual.\n\n## Scenario\n\n```sql\nSELECT * FROM EnrolmentSheet ORDER BY StudentId, CourseCode;\n```\n\nFour rows. Look at what repeats:\n\n- **Thandi's name and email appear twice**, because she is enrolled in two courses.\n- **`DB101 / Database Fundamentals / 15 credits` appears twice**, because two students take it.\n- **`R101 / Science Block / 60` appears twice**, for the same reason.\n\nThe primary key is `(StudentId, CourseCode, Term)` — the three things that together identify one enrolment. Everything else on the row is along for the ride.\n\n## Anomaly 1: the update anomaly\n\nThandi changes her email. The honest update is:\n\n```sql\nUPDATE EnrolmentSheet\nSET StudentEmail = 'thandi.mokoena@example.ac.za'\nWHERE StudentId = 1;\n```\n\nThat touches **two rows to record one fact**. Which is fine — until someone writes this instead:\n\n```sql\nUPDATE EnrolmentSheet\nSET StudentEmail = 'thandi.mokoena@example.ac.za'\nWHERE StudentId = 1 AND CourseCode = 'DB101';\n```\n\nRun it and then look:\n\n```sql\nSELECT StudentId, CourseCode, StudentEmail FROM EnrolmentSheet WHERE StudentId = 1;\n```\n\nThe database now holds **two different emails for one person**, and it is perfectly happy about it. There is no constraint you can add to this table that prevents it, because as far as the schema is concerned those are two unrelated rows that merely happen to share a `StudentId`.\n\nThat is the real cost of redundancy: not the wasted bytes, but that **the copies can disagree, and nothing notices.**\n\n## Anomaly 2: the insert anomaly\n\nThe department approves a new course, `DB301 — Query Optimisation`, 20 credits. Registration opens next month, so nobody is enrolled yet.\n\nRecord it:\n\n```sql\nINSERT INTO EnrolmentSheet (CourseCode, CourseTitle, Credits) VALUES ('DB301', 'Query Optimisation', 20);\n```\n\nThis fails, and it fails for an interesting reason. `StudentId` and `Term` are `NOT NULL` and part of the primary key. **You cannot record that a course exists until a student enrols on it.**\n\nYou could invent a fake student. People do — a row for `StudentId = 0, 'PLACEHOLDER'`. Now every query that counts students has to remember to exclude it, forever, and one of them will forget.\n\nThe honest reading: this table cannot store a fact about a course on its own, because it is not a table about courses. **It is a table about enrolments that has course facts stuck to it.** This is the anomaly you will fix.\n\n## Anomaly 3: the delete anomaly\n\nAyesha withdraws from `ST200`. It is her only enrolment.\n\n```sql\nDELETE FROM EnrolmentSheet WHERE StudentId = 3;\n```\n\n```sql\nSELECT * FROM EnrolmentSheet WHERE CourseCode = 'ST200';\n```\n\nOne row left — Thandi's. Now delete that one too, and `ST200` is gone: **the fact that Statistics exists, and that it is worth 12 credits, was only ever stored on enrolment rows.** Deleting the last enrolment destroys the course.\n\nThe insert and delete anomalies are the same bug seen from both ends. A fact that can only be born attached to another fact can only die with it.\n\n## Your task\n\nFix the insert anomaly, with the smallest change that actually fixes it.\n\nA course's title and credit value are facts **about the course**, not about anybody's enrolment. So give courses a table:\n\n- `Course (CourseCode, CourseTitle, Credits)`, keyed on `CourseCode`.\n- Move the data across, then drop `CourseTitle` and `Credits` from `EnrolmentSheet`.\n- Add a foreign key from `EnrolmentSheet.CourseCode` to `Course.CourseCode`.\n\nAll three anomalies improve at once, for courses:\n\n- **Update:** the title is stored once, so there is nothing to disagree with.\n- **Insert:** `DB301` can now be created with no students. That was impossible five minutes ago.\n- **Delete:** removing the last enrolment leaves the course standing.\n\nNotice what the foreign key buys you on top of that. Before, `CourseCode` was just a string — nothing stopped a typo like `DB1O1`. Now the engine rejects any enrolment naming a course that does not exist. **The decomposition did not only remove redundancy; it created somewhere for a constraint to live.**\n\n## What to look for\n\n**The student and room facts are still duplicated.** Thandi's email is still on two rows; `Science Block` is still repeated. You have fixed one anomaly, not the table. Modules 12 to 15 take the rest of it apart, one violation at a time, and each starts where the last one finished.\n\n**This was not free.** Getting a course title alongside an enrolment now costs a join. That is the actual trade of normalization: fewer places for the truth to live, more work to reassemble it. Module 17 measures that cost and sometimes decides to pay redundancy instead — deliberately, with a reason, which is the only acceptable way to do it.\n\n**No normal form has been named in this module.** That is on purpose. What you just did happens to be a step toward second normal form, but you did it because a new course could not be recorded, not because a rule said the table was non-compliant. Keep that order in your head: the anomaly is the problem, the normal form is the diagnosis.\n\n## How this is graded\n\nThe check reads your database's actual catalog after your DDL has run. It confirms that `Course` exists and is keyed on `CourseCode`, that it carries `CourseTitle` and `Credits`, that both columns are **gone** from `EnrolmentSheet`, and that the foreign key connects the two.\n\nThat is a structural fingerprint of the right decomposition, and it is all a grader can see. **It cannot tell whether you understood why**, and it cannot check that you migrated every row correctly. Redundancy is a statement about what facts mean, and meaning does not appear in `sys.columns`.",
+  "steps": [
+    { "kind": "read", "anchor": "scenario" },
+    { "kind": "sql", "prompt": "Run the three anomaly demonstrations from the narrative — the partial UPDATE, the failing INSERT, and the DELETE — and watch each one break something." },
+    { "kind": "canvas", "prompt": "Extract a Course table keyed on CourseCode, move CourseTitle and Credits into it, and link EnrolmentSheet to it with a foreign key." }
+  ],
+  "hints": [
+    "Start by creating Course and copying the data across with SELECT DISTINCT CourseCode, CourseTitle, Credits FROM EnrolmentSheet — DISTINCT matters, because DB101 appears on two rows.",
+    "Copy the data BEFORE you drop the columns. Once CourseTitle is gone from EnrolmentSheet there is nowhere left to read it from.",
+    "The foreign key goes on the many side: EnrolmentSheet.CourseCode references Course.CourseCode. One course, many enrolments."
+  ],
+  "startingQuery": "SELECT * FROM EnrolmentSheet ORDER BY StudentId, CourseCode;",
+  "startingModel": {
+    "entities": [
+      {
+        "id": "e-enrolmentsheet",
+        "name": "EnrolmentSheet",
+        "x": 120,
+        "y": 80,
+        "attributes": [
+          { "name": "StudentId", "dataType": "int", "isPrimaryKey": true, "nullable": false },
+          { "name": "StudentName", "dataType": "nvarchar(100)", "nullable": false },
+          { "name": "StudentEmail", "dataType": "nvarchar(200)", "nullable": false },
+          { "name": "Phone1", "dataType": "nvarchar(30)", "nullable": true },
+          { "name": "Phone2", "dataType": "nvarchar(30)", "nullable": true },
+          { "name": "Phone3", "dataType": "nvarchar(30)", "nullable": true },
+          { "name": "Skills", "dataType": "nvarchar(400)", "nullable": true },
+          { "name": "CourseCode", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "CourseTitle", "dataType": "nvarchar(120)", "nullable": false },
+          { "name": "Credits", "dataType": "int", "nullable": false },
+          { "name": "Term", "dataType": "nvarchar(12)", "isPrimaryKey": true, "nullable": false },
+          { "name": "InstructorName", "dataType": "nvarchar(100)", "nullable": false },
+          { "name": "InstructorOffice", "dataType": "nvarchar(40)", "nullable": false },
+          { "name": "RoomCode", "dataType": "nvarchar(12)", "nullable": false },
+          { "name": "RoomBuilding", "dataType": "nvarchar(60)", "nullable": false },
+          { "name": "RoomCapacity", "dataType": "int", "nullable": false },
+          { "name": "Grade", "dataType": "nvarchar(2)", "nullable": true }
+        ]
+      }
+    ],
+    "relationships": []
+  },
+  "designConditions": [
+    { "type": "entityExists", "table": "Course" },
+    { "type": "primaryKey", "table": "Course", "columns": ["CourseCode"] },
+    { "type": "columnExists", "table": "Course", "column": "CourseTitle" },
+    { "type": "columnExists", "table": "Course", "column": "Credits" },
+    { "type": "entityExists", "table": "EnrolmentSheet" },
+    { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "CourseTitle" },
+    { "type": "columnAbsent", "table": "EnrolmentSheet", "column": "Credits" },
+    { "type": "foreignKey", "table": "EnrolmentSheet", "columns": ["CourseCode"], "references": "Course" }
+  ],
+  "references": [
+    {
+      "title": "E. F. Codd, A Relational Model of Data for Large Shared Data Banks (1970) — the original argument for decomposition",
+      "url": "https://dl.acm.org/doi/10.1145/362384.362685"
+    },
+    {
+      "title": "E. F. Codd, Further Normalization of the Data Base Relational Model (1971) — anomalies as the motivation for the normal forms",
+      "url": "https://dl.acm.org/doi/10.5555/1734714.1734716"
+    },
+    {
+      "title": "Description of the database normalization basics (Microsoft) — the insert, update and delete anomalies",
+      "url": "https://learn.microsoft.com/office/troubleshoot/access/database-normalization-description"
+    }
+  ],
+  "passConditions": [],
+  "azureUnsupported": false
+}

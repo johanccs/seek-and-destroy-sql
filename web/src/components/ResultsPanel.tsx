@@ -7,9 +7,26 @@ import { FontSizeControl, useFontSize } from "./FontSizeControl";
 
 type Tab = "results" | "stats" | "plan" | "messages" | "properties";
 
-export function ResultsPanel({ result, prevStats, scratch = false, onResizeStart, schema, schemaError }: { result: RunResult | null; prevStats: RunStats | null; scratch?: boolean; onResizeStart?: (e: React.MouseEvent) => void; schema?: SchemaInfo | null; schemaError?: string | null }) {
-  const [tab, setTab] = useState<Tab>("results");
+const ALL_TABS: Tab[] = ["results", "stats", "plan", "messages", "properties"];
+
+// `tabs` narrows the strip for callers the extra tabs would only confuse. The
+// design track runs scratch SELECTs to make an anomaly visible; an execution
+// plan or a logical-read count teaches nothing there, and an empty tab invites
+// the learner to go looking for something that was never the point.
+export function ResultsPanel({ result, prevStats, scratch = false, onResizeStart, schema, schemaError, tabs = ALL_TABS }: { result: RunResult | null; prevStats: RunStats | null; scratch?: boolean; onResizeStart?: (e: React.MouseEvent) => void; schema?: SchemaInfo | null; schemaError?: string | null; tabs?: Tab[] }) {
+  const [tab, setTab] = useState<Tab>(tabs[0] ?? "results");
   const resultsFs = useFontSize("results", 13);
+
+  // A restricted strip must not leave a hidden tab selected — the body would
+  // render content with no lit tab to explain where it came from.
+  const active = tabs.includes(tab) ? tab : (tabs[0] ?? "results");
+
+  // The empty-state copy has to match the strip it is sitting under: promising
+  // statistics and an execution plan to a design learner who has neither tab is
+  // just a dead end with a friendly tone.
+  const emptyMsg = tabs.includes("plan")
+    ? "Run a query to see results, statistics and the execution plan."
+    : "Run a query to see its results.";
 
   const planWarnCount = (result?.plan?.warnings.length ?? 0) + (result?.plan?.missingIndexes.length ?? 0);
 
@@ -20,21 +37,31 @@ export function ResultsPanel({ result, prevStats, scratch = false, onResizeStart
         {result && <PassBanner evaluation={result.evaluation} newlySolved={result.progress?.newlySolved} />}
         {result?.error && <div className="banner fail"><div className="err">{result.error}</div></div>}
         <div className="tabs">
-          <div className={`tab ${tab === "results" ? "active" : ""}`} onClick={() => setTab("results")}>
-            Results
-          </div>
-          <div className={`tab ${tab === "stats" ? "active" : ""}`} onClick={() => setTab("stats")}>
-            Statistics
-          </div>
-          <div className={`tab ${tab === "plan" ? "active" : ""}`} onClick={() => setTab("plan")}>
-            Execution Plan {planWarnCount > 0 && <span className="dot">●</span>}
-          </div>
-          <div className={`tab ${tab === "messages" ? "active" : ""}`} onClick={() => setTab("messages")}>
-            Messages
-          </div>
-          <div className={`tab ${tab === "properties" ? "active" : ""}`} onClick={() => setTab("properties")}>
-            Properties
-          </div>
+          {tabs.includes("results") && (
+            <div className={`tab ${active === "results" ? "active" : ""}`} onClick={() => setTab("results")}>
+              Results
+            </div>
+          )}
+          {tabs.includes("stats") && (
+            <div className={`tab ${active === "stats" ? "active" : ""}`} onClick={() => setTab("stats")}>
+              Statistics
+            </div>
+          )}
+          {tabs.includes("plan") && (
+            <div className={`tab ${active === "plan" ? "active" : ""}`} onClick={() => setTab("plan")}>
+              Execution Plan {planWarnCount > 0 && <span className="dot">●</span>}
+            </div>
+          )}
+          {tabs.includes("messages") && (
+            <div className={`tab ${active === "messages" ? "active" : ""}`} onClick={() => setTab("messages")}>
+              Messages
+            </div>
+          )}
+          {tabs.includes("properties") && (
+            <div className={`tab ${active === "properties" ? "active" : ""}`} onClick={() => setTab("properties")}>
+              Properties
+            </div>
+          )}
           <div className="spacer" />
           {scratch && (
             <span className="badge-scratch" title="Only the selected statement ran. Scratch runs are never graded and cannot complete a lesson.">
@@ -46,8 +73,8 @@ export function ResultsPanel({ result, prevStats, scratch = false, onResizeStart
       </div>
 
       <div className="tab-body fontsize-zoom-wrap" style={{ "--panel-zoom": resultsFs.size / 13 } as React.CSSProperties}>
-        {tab === "results" && (
-          !result ? <div className="muted">Run a query to see results, statistics and the execution plan.</div>
+        {active === "results" && (
+          !result ? <div className="muted">{emptyMsg}</div>
           : result.resultSets.length === 0 ? (
             <div className="muted">No rows returned.</div>
           ) : (
@@ -67,19 +94,19 @@ export function ResultsPanel({ result, prevStats, scratch = false, onResizeStart
               </div>
             ))
           ))}
-        {tab === "stats" && (
-          !result ? <div className="muted">Run a query to see results, statistics and the execution plan.</div>
+        {active === "stats" && (
+          !result ? <div className="muted">{emptyMsg}</div>
           : <StatsPanel stats={result.stats} prev={prevStats} />
         )}
-        {tab === "plan" && (
-          !result ? <div className="muted">Run a query to see results, statistics and the execution plan.</div>
+        {active === "plan" && (
+          !result ? <div className="muted">{emptyMsg}</div>
           : <PlanTree plan={result.plan} />
         )}
-        {tab === "messages" && (
-          !result ? <div className="muted">Run a query to see results, statistics and the execution plan.</div>
+        {active === "messages" && (
+          !result ? <div className="muted">{emptyMsg}</div>
           : <pre style={{ whiteSpace: "pre-wrap", fontSize: 12 }}>{result.messages.join("\n") || "(no messages)"}</pre>
         )}
-        {tab === "properties" && (
+        {active === "properties" && (
           schemaError ? <div className="err">Could not load table properties: {schemaError}</div>
           : !schema ? <div className="muted">Loading table properties…</div>
           : !schema.seeded ? <div className="muted">This lesson's data hasn't been created yet. Run a query or click Reset Lesson, then these properties will appear.</div>

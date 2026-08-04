@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { LessonDetail, RunResult, RunStats, SchemaInfo } from "../types";
 import { api } from "../api";
 import { ResultsPanel } from "./ResultsPanel";
@@ -216,7 +217,7 @@ export function LessonView({ lesson, onSolved, theme }: { lesson: LessonDetail; 
           </div>
           <div className="fontsize-zoom-wrap" style={{ "--panel-zoom": narrativeFs.size / 14 } as React.CSSProperties}>
             <div className="markdown-body">
-              <ReactMarkdown>{lesson.narrative}</ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{lesson.narrative}</ReactMarkdown>
             </div>
             {Array.from({ length: hintCount }).map((_, i) => (
               <div className="hint" key={i}>💡 {lesson.hints[i]}</div>

@@ -98,11 +98,47 @@ domain is also clearly distinct from the Beginner capstone's order-entry system.
 | 12 | 1NF: repeating groups | Spine | `Phone1..3` and `Skills` absent; child tables and FKs exist |
 | 13 | 2NF: partial dependencies | Spine | Composite key present; `CourseTitle`/`Credits` moved to `Course` |
 | 14 | 3NF: transitive dependencies | Spine | `Room` and `Instructor` extracted; transitive columns absent |
-| 15 | BCNF: when 3NF isn't enough | Spine | Overlapping candidate keys resolved |
+| 15 | BCNF: when 3NF isn't enough | Spine, extended | Overlapping candidate keys resolved |
 | 16 | 4NF and 5NF | Own scenario | A multivalued dependency split; a join dependency recognised |
 | 17 | Denormalizing on purpose | Spine's 3NF result | A reporting rollup, plus a measured cost |
 | 18 | Naming and schema organisation | Own scenario | `namingConvention`; schemas as namespaces |
 | 19 | Capstone: spreadsheet to BCNF | Unseen table | The full arc, nothing drawn |
+
+### The functional dependencies, stated once
+
+Everything below depends on these being right, so they are written out rather than assumed.
+Verified 2026-08-04 against the standard characterisation of 3NF-but-not-BCNF: a relation
+`R(A,B,C)` with candidate keys `{A,B}` and `{A,C}` and the dependency `B → C` is in 3NF because
+`C` is *prime*, and violates BCNF because `B` is not a superkey.
+
+`EnrolmentSheet` key: `(StudentId, CourseCode, Term)`.
+
+| Dependency | Violates | Fixed in |
+|---|---|---|
+| `Phone1..3`, `Skills` are repeating groups | 1NF | 12 |
+| `StudentId → StudentName, StudentEmail` | 2NF (partial) | 13 |
+| `CourseCode → CourseTitle, Credits` | 2NF (partial) | 13 |
+| `(CourseCode, Term) → RoomCode, InstructorName` | 2NF (partial) | 13 |
+| `RoomCode → RoomBuilding, RoomCapacity` | 3NF (transitive, inside `CourseOffering`) | 14 |
+| `InstructorName → InstructorOffice` | 3NF (transitive, inside `CourseOffering`) | 14 |
+| `Instructor → CourseCode`, with CKs `{Student, Course}` and `{Student, Instructor}` | BCNF | 15 |
+
+**Instructor lives at the offering level, not on `Course`.** An earlier draft put
+`CourseCode → InstructorName` on the `Course` table, which contradicts module 15 — that module
+needs a course to have *several* instructors while each instructor teaches only one course. Both
+cannot be true. Putting the instructor on `(CourseCode, Term)` removes the contradiction and is
+also the more truthful model: who teaches a course varies by term.
+
+**Module 15 extends the spine rather than re-using it unchanged.** It adds a fact the earlier
+modules had no reason to record — *which* instructor taught *this* student — producing
+`(StudentId, CourseCode, InstructorName)` with the overlapping candidate keys above. This is a
+genuine addition to the model, not a contrivance.
+
+**Module 15 must teach the trade-off, not just the decomposition.** Splitting into
+`(Instructor, CourseCode)` and `(StudentId, Instructor)` is lossless but **not
+dependency-preserving**: the dependency `(StudentId, CourseCode) → Instructor` can no longer be
+enforced by either table alone. BCNF is the one normal form that can cost you a constraint, and
+saying so is the honest version of this module. Never present BCNF as strictly better than 3NF.
 
 ### Why three modules leave the spine
 

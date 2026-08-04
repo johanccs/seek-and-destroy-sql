@@ -74,6 +74,7 @@ export type ModuleDetail = {
   startingModel: ErdModel | null;
   progress: { solved: boolean; newlySolved?: boolean };
   azureUnsupported: boolean;
+  startingQuery: string;
 };
 
 export type DdlResponse = { ddl: string; warnings: string[] };
