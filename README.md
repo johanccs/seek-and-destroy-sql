@@ -1,8 +1,8 @@
-# ⚔️ Seek & Destroy — a SQL Performance Playground
+# 🗄️ CCS SQL Academy — a SQL Performance & Database Design Playground
 
-[![CI](https://github.com/johanccs/seek-and-destroy-sql/actions/workflows/ci.yml/badge.svg)](https://github.com/johanccs/seek-and-destroy-sql/actions/workflows/ci.yml)
+[![CI](https://github.com/johanccs/ccs-sql-academy/actions/workflows/ci.yml/badge.svg)](https://github.com/johanccs/ccs-sql-academy/actions/workflows/ci.yml)
 
-**Repo:** https://github.com/johanccs/seek-and-destroy-sql
+**Repo:** https://github.com/johanccs/ccs-sql-academy
 
 **Live:** https://salmon-field-04fa1fd10.7.azurestaticapps.net (API: https://seek-and-destroy-api.azurewebsites.net)
 — running on Azure SQL Database + App Service + Static Web Apps.
@@ -13,8 +13,8 @@
 > and others will change.
 >
 > - The **SQL Performance** track is complete — all 80 lessons work end to end.
-> - The **Database Design** track is new: **5 of 35 modules** are written so far, all at
->   Beginner level. The rest appear on the roadmap page but are not clickable yet.
+> - The **Database Design** track is new: **10 of 35 modules** are written so far — the
+>   Beginner level is complete. The rest appear on the roadmap page but are not clickable yet.
 > - The design track's ERD canvas is mouse-only — no touch support.
 > - The hosted API sleeps when idle, so the first request after a quiet spell can take
 >   several seconds.
@@ -29,8 +29,8 @@ your fix automatically.
 This is a learning tool for query performance (indexes, bad query patterns, plan reading,
 blocking/deadlocks, tempdb pressure, statistics/caching) — **not** a SQL-syntax tutorial.
 
-![Seek & Destroy lesson list](docs/screenshots/screenshot-home.png)
-![A Seek & Destroy lesson with editor and execution plan](docs/screenshots/screenshot-lesson.png)
+![CCS SQL Academy lesson list](docs/screenshots/screenshot-home.png)
+![A CCS SQL Academy lesson with editor and execution plan](docs/screenshots/screenshot-lesson.png)
 
 ## Architecture
 

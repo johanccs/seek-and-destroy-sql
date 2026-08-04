@@ -5,7 +5,7 @@ export function TermsView() {
       <p className="muted legal-updated">Last updated: 27 July 2026</p>
 
       <p>
-        Seek &amp; Destroy is provided free of charge, as-is, for learning purposes. By using
+        CCS SQL Academy is provided free of charge, as-is, for learning purposes. By using
         it, you agree to the following.
       </p>
 
@@ -15,7 +15,7 @@ export function TermsView() {
         without any warranty of accuracy, completeness, or fitness for a particular purpose.
         While the content is reviewed for technical correctness, mistakes can slip through —
         if you spot one, we'd appreciate a report via the{" "}
-        <a href="https://github.com/johanccs/seek-and-destroy-sql" target="_blank" rel="noopener">
+        <a href="https://github.com/johanccs/ccs-sql-academy" target="_blank" rel="noopener">
           GitHub repository
         </a>.
       </p>

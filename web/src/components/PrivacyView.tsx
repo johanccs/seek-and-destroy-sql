@@ -5,7 +5,7 @@ export function PrivacyView() {
       <p className="muted legal-updated">Last updated: 27 July 2026</p>
 
       <p>
-        Seek &amp; Destroy is a free, no-signup learning tool. There are no user accounts, and
+        CCS SQL Academy is a free, no-signup learning tool. There are no user accounts, and
         we do not knowingly collect any information that identifies you personally. This page
         explains, plainly, what data the app does handle.
       </p>
