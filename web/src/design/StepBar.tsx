@@ -40,7 +40,13 @@ export function StepBar({ steps }: { steps: ModuleStep[] }) {
             >
               <span className="stepbar-n">{i + 1}</span>
               <span className="stepbar-label">{meta.label}</span>
-              {step.prompt && <span className="stepbar-prompt">{step.prompt}</span>}
+              {/* Only the current step shows its prompt. Showing all of them at
+                  once pushed the last step off the edge behind a horizontal
+                  scroll, which hides the thing the bar exists to advertise —
+                  and the prompt is only actionable for the step you are on. */}
+              {step.prompt && i === current && (
+                <span className="stepbar-prompt">{step.prompt}</span>
+              )}
             </button>
           </li>
         );
