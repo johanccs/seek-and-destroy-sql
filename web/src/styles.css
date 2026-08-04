@@ -642,4 +642,45 @@ table.grid th { background: var(--bg-3); position: sticky; top: 0; }
 .roadmap-item.built .roadmap-title { color: var(--accent); }
 .roadmap-tick { color: var(--good); }
 .roadmap-blurb { display: block; font-size: 12px; line-height: 1.45; color: var(--text-dim); margin-top: 1px; }
+
+/* Passive progress map over a module's steps. Horizontal, scrollable on
+   narrow viewports rather than wrapping, so the page body never scrolls
+   sideways. */
+.stepbar {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 18px;
+  list-style: none;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+}
+.stepbar-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.stepbar-step:hover { border-color: var(--accent); }
+.stepbar-step.is-current { border-color: var(--accent); color: var(--accent); }
+.stepbar-n {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--border);
+  font-size: 11px;
+}
+.stepbar-step.is-current .stepbar-n { background: var(--accent); color: var(--bg); }
+.stepbar-label { font-weight: 600; }
+.stepbar-prompt { opacity: 0.7; }
 .roadmap-soon { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--text-dim); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; }
