@@ -7,6 +7,7 @@ import { ResizeHandle } from "../components/ResizeHandle";
 import { PassBanner } from "../components/PassBanner";
 import { ErdCanvas } from "../design/ErdCanvas";
 import { Inspector, type Selection } from "../design/Inspector";
+import { StepBar } from "../design/StepBar";
 import { apply, redo, undo, type ErdAction, type History } from "../design/model";
 import { emptyModel, type CheckResult, type ModuleDetail } from "../design/types";
 import type { Evaluation } from "../types";
@@ -175,6 +176,8 @@ export default function ModuleRoute() {
         </div>
         <div>{module.topics.map((t) => <span className="topic" key={t}>{t}</span>)}</div>
       </div>
+
+      <StepBar steps={module.steps} />
 
       <div
         className="module-body"

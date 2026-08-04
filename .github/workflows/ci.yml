@@ -25,6 +25,9 @@ jobs:
       - name: Build
         run: dotnet build api/SqlPerf.Api/SqlPerf.Api.csproj --no-restore --configuration Release
 
+      - name: Test
+        run: dotnet test api/SqlPerf.Api.Tests/SqlPerf.Api.Tests.csproj --configuration Release --verbosity normal
+
   build-web:
     runs-on: ubuntu-latest
 
